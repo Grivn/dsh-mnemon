@@ -73,8 +73,8 @@ sequenceDiagram
   participant Source
   participant LLM
   DSH->>Host: turn begins (scope, scenario)
-  Host->>Core: acquire Serving generation; compose
-  Core->>Source: facts; project after Strategy selection
+  Host->>Core: acquire Serving generation, compose
+  Core->>Source: facts, project after Strategy selection
   Source-->>Core: fragments + opaque ReadGrant
   Core-->>Host: immutable View
   Host->>LLM: own plugin message: bounded Wake + routes/actions
@@ -83,7 +83,7 @@ sequenceDiagram
   Core->>Source: query / mutate
   Source-->>LLM: bounded Evidence / committed Receipt via Host
   DSH->>Host: turn ends
-  Host->>Core: release lease; drain retired generation
+  Host->>Core: release lease, drain retired generation
 ```
 
 ## Lifecycle and failures
