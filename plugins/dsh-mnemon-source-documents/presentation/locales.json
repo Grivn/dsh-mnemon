@@ -33,7 +33,7 @@
     "documents.createdAfterArchive": "已先迁移 {count} 份旧档案，再创建活跃档案。",
     "documents.updated": "已保存新的档案修订。",
     "documents.updatedAfterArchive": "已先迁移 {count} 份旧档案，再保存修订。",
-    "documents.archived": "已建立 Mnemon 冷索引并归档；关联记忆体：{spaces}",
+    "documents.archived": "已建立 Mnemon 冷索引并归档；关联记忆空间：{spaces}",
     "documents.list": "项目档案列表",
     "documents.activeList": "活跃目录",
     "documents.archiveList": "归档目录",

@@ -77,7 +77,7 @@ function MemorySpacesSourceView(props: MemorySourcePageProps & { page: Page }): 
   return <>
     {error !== null && <div className={css.inlineError} role="alert">{error}</div>}
     {<section className={sidebarCss.memoryWorkspace}>
-      <PageHeader title={t('nav.bodies')} description={t('overview.description')} meta={writable ? t('common.agentSupervised') : activationEnabled ? t('common.activationOnly') : t('common.readOnly')} action={<div className={css.memoryHeaderActions}><button type="button" className={appearanceClass(css.primaryButton, sidebarCss.memoryWriteButton)} disabled={!writable} onClick={() => remember()}>{t('nav.rememberAction')}</button>{preferences !== undefined && <button type="button" className={css.secondaryButton} onClick={() => setStrategyOpen(true)}>{t('strategy.action')}</button>}</div>} />
+      <PageHeader title={t('nav.spaces')} description={t('overview.description')} meta={writable ? t('common.agentSupervised') : activationEnabled ? t('common.activationOnly') : t('common.readOnly')} action={<div className={css.memoryHeaderActions}><button type="button" className={appearanceClass(css.primaryButton, sidebarCss.memoryWriteButton)} disabled={!writable} onClick={() => remember()}>{t('nav.rememberAction')}</button>{preferences !== undefined && <button type="button" className={css.secondaryButton} onClick={() => setStrategyOpen(true)}>{t('strategy.action')}</button>}</div>} />
       <div className={sidebarCss.memoryNavigation}><div className={sidebarCss.memoryTabs} role="tablist" aria-label={t('nav.memory.aria')}>{TABS.map(tab => <button key={tab.id} type="button" role="tab" aria-selected={page === tab.id} data-active={page === tab.id ? '' : undefined} onClick={() => setPage(tab.id)}>{t(tab.key)}</button>)}</div></div>
     </section>}
     {page === 'spaces' && <OverviewPage client={client} metadataClient={client} revision={revision} activationEnabled={activationEnabled} writeEnabled={writable} agentAvailable={agentAvailable} fallbackBodies={bodies} fallbackDirectory={status?.memoryBodyDirectory} catalogKnown={status?.memoryBodies !== undefined} onMutate={refresh} onAgentRefresh={refresh} onBodyReconnect={refresh} onBodyMetadata={refresh} onExplore={explore} />}
@@ -98,7 +98,7 @@ export function MemorySpacesSourcePage(props: MemorySourcePageProps & { page: Pa
 
 export function installMemorySpacesUI(ctx: Parameters<typeof installMemorySourceUI>[0], t: MnemonTranslate = translateEn): () => void {
   const pages = [
-    { id: 'spaces', key: 'nav.bodies', order: 300, glyph: '◇' },
+    { id: 'spaces', key: 'nav.spaces', order: 300, glyph: '◇' },
     { id: 'remember', key: 'nav.rememberAction', order: 400, glyph: '+' },
     { id: 'explore', key: 'nav.search', order: 500, glyph: '⌕' },
     { id: 'entities', key: 'nav.entities', order: 600, glyph: '◎' },

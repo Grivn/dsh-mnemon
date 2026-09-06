@@ -1,7 +1,7 @@
 import { descriptor } from './descriptor.ts'
 import type { JsonValue } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import type { Insight, MemoryBody, MemoryListRequest, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import type { Insight, MemoryBody as MemorySpace, MemoryListRequest, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import {
   HttpMemoryProvider,
   firstArray,
@@ -11,7 +11,7 @@ import {
   jsonString,
   type HttpProviderOptions,
 } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 function category(item: Record<string, unknown>): string {
   const categories = jsonArray(item.categories).filter((value): value is string => typeof value === 'string')
@@ -41,8 +41,8 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
   readonly id = 'mem0' as const
   readonly scoreSemantics = NORMALIZED_RELEVANCE_SCORE
 
-  constructor(memoryBodies: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
-    super(memoryBodies, { label: descriptor.label, ...options })
+  constructor(memorySpaces: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
+    super(memorySpaces, { label: descriptor.label, ...options })
   }
 
   async discover(connection: Record<string, string | number | boolean>, signal?: AbortSignal): Promise<ProviderMemorySpace[]> {
@@ -69,7 +69,7 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
     })
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       await this.list(body, { limit: 1 }, signal)
       return { healthy: true }
@@ -78,7 +78,7 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const connection = this.connection(body)
     const mode = String(connection.mode ?? 'platform')
     const filters = this.filters(connection)
@@ -95,7 +95,7 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
     return { results: firstArray(payload, 'results', 'memories').map(insight).filter((item): item is Insight => item !== undefined) }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     const connection = this.connection(body)
     const mode = String(connection.mode ?? 'platform')
     const limit = Math.min(Math.max(request.limit ?? 200, 1), 200)
@@ -112,7 +112,7 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
     return firstArray(payload, 'results', 'memories').map(insight).filter((item): item is Insight => item !== undefined)
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     const mode = String(connection.mode ?? 'platform')
     const payload = await this.request(body, mode === 'self-hosted' ? '/memories' : '/v3/memories/add/', {
@@ -142,7 +142,7 @@ export class Mem0Provider extends HttpMemoryProvider implements MemoryProviderAd
     }
   }
 
-  async forget(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue> {
+  async forget(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     const mode = String(connection.mode ?? 'platform')
     const path = mode === 'self-hosted' ? `/memories/${encodeURIComponent(id)}` : `/v1/memories/${encodeURIComponent(id)}`

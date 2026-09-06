@@ -1,7 +1,7 @@
 import { css, sidebarCss, useT } from './presentation.ts'
 import type { JSX } from 'react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { CATEGORIES, type Category, type EntityView, type Insight, type MemoryBodyCatalog, type MemoryBodyMetadataUpdate, type MemoryBodyProvider, type MemoryBodyView, type MemoryGraphNode, type MemoryGraphSnapshot, type MemoryPlacementCapability, type MemoryPlacementPreference, type MemoryListView, type MemoryProviderConfigField, type MemoryProviderConnection, type MemoryProviderDescriptor, type MemoryProviderId, type MemoryReadSource } from '../contracts.ts'
+import { CATEGORIES, type Category, type EntityView, type Insight, type MemorySpaceCatalog, type MemorySpaceMetadataUpdate, type MemorySpaceProvider, type MemorySpaceView, type MemoryGraphNode, type MemoryGraphSnapshot, type MemoryPlacementCapability, type MemoryPlacementPreference, type MemoryListView, type MemoryProviderConfigField, type MemoryProviderConnection, type MemoryProviderDescriptor, type MemoryProviderId, type MemoryReadSource } from '../contracts.ts'
 import type { MemorySpacesPageClient } from './api.ts'
 import { ProviderIcon } from './ProviderIcon.tsx'
 import { providerFieldLabel, providerDisplayLabel, providerOptionLabel, providerSummary } from './provider-presentation.ts'
@@ -34,7 +34,7 @@ function providerDraftComplete(provider: MemoryProviderDescriptor | undefined, c
   return provider.serviceConfigured !== false && memoryProviderFields(provider).every(field => !field.required || String(connection?.[field.key] ?? '').trim() !== '')
 }
 
-export function nativeBodyProvider(provider: MemoryBodyProvider): boolean {
+export function nativeSpaceProvider(provider: MemorySpaceProvider): boolean {
   return provider.origin === 'native'
 }
 
@@ -43,7 +43,7 @@ function ProviderMemoryFields(props: {
   provider: MemoryProviderDescriptor
   connection: MemoryProviderConnection
   onChange: (key: string, value: string | number | boolean) => void
-  body?: MemoryBodyView
+  body?: MemorySpaceView
   clearSecrets?: string[]
   onClearSecretsChange?: (keys: string[]) => void
 }): JSX.Element {
@@ -225,17 +225,17 @@ function normalizeEntity(entity: string): string {
 }
 
 /** Add routing scopes and entity indexes without issuing another recall. */
-function enrichMultiSpaceGraph(graph: MemoryGraphSnapshot, bodies: MemoryBodyView[]): MemoryGraphSnapshot {
+function enrichMultiSpaceGraph(graph: MemoryGraphSnapshot, bodies: MemorySpaceView[]): MemoryGraphSnapshot {
   if (graph.nodes.length === 0) return graph
   const memories = graph.nodes.map(node => ({ ...node, kind: 'memory' as const }))
-  const memoriesByBody = new Map<string, MemoryGraphNode[]>()
+  const memoriesBySpace = new Map<string, MemoryGraphNode[]>()
   for (const node of memories) {
     if (node.memoryBodyId === undefined) continue
-    memoriesByBody.set(node.memoryBodyId, [...(memoriesByBody.get(node.memoryBodyId) ?? []), node])
+    memoriesBySpace.set(node.memoryBodyId, [...(memoriesBySpace.get(node.memoryBodyId) ?? []), node])
   }
 
-  const activeBodies = bodies.filter(body => body.active && ((memoriesByBody.get(body.id)?.length ?? 0) > 0 || (body.stats?.topEntities.length ?? 0) > 0))
-  const spaceNodes: MemoryGraphNode[] = activeBodies.map(body => ({
+  const activeSpaces = bodies.filter(body => body.active && ((memoriesBySpace.get(body.id)?.length ?? 0) > 0 || (body.stats?.topEntities.length ?? 0) > 0))
+  const spaceNodes: MemoryGraphNode[] = activeSpaces.map(body => ({
     id: body.id,
     graphId: spaceGraphId(body.id),
     kind: 'space',
@@ -245,23 +245,23 @@ function enrichMultiSpaceGraph(graph: MemoryGraphSnapshot, bodies: MemoryBodyVie
     memoryBodyId: body.id,
     memoryBodyName: body.name,
     memoryProviderId: body.provider.id,
-    occurrenceCount: body.stats?.totalInsights ?? memoriesByBody.get(body.id)?.length ?? 0,
+    occurrenceCount: body.stats?.totalInsights ?? memoriesBySpace.get(body.id)?.length ?? 0,
   }))
 
   // Native Mnemon entity edges connect two memories. This overview renders
   // entities as first-class nodes, so retaining those edges would falsely make
   // a memory-to-memory edge look like an entity-to-memory association.
   const edges: MemoryGraphSnapshot['edges'] = graph.edges.filter(edge => edge.type !== 'entity')
-  for (const body of activeBodies) {
-    for (const memory of memoriesByBody.get(body.id) ?? []) {
+  for (const body of activeSpaces) {
+    for (const memory of memoriesBySpace.get(body.id) ?? []) {
       edges.push({ sourceId: spaceGraphId(body.id), targetId: graphNodeKey(memory), label: 'scope', color: '#708199', type: 'scope' })
     }
   }
 
-  const bodiesById = new Map(activeBodies.map(body => [body.id, body]))
-  const indexedEntities = new Map<string, { entity: string; memories: MemoryGraphNode[]; bodies: MemoryBodyView[] }>()
+  const spacesById = new Map(activeSpaces.map(body => [body.id, body]))
+  const indexedEntities = new Map<string, { entity: string; memories: MemoryGraphNode[]; bodies: MemorySpaceView[] }>()
   for (const memory of memories) {
-    const body = memory.memoryBodyId === undefined ? undefined : bodiesById.get(memory.memoryBodyId)
+    const body = memory.memoryBodyId === undefined ? undefined : spacesById.get(memory.memoryBodyId)
     if (body === undefined) continue
     const seen = new Set<string>()
     for (const rawEntity of memory.entities ?? []) {
@@ -620,35 +620,35 @@ function MemoryGraph(props: { graph: MemoryGraphSnapshot; selectedId?: string | 
   )
 }
 
-export function OverviewPage(props: { client: MemorySpacesPageClient; metadataClient: MemorySpacesPageClient; revision: number; activationEnabled: boolean; writeEnabled: boolean; agentAvailable: boolean; fallbackBodies: MemoryBodyView[]; fallbackDirectory: string | undefined; catalogKnown: boolean; onMutate: () => void; onAgentRefresh: () => void; onBodyReconnect: (body: MemoryBodyView) => void; onBodyMetadata: (updates: readonly MemoryBodyMetadataUpdate[]) => void; onExplore: (query: string) => void }): JSX.Element {
+export function OverviewPage(props: { client: MemorySpacesPageClient; metadataClient: MemorySpacesPageClient; revision: number; activationEnabled: boolean; writeEnabled: boolean; agentAvailable: boolean; fallbackBodies: MemorySpaceView[]; fallbackDirectory: string | undefined; catalogKnown: boolean; onMutate: () => void; onAgentRefresh: () => void; onBodyReconnect: (body: MemorySpaceView) => void; onBodyMetadata: (updates: readonly MemorySpaceMetadataUpdate[]) => void; onExplore: (query: string) => void }): JSX.Element {
   const t = useT()
   const locale = useLocale()
-  const bodyCreateFormId = useId()
-  const bodyEditFormId = useId()
+  const spaceCreateFormId = useId()
+  const spaceEditFormId = useId()
   const [graph, setGraph] = useState<MemoryGraphSnapshot | null>(null)
-  const [catalog, setCatalog] = useState<MemoryBodyCatalog | null>(null)
+  const [catalog, setCatalog] = useState<MemorySpaceCatalog | null>(null)
   const [selected, setSelected] = useState<MemoryGraphNode | null>(null)
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [healthLoading, setHealthLoading] = useState(true)
   const [graphLoading, setGraphLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [changing, setChanging] = useState<string | null>(null)
-  const [reconnectingBody, setReconnectingBody] = useState<string | null>(null)
+  const [reconnectingSpace, setReconnectingSpace] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const [creatingBodyOpen, setCreatingBodyOpen] = useState(false)
-  const [bodyName, setBodyName] = useState('')
-  const [bodyDescription, setBodyDescription] = useState('')
-  const [bodyProviderId, setBodyProviderId] = useState<MemoryProviderId>('mnemon-native')
+  const [creatingSpaceOpen, setCreatingSpaceOpen] = useState(false)
+  const [spaceName, setSpaceName] = useState('')
+  const [spaceDescription, setSpaceDescription] = useState('')
+  const [spaceProviderId, setSpaceProviderId] = useState<MemoryProviderId>('mnemon-native')
   const [providerDrafts, setProviderDrafts] = useState<ProviderDrafts>({})
   const [catalogUnavailable, setCatalogUnavailable] = useState(false)
-  const [editingBody, setEditingBody] = useState<string | null>(null)
+  const [editingSpace, setEditingSpace] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editConnection, setEditConnection] = useState<MemoryProviderConnection>({})
   const [editClearSecrets, setEditClearSecrets] = useState<string[]>([])
-  const [savingBody, setSavingBody] = useState<string | null>(null)
-  const [confirmingDeleteBody, setConfirmingDeleteBody] = useState<string | null>(null)
-  const [deletingBody, setDeletingBody] = useState<string | null>(null)
+  const [savingSpace, setSavingSpace] = useState<string | null>(null)
+  const [confirmingDeleteSpace, setConfirmingDeleteSpace] = useState<string | null>(null)
+  const [deletingSpace, setDeletingSpace] = useState<string | null>(null)
   const [preview, setPreview] = useState<MemoryGraphNode | null>(null)
   const [metadataOpen, setMetadataOpen] = useState(false)
   const [metadataSelection, setMetadataSelection] = useState<string[]>([])
@@ -727,7 +727,7 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
     return () => window.clearInterval(timer)
   }, [])
 
-  const toggle = async (body: MemoryBodyView) => {
+  const toggle = async (body: MemorySpaceView) => {
     setChanging(body.id); setError(null)
     try {
       await props.client.updateBody(body.id, { active: !body.active })
@@ -736,9 +736,9 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
     } catch (reason) { setError(message(reason)) } finally { setChanging(null) }
   }
 
-  const reconnect = async (body: MemoryBodyView) => {
-    if (reconnectingBody !== null || editingBody !== null || deletingBody !== null) return
-    setReconnectingBody(body.id); setError(null)
+  const reconnect = async (body: MemorySpaceView) => {
+    if (reconnectingSpace !== null || editingSpace !== null || deletingSpace !== null) return
+    setReconnectingSpace(body.id); setError(null)
     setCatalog(current => current === null ? current : {
       ...current,
       items: current.items.map(item => item.id === body.id ? { ...item, statusLoading: true } : item),
@@ -758,20 +758,20 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
       })
       setError(failure)
     } finally {
-      setReconnectingBody(null)
+      setReconnectingSpace(null)
     }
   }
 
-  const beginEdit = (body: MemoryBodyView) => {
-    setEditingBody(body.id); setEditName(body.name); setEditDescription(body.description ?? ''); setError(null)
-    setEditConnection(nativeBodyProvider(body.provider) ? {} : { ...body.provider.settings })
+  const beginEdit = (body: MemorySpaceView) => {
+    setEditingSpace(body.id); setEditName(body.name); setEditDescription(body.description ?? ''); setError(null)
+    setEditConnection(nativeSpaceProvider(body.provider) ? {} : { ...body.provider.settings })
     setEditClearSecrets([])
   }
 
-  const saveEdit = async (event: FormEvent, body: MemoryBodyView) => {
+  const saveEdit = async (event: FormEvent, body: MemorySpaceView) => {
     event.preventDefault()
     if (editName.trim() === '') return
-    setSavingBody(body.id); setError(null)
+    setSavingSpace(body.id); setError(null)
     try {
       const descriptor = catalog?.providers.find(provider => provider.id === body.provider.id)
       const connection = descriptor === undefined ? {} : Object.fromEntries(Object.entries(editConnection).filter(([key, value]) => {
@@ -781,43 +781,43 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
       await props.client.updateBody(body.id, {
         name: editName,
         description: editDescription,
-        ...(nativeBodyProvider(body.provider) ? {} : { connection, ...(editClearSecrets.length === 0 ? {} : { clearSecrets: editClearSecrets }) }),
+        ...(nativeSpaceProvider(body.provider) ? {} : { connection, ...(editClearSecrets.length === 0 ? {} : { clearSecrets: editClearSecrets }) }),
       })
-      setEditingBody(null)
+      setEditingSpace(null)
       await load(true)
       props.onMutate()
-    } catch (reason) { setError(message(reason)) } finally { setSavingBody(null) }
+    } catch (reason) { setError(message(reason)) } finally { setSavingSpace(null) }
   }
 
   const create = async (event: FormEvent) => {
     event.preventDefault()
     const providers = catalog?.providers ?? []
-    const manualProvider = providers.find(provider => provider.id === bodyProviderId)
-    if (bodyName.trim() === '' || bodyDescription.trim() === '' || !providerDraftComplete(manualProvider, providerDrafts[bodyProviderId])) return
+    const manualProvider = providers.find(provider => provider.id === spaceProviderId)
+    if (spaceName.trim() === '' || spaceDescription.trim() === '' || !providerDraftComplete(manualProvider, providerDrafts[spaceProviderId])) return
     setCreating(true); setError(null)
     try {
       await props.client.createBody({
-        name: bodyName,
-        description: bodyDescription,
-        providerId: bodyProviderId,
-        ...(manualProvider?.origin === 'native' ? {} : { connection: providerDrafts[bodyProviderId] ?? {} }),
+        name: spaceName,
+        description: spaceDescription,
+        providerId: spaceProviderId,
+        ...(manualProvider?.origin === 'native' ? {} : { connection: providerDrafts[spaceProviderId] ?? {} }),
       })
-      setBodyName(''); setBodyDescription(''); setBodyProviderId(providers.find(provider => provider.origin === 'native')?.id ?? providers[0]?.id ?? 'mnemon-native')
+      setSpaceName(''); setSpaceDescription(''); setSpaceProviderId(providers.find(provider => provider.origin === 'native')?.id ?? providers[0]?.id ?? 'mnemon-native')
       setProviderDrafts(current => Object.fromEntries(providers.map(provider => [provider.id, Object.fromEntries(Object.entries(current[provider.id] ?? {}).map(([key, value]) => [key, provider.fields.some(field => field.key === key && field.input === 'secret') ? '' : value]))])))
-      setCreatingBodyOpen(false)
+      setCreatingSpaceOpen(false)
       await load(true)
       props.onMutate()
     } catch (reason) { setError(message(reason)) } finally { setCreating(false) }
   }
 
-  const deleteBody = async (body: MemoryBodyView) => {
-    setDeletingBody(body.id); setError(null)
+  const deleteBody = async (body: MemorySpaceView) => {
+    setDeletingSpace(body.id); setError(null)
     try {
       await props.client.deleteBody(body.id)
-      setConfirmingDeleteBody(null)
+      setConfirmingDeleteSpace(null)
       await load(true)
       props.onMutate()
-    } catch (reason) { setError(message(reason)) } finally { setDeletingBody(null) }
+    } catch (reason) { setError(message(reason)) } finally { setDeletingSpace(null) }
   }
 
   const maintainMetadata = () => {
@@ -853,8 +853,8 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
   const graphSources = graph?.sources ?? []
   const onlyQueryOrUnsupported = graphSources.length > 0 && graphSources.every(source => source.mode === 'query-only' || source.mode === 'unsupported' || source.status === 'unavailable')
   const selectedKind = selected === null ? null : graphNodeKind(selected)
-  const editingBodyView = editingBody === null ? undefined : catalog?.items.find(body => body.id === editingBody)
-  const deletingBodyView = confirmingDeleteBody === null ? undefined : catalog?.items.find(body => body.id === confirmingDeleteBody)
+  const editingSpaceView = editingSpace === null ? undefined : catalog?.items.find(body => body.id === editingSpace)
+  const deletingSpaceView = confirmingDeleteSpace === null ? undefined : catalog?.items.find(body => body.id === confirmingDeleteSpace)
   const providers = catalog?.providers ?? []
   // The status summary already carries the non-blocking control-plane
   // directory. Keep metadata maintenance usable while the richer Memory page
@@ -889,30 +889,30 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
         if (hours < 24) return t('overview.fullSyncHours', { count: hours })
         return t('overview.fullSyncDays', { count: Math.floor(hours / 24) })
       })()
-  const selectedProvider = providers.find(provider => provider.id === bodyProviderId)
-  const nativeBodyCount = catalog?.items.filter(body => nativeBodyProvider(body.provider)).length ?? 0
-  const canDeleteBody = (body: MemoryBodyView): boolean => !nativeBodyProvider(body.provider) || nativeBodyCount > 1
+  const selectedProvider = providers.find(provider => provider.id === spaceProviderId)
+  const nativeSpaceCount = catalog?.items.filter(body => nativeSpaceProvider(body.provider)).length ?? 0
+  const canDeleteSpace = (body: MemorySpaceView): boolean => !nativeSpaceProvider(body.provider) || nativeSpaceCount > 1
   const updateProviderDraft = (providerId: MemoryProviderId, key: string, value: string | number | boolean) => setProviderDrafts(current => ({ ...current, [providerId]: { ...(current[providerId] ?? {}), [key]: value } }))
-  const placementReceipt = (body: MemoryBodyView) => body.placement === undefined ? null : <div className={css.placementReceipt} title={body.placement.reason}><span aria-hidden="true">✦</span><div><strong>{t(body.placement.decidedBy === 'llm' ? 'overview.placementByLlm' : 'overview.placementByRules')}</strong><small>{t('overview.placementConfidence', { confidence: t(`overview.confidence.${body.placement.confidence}`) })}</small><p>{body.placement.reason}</p></div></div>
-  const bodyEditForm = (body: MemoryBodyView) => <form id={bodyEditFormId} className={css.bodyEdit} onSubmit={event => void saveEdit(event, body)}>
+  const placementReceipt = (body: MemorySpaceView) => body.placement === undefined ? null : <div className={css.placementReceipt} title={body.placement.reason}><span aria-hidden="true">✦</span><div><strong>{t(body.placement.decidedBy === 'llm' ? 'overview.placementByLlm' : 'overview.placementByRules')}</strong><small>{t('overview.placementConfidence', { confidence: t(`overview.confidence.${body.placement.confidence}`) })}</small><p>{body.placement.reason}</p></div></div>
+  const spaceEditForm = (body: MemorySpaceView) => <form id={spaceEditFormId} className={css.bodyEdit} onSubmit={event => void saveEdit(event, body)}>
     <label>{t('overview.editName')}<input aria-label={t('overview.editName')} value={editName} onChange={event => setEditName(event.target.value)} maxLength={100} required /></label>
     <label>{t('overview.editDescription')}<textarea aria-label={t('overview.editDescription')} value={editDescription} onChange={event => setEditDescription(event.target.value)} rows={4} maxLength={1000} /></label>
-    {!nativeBodyProvider(body.provider) && (() => { const descriptor = providers.find(provider => provider.id === body.provider.id); return descriptor === undefined ? null : <ProviderMemoryFields provider={descriptor} connection={editConnection} onChange={(key, value) => setEditConnection(current => ({ ...current, [key]: value }))} body={body} clearSecrets={editClearSecrets} onClearSecretsChange={setEditClearSecrets} /> })()}
+    {!nativeSpaceProvider(body.provider) && (() => { const descriptor = providers.find(provider => provider.id === body.provider.id); return descriptor === undefined ? null : <ProviderMemoryFields provider={descriptor} connection={editConnection} onChange={(key, value) => setEditConnection(current => ({ ...current, [key]: value }))} body={body} clearSecrets={editClearSecrets} onClearSecretsChange={setEditClearSecrets} /> })()}
   </form>
-  const bodyCreateForm = <form id={bodyCreateFormId} className={appearanceClass(css.bodyEdit, css.bodyCreateForm)} onSubmit={event => void create(event)}>
+  const spaceCreateForm = <form id={spaceCreateFormId} className={appearanceClass(css.bodyEdit, css.spaceCreateForm)} onSubmit={event => void create(event)}>
     <section className={css.createSection}>
       <div className={css.createSectionHeading}><span>01</span><div><strong>{t('overview.createIdentityTitle')}</strong><small>{t('overview.createIdentityHint')}</small></div></div>
       <div className={css.createIdentityGrid}>
-        <label>{t('overview.createName')}<input data-autofocus aria-label={t('overview.createName')} value={bodyName} onChange={event => setBodyName(event.target.value)} placeholder={t('overview.createNamePlaceholder')} maxLength={100} required /></label>
-        <label>{t('overview.createDescription')}<textarea aria-label={t('overview.createDescription')} value={bodyDescription} onChange={event => setBodyDescription(event.target.value)} placeholder={t('overview.createDescriptionPlaceholder')} rows={3} maxLength={1000} required /></label>
+        <label>{t('overview.createName')}<input data-autofocus aria-label={t('overview.createName')} value={spaceName} onChange={event => setSpaceName(event.target.value)} placeholder={t('overview.createNamePlaceholder')} maxLength={100} required /></label>
+        <label>{t('overview.createDescription')}<textarea aria-label={t('overview.createDescription')} value={spaceDescription} onChange={event => setSpaceDescription(event.target.value)} placeholder={t('overview.createDescriptionPlaceholder')} rows={3} maxLength={1000} required /></label>
       </div>
     </section>
     <section className={css.createSection}>
       <div className={css.createSectionHeading}><span>02</span><div><strong>{t('overview.createPlacementTitle')}</strong><small>{t('overview.createPlacementHint')}</small></div></div>
       <fieldset className={css.providerChoice}><legend>{t('overview.providerLabel')}</legend>{providers.map(provider => {
         const serviceMissing = provider.origin !== 'native' && provider.serviceConfigured === false
-        return <label key={provider.id} data-selected={bodyProviderId === provider.id || undefined} data-native={provider.origin === 'native' || undefined} data-disabled={serviceMissing || undefined}>
-          <input type="radio" name="memory-provider" value={provider.id} checked={bodyProviderId === provider.id} disabled={serviceMissing} onChange={() => setBodyProviderId(provider.id)} />
+        return <label key={provider.id} data-selected={spaceProviderId === provider.id || undefined} data-native={provider.origin === 'native' || undefined} data-disabled={serviceMissing || undefined}>
+          <input type="radio" name="memory-provider" value={provider.id} checked={spaceProviderId === provider.id} disabled={serviceMissing} onChange={() => setSpaceProviderId(provider.id)} />
           <ProviderIcon providerId={provider.id} icon={provider.icon} className={css.providerChoiceIcon} />
           <span><strong>{provider.label}{provider.origin === 'native' && <em>{t('overview.nativeOfficial')}</em>}</strong><small>{serviceMissing ? t('overview.providerServiceRequired') : `${t(`overview.workspaceBinding.${provider.workspaceBinding}`)} · ${providerSummary(t, provider)}`}</small></span>
           <i className={css.choiceControl} data-kind="radio" aria-hidden="true" />
@@ -921,9 +921,9 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
       {selectedProvider !== undefined && selectedProvider.origin !== 'native' && <ProviderMemoryFields provider={selectedProvider} connection={providerDrafts[selectedProvider.id] ?? {}} onChange={(key, value) => updateProviderDraft(selectedProvider.id, key, value)} />}
     </section>
   </form>
-  const bodyToggle = (body: MemoryBodyView) => <button type="button" className={css.bodySwitch} role="switch" aria-checked={body.active} aria-label={t('overview.toggleAria', { name: body.name })} disabled={!props.activationEnabled || changing === body.id || deletingBody === body.id} onClick={() => void toggle(body)}><span className={css.bodySwitchTrack} aria-hidden="true"><i /></span><span>{changing === body.id ? t('overview.toggling') : body.active ? t('common.active') : t('common.inactive')}</span></button>
-  const bodyEditActionClass = appearanceClass(css.ghostButton, appearanceClass(sidebarCss.itemActionButton, sidebarCss.itemEditAction))
-  const bodyDeleteActionClass = appearanceClass(css.dangerButton, appearanceClass(sidebarCss.itemActionButton, sidebarCss.itemDangerAction))
+  const spaceToggle = (body: MemorySpaceView) => <button type="button" className={css.bodySwitch} role="switch" aria-checked={body.active} aria-label={t('overview.toggleAria', { name: body.name })} disabled={!props.activationEnabled || changing === body.id || deletingSpace === body.id} onClick={() => void toggle(body)}><span className={css.bodySwitchTrack} aria-hidden="true"><i /></span><span>{changing === body.id ? t('overview.toggling') : body.active ? t('common.active') : t('common.inactive')}</span></button>
+  const spaceEditActionClass = appearanceClass(css.ghostButton, appearanceClass(sidebarCss.itemActionButton, sidebarCss.itemEditAction))
+  const spaceDeleteActionClass = appearanceClass(css.dangerButton, appearanceClass(sidebarCss.itemActionButton, sidebarCss.itemDangerAction))
   return (
     <div className={css.page}>
       <PageHeader title={t('nav.overview')} description={t(('overview.pageDescription'))} meta={fullSyncAge} {...(loading ? { loadingLabel: catalogLoading ? t('overview.directoryLoading') : graphLoading ? t('overview.snapshotLoading') : t('overview.healthLoading') } : {})}
@@ -934,20 +934,20 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
           <div><h3>{t('overview.directory')}</h3><p>{t('overview.directory.description')}</p><code className={css.bodyDirectoryPath}>{catalogUnavailable ? t('overview.directory.unsynced') : catalog?.directory || props.fallbackDirectory || t('overview.directory.waiting')}</code></div>
           <div className={appearanceClass(css.bodyDirectoryControls, sidebarCss.bodyDirectoryActions)}>
             <strong>{catalogUnavailable ? t('overview.directory.unsyncedBadge') : `${catalog?.activeCount ?? '—'} / ${catalog?.total ?? '—'} ${t('common.active')}`}</strong>
-            {props.writeEnabled && !catalogUnavailable && <button type="button" className={bodyEditActionClass} title={!props.agentAvailable ? t('overview.metadataUnavailable') : undefined} onClick={() => { setMetadataSelection([]); setMetadataTasks({}); setMetadataOpen(true); if (!props.agentAvailable) props.onAgentRefresh() }}>{t('overview.metadataAction')}</button>}
-            {props.writeEnabled && !catalogUnavailable && <button type="button" className={bodyEditActionClass} onClick={() => setCreatingBodyOpen(true)}>{t('overview.createTitle')}</button>}
+            {props.writeEnabled && !catalogUnavailable && <button type="button" className={spaceEditActionClass} title={!props.agentAvailable ? t('overview.metadataUnavailable') : undefined} onClick={() => { setMetadataSelection([]); setMetadataTasks({}); setMetadataOpen(true); if (!props.agentAvailable) props.onAgentRefresh() }}>{t('overview.metadataAction')}</button>}
+            {props.writeEnabled && !catalogUnavailable && <button type="button" className={spaceEditActionClass} onClick={() => setCreatingSpaceOpen(true)}>{t('overview.createTitle')}</button>}
           </div>
         </div>
         <div className={css.bodyGrid}>
           {catalog?.items.map(body => (
-            <article key={body.id} className={css.bodyCard} data-provider={body.provider.id} data-active={body.active || undefined} data-healthy={!body.statusLoading && body.healthy || undefined} data-status-loading={body.statusLoading || undefined} data-reconnectable="" data-reconnecting={reconnectingBody === body.id || undefined} data-mnemon-default={body.mnemonDefault || undefined} data-editing={undefined} tabIndex={0} aria-label={t('overview.reconnectAria', { name: body.name })} title={reconnectingBody === body.id ? t('overview.reconnecting') : body.error ?? t('overview.reconnectHint')} onClick={event => {
+            <article key={body.id} className={css.bodyCard} data-provider={body.provider.id} data-active={body.active || undefined} data-healthy={!body.statusLoading && body.healthy || undefined} data-status-loading={body.statusLoading || undefined} data-reconnectable="" data-reconnecting={reconnectingSpace === body.id || undefined} data-mnemon-default={body.mnemonDefault || undefined} data-editing={undefined} tabIndex={0} aria-label={t('overview.reconnectAria', { name: body.name })} title={reconnectingSpace === body.id ? t('overview.reconnecting') : body.error ?? t('overview.reconnectHint')} onClick={event => {
               if (event.target instanceof Element && event.target.closest('button, input, textarea, select, label, a, [role="switch"]') !== null) return
               void reconnect(body)
             }} onKeyDown={event => {
               if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
               event.preventDefault(); void reconnect(body)
             }}>
-              {<><div className={sidebarCss.bodyCardHeader}><div className={sidebarCss.bodyCardIdentity}><span className={css.bodySignal} /><div><strong>{body.name}</strong><div className={sidebarCss.bodyCardMeta}><code>{body.id}</code><MemoryProviderBadge providerId={body.provider.id} label={body.provider.label} /><small className={css.bodyHealth}>{reconnectingBody === body.id ? t('overview.reconnecting') : body.statusLoading ? t('overview.storageChecking') : body.healthy ? t('overview.storageHealthy') : t('overview.storageUnhealthy')}</small>{body.mnemonDefault && <small className={css.mnemonDefaultBadge}>{t('overview.mnemonDefault')}</small>}</div></div></div>{bodyToggle(body)}</div><p title={body.description || t('overview.noDescription')}>{body.description || t('overview.noDescription')}</p>{placementReceipt(body)}<footer className={sidebarCss.bodyCardFooter}><div className={sidebarCss.bodyCardStats}>{!nativeBodyProvider(body.provider) ? <><span className={css.bodyFooterBlock} title={t(body.provider.kind === 'remote' ? 'overview.providerRemote' : 'overview.providerLocal')}>{t(body.provider.kind === 'remote' ? 'overview.providerRemote' : 'overview.providerLocal')}</span><span className={`${css.bodyFooterBlock} ${css.bodyFooterGrow}`} title={body.provider.location || body.provider.label}>{body.provider.location || body.provider.label}</span></> : <><span className={css.bodyFooterBlock} title={t('common.memories', { count: body.stats?.totalInsights ?? 0 })}>{t('common.memories', { count: body.stats?.totalInsights ?? 0 })}</span><span className={css.bodyFooterBlock} title={t('common.edges', { count: body.stats?.edgeCount ?? 0 })}>{t('common.edges', { count: body.stats?.edgeCount ?? 0 })}</span><span className={css.bodyFooterBlock} title={humanBytes(body.stats?.dbSizeBytes ?? 0)}>{humanBytes(body.stats?.dbSizeBytes ?? 0)}</span></>}</div><div className={css.bodyCardActions}><button type="button" className={bodyEditActionClass} aria-label={t('overview.editBodyAria', { name: body.name })} disabled={!props.writeEnabled || deletingBody === body.id} onClick={() => beginEdit(body)}>{t('overview.editBody')}</button><button type="button" className={bodyDeleteActionClass} aria-label={t(!nativeBodyProvider(body.provider) ? 'overview.disconnectBodyAria' : 'overview.deleteBodyAria', { name: body.name })} title={canDeleteBody(body) ? undefined : t('overview.lastStoreDeleteHint')} disabled={!props.writeEnabled || deletingBody === body.id || !canDeleteBody(body)} onClick={() => setConfirmingDeleteBody(body.id)}>{!nativeBodyProvider(body.provider) ? t('overview.disconnectBody') : t('overview.deleteBody')}</button></div></footer></>}
+              {<><div className={sidebarCss.bodyCardHeader}><div className={sidebarCss.bodyCardIdentity}><span className={css.bodySignal} /><div><strong>{body.name}</strong><div className={sidebarCss.bodyCardMeta}><code>{body.id}</code><MemoryProviderBadge providerId={body.provider.id} label={body.provider.label} /><small className={css.bodyHealth}>{reconnectingSpace === body.id ? t('overview.reconnecting') : body.statusLoading ? t('overview.storageChecking') : body.healthy ? t('overview.storageHealthy') : t('overview.storageUnhealthy')}</small>{body.mnemonDefault && <small className={css.mnemonDefaultBadge}>{t('overview.mnemonDefault')}</small>}</div></div></div>{spaceToggle(body)}</div><p title={body.description || t('overview.noDescription')}>{body.description || t('overview.noDescription')}</p>{placementReceipt(body)}<footer className={sidebarCss.bodyCardFooter}><div className={sidebarCss.bodyCardStats}>{!nativeSpaceProvider(body.provider) ? <><span className={css.bodyFooterBlock} title={t(body.provider.kind === 'remote' ? 'overview.providerRemote' : 'overview.providerLocal')}>{t(body.provider.kind === 'remote' ? 'overview.providerRemote' : 'overview.providerLocal')}</span><span className={`${css.bodyFooterBlock} ${css.bodyFooterGrow}`} title={body.provider.location || body.provider.label}>{body.provider.location || body.provider.label}</span></> : <><span className={css.bodyFooterBlock} title={t('common.memories', { count: body.stats?.totalInsights ?? 0 })}>{t('common.memories', { count: body.stats?.totalInsights ?? 0 })}</span><span className={css.bodyFooterBlock} title={t('common.edges', { count: body.stats?.edgeCount ?? 0 })}>{t('common.edges', { count: body.stats?.edgeCount ?? 0 })}</span><span className={css.bodyFooterBlock} title={humanBytes(body.stats?.dbSizeBytes ?? 0)}>{humanBytes(body.stats?.dbSizeBytes ?? 0)}</span></>}</div><div className={css.bodyCardActions}><button type="button" className={spaceEditActionClass} aria-label={t('overview.editSpaceAria', { name: body.name })} disabled={!props.writeEnabled || deletingSpace === body.id} onClick={() => beginEdit(body)}>{t('overview.editSpace')}</button><button type="button" className={spaceDeleteActionClass} aria-label={t(!nativeSpaceProvider(body.provider) ? 'overview.disconnectSpaceAria' : 'overview.deleteSpaceAria', { name: body.name })} title={canDeleteSpace(body) ? undefined : t('overview.lastStoreDeleteHint')} disabled={!props.writeEnabled || deletingSpace === body.id || !canDeleteSpace(body)} onClick={() => setConfirmingDeleteSpace(body.id)}>{!nativeSpaceProvider(body.provider) ? t('overview.disconnectSpace') : t('overview.deleteSpace')}</button></div></footer></>}
             </article>
           ))}
           {catalog?.total === 0 && <div className={css.bodyDirectoryEmpty}><span>◇</span><div><strong>{catalogUnavailable ? t('overview.unsyncedTitle') : t('overview.emptyTitle')}</strong><p>{catalogUnavailable ? t('overview.unsyncedShort') : t('overview.emptyShort')}</p></div></div>}
@@ -955,7 +955,7 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
 
       </section>
       <div className={css.asyncRegion}><ReadSourcePanel title={t('overview.snapshotSources')} hint={t('overview.snapshotSourcesHint')} sources={graphSources} /></div>
-      {creatingBodyOpen && <SidebarModal title={t('overview.createTitle')} description={t('overview.createDialogHint')} busy={creating} wide onClose={() => setCreatingBodyOpen(false)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={creating} onClick={() => setCreatingBodyOpen(false)}>{t('common.cancel')}</button><button type="submit" form={bodyCreateFormId} className={css.primaryButton} disabled={creating || bodyName.trim() === '' || bodyDescription.trim() === '' || !providerDraftComplete(selectedProvider, providerDrafts[bodyProviderId])}>{creating ? t('overview.creating') : t('overview.createAction')}</button></div>}>{bodyCreateForm}</SidebarModal>}
+      {creatingSpaceOpen && <SidebarModal title={t('overview.createTitle')} description={t('overview.createDialogHint')} busy={creating} wide onClose={() => setCreatingSpaceOpen(false)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={creating} onClick={() => setCreatingSpaceOpen(false)}>{t('common.cancel')}</button><button type="submit" form={spaceCreateFormId} className={css.primaryButton} disabled={creating || spaceName.trim() === '' || spaceDescription.trim() === '' || !providerDraftComplete(selectedProvider, providerDrafts[spaceProviderId])}>{creating ? t('overview.creating') : t('overview.createAction')}</button></div>}>{spaceCreateForm}</SidebarModal>}
       {metadataOpen && <SidebarModal title={t('overview.metadataTitle')} description={t('overview.metadataDescription')} busy={metadataBusy} wide onClose={() => setMetadataOpen(false)} footer={<><p className={css.modalFooterNote}>{t('overview.metadataSafety')}</p><div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={metadataBusy} onClick={() => setMetadataOpen(false)}>{t('common.cancel')}</button><button type="button" className={css.primaryButton} disabled={!props.agentAvailable || metadataSelection.length === 0} title={!props.agentAvailable ? t('overview.metadataUnavailable') : undefined} onClick={maintainMetadata}>{t('overview.metadataGenerate', { count: metadataSelection.length })}</button></div></>}><div className={css.metadataDialog}>
         {!props.agentAvailable && <div className={css.inlineError} role="status">{t('overview.metadataUnavailable')}</div>}
         <div className={css.metadataToolbar}><span>{t('overview.metadataSelected', { count: metadataSelection.length })}{metadataRunningCount > 0 && <em>{t('overview.metadataRunningCount', { count: metadataRunningCount })}</em>}</span><button type="button" className={css.ghostButton} disabled={metadataSelectable.length === 0} onClick={() => setMetadataSelection(metadataAllSelected ? [] : metadataSelectable.map(body => body.id))}>{metadataAllSelected ? t('overview.metadataClear') : t('overview.metadataSelectAll')}</button></div>
@@ -965,8 +965,8 @@ export function OverviewPage(props: { client: MemorySpacesPageClient; metadataCl
           return <label key={body.id} data-provider={body.provider.id} data-selected={selected || undefined} data-refreshing={task?.status === 'running' || undefined} data-refreshed={task?.status === 'success' || undefined} data-failed={task?.status === 'error' || undefined}><input type="checkbox" checked={selected} disabled={task?.status === 'running'} onChange={event => setMetadataSelection(current => event.target.checked ? [...new Set([...current, body.id])] : current.filter(id => id !== body.id))} /><i className={css.choiceControl} data-kind="check" aria-hidden="true" /><span><strong>{body.name}</strong><small>{body.description || t('overview.noDescription')}</small><span><MemoryProviderBadge providerId={body.provider.id} label={body.provider.label} />{task === undefined ? <code>{body.id}</code> : <small className={css.metadataTaskStatus} data-status={task.status} title={task.error}>{task.status === 'running' ? t('overview.metadataTaskRunning') : task.status === 'success' ? t('overview.metadataTaskSuccess') : t('overview.metadataTaskError', { error: task.error ?? t('overview.metadataTaskUnknown') })}</small>}</span></span></label>
         })}</div>
       </div></SidebarModal>}
-      {editingBodyView !== undefined && <SidebarModal title={t('overview.editBodyAria', { name: editingBodyView.name })} description={editingBodyView.id} busy={savingBody === editingBodyView.id} onClose={() => setEditingBody(null)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={savingBody === editingBodyView.id} onClick={() => setEditingBody(null)}>{t('common.cancel')}</button><button type="submit" form={bodyEditFormId} className={css.primaryButton} disabled={savingBody === editingBodyView.id || editName.trim() === ''}>{savingBody === editingBodyView.id ? t('overview.savingBody') : t('overview.saveBody')}</button></div>}>{bodyEditForm(editingBodyView)}</SidebarModal>}
-      {deletingBodyView !== undefined && <SidebarModal title={t(!nativeBodyProvider(deletingBodyView.provider) ? 'overview.disconnectTitle' : 'overview.deleteTitle', { name: deletingBodyView.name })} description={deletingBodyView.id} busy={deletingBody === deletingBodyView.id} onClose={() => setConfirmingDeleteBody(null)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close data-autofocus className={css.ghostButton} disabled={deletingBody === deletingBodyView.id} onClick={() => setConfirmingDeleteBody(null)}>{t('common.cancel')}</button><button type="button" className={css.dangerSolidButton} title={canDeleteBody(deletingBodyView) ? undefined : t('overview.lastStoreDeleteHint')} disabled={deletingBody === deletingBodyView.id || !canDeleteBody(deletingBodyView)} onClick={() => void deleteBody(deletingBodyView)}>{deletingBody === deletingBodyView.id ? t('overview.deletingBody') : t(!nativeBodyProvider(deletingBodyView.provider) ? 'overview.disconnectAction' : 'overview.deleteAction')}</button></div>}><div className={css.bodyDeleteConfirm}><p>{t(!nativeBodyProvider(deletingBodyView.provider) ? 'overview.disconnectWarning' : 'overview.deleteWarning', { provider: deletingBodyView.provider.label })}</p><div className={css.bodyDeleteSummary}><strong>{deletingBodyView.name}</strong><span>{deletingBodyView.provider.label} · {deletingBodyView.provider.location || t('common.memories', { count: deletingBodyView.stats?.totalInsights ?? 0 })}</span></div></div></SidebarModal>}
+      {editingSpaceView !== undefined && <SidebarModal title={t('overview.editSpaceAria', { name: editingSpaceView.name })} description={editingSpaceView.id} busy={savingSpace === editingSpaceView.id} onClose={() => setEditingSpace(null)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={savingSpace === editingSpaceView.id} onClick={() => setEditingSpace(null)}>{t('common.cancel')}</button><button type="submit" form={spaceEditFormId} className={css.primaryButton} disabled={savingSpace === editingSpaceView.id || editName.trim() === ''}>{savingSpace === editingSpaceView.id ? t('overview.savingSpace') : t('overview.saveSpace')}</button></div>}>{spaceEditForm(editingSpaceView)}</SidebarModal>}
+      {deletingSpaceView !== undefined && <SidebarModal title={t(!nativeSpaceProvider(deletingSpaceView.provider) ? 'overview.disconnectTitle' : 'overview.deleteTitle', { name: deletingSpaceView.name })} description={deletingSpaceView.id} busy={deletingSpace === deletingSpaceView.id} onClose={() => setConfirmingDeleteSpace(null)} footer={<div className={css.modalFooterActions}><button type="button" data-dialog-close data-autofocus className={css.ghostButton} disabled={deletingSpace === deletingSpaceView.id} onClick={() => setConfirmingDeleteSpace(null)}>{t('common.cancel')}</button><button type="button" className={css.dangerSolidButton} title={canDeleteSpace(deletingSpaceView) ? undefined : t('overview.lastStoreDeleteHint')} disabled={deletingSpace === deletingSpaceView.id || !canDeleteSpace(deletingSpaceView)} onClick={() => void deleteBody(deletingSpaceView)}>{deletingSpace === deletingSpaceView.id ? t('overview.deletingSpace') : t(!nativeSpaceProvider(deletingSpaceView.provider) ? 'overview.disconnectAction' : 'overview.deleteAction')}</button></div>}><div className={css.bodyDeleteConfirm}><p>{t(!nativeSpaceProvider(deletingSpaceView.provider) ? 'overview.disconnectWarning' : 'overview.deleteWarning', { provider: deletingSpaceView.provider.label })}</p><div className={css.bodyDeleteSummary}><strong>{deletingSpaceView.name}</strong><span>{deletingSpaceView.provider.label} · {deletingSpaceView.provider.location || t('common.memories', { count: deletingSpaceView.stats?.totalInsights ?? 0 })}</span></div></div></SidebarModal>}
       {!catalogUnavailable && graph !== null && graph.nodes.length > 0 ? (
         <div className={css.graphLayout}>
           <section className={css.graphPanel}>
@@ -1294,7 +1294,7 @@ export function PersistenceStrategyDialog(props: {
   </SidebarModal>
 }
 
-export function RememberPage(props: { client: MemorySpacesPageClient; agentAvailable: boolean; memoryBodies: MemoryBodyView[]; writeEnabled: boolean; seed: string; onMutate: () => void; onClose: () => void; onComplete?: () => void }): JSX.Element {
+export function RememberPage(props: { client: MemorySpacesPageClient; agentAvailable: boolean; memoryBodies: MemorySpaceView[]; writeEnabled: boolean; seed: string; onMutate: () => void; onClose: () => void; onComplete?: () => void }): JSX.Element {
   const t = useT()
   const rememberFormId = useId()
   const [content, setContent] = useState(props.seed)
@@ -1398,3 +1398,6 @@ export function ListPage(props: { client: MemorySpacesPageClient; revision: numb
     </div>
   )
 }
+
+/** @deprecated Use nativeSpaceProvider. */
+export const nativeBodyProvider = nativeSpaceProvider

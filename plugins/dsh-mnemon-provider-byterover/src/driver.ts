@@ -4,8 +4,8 @@ import { basename, isAbsolute, join, resolve } from 'node:path'
 import type { JsonValue } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import { runProcess, type ProcessRunner } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import type { Insight, MemoryBody, MemoryGraphSnapshot, MemoryListRequest, MemoryProviderConnection, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import type { Insight, MemoryBody as MemorySpace, MemoryGraphSnapshot, MemoryListRequest, MemoryProviderConnection, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 interface ByteRoverProviderOptions {
   process?: ProcessRunner
@@ -19,10 +19,10 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
   private readonly process: ProcessRunner
   private readonly queryTimeoutMs: number
   private readonly curateTimeoutMs: number
-  private readonly statusCache = new Map<string, { checkedAt: number; value: ProviderBodyStatus }>()
-  private readonly statusInFlight = new Map<string, Promise<ProviderBodyStatus>>()
+  private readonly statusCache = new Map<string, { checkedAt: number; value: ProviderSpaceStatus }>()
+  private readonly statusInFlight = new Map<string, Promise<ProviderSpaceStatus>>()
 
-  constructor(private readonly memoryBodies: MemorySpaceAuthority, options: ByteRoverProviderOptions = {}) {
+  constructor(private readonly memorySpaces: MemorySpaceAuthority, options: ByteRoverProviderOptions = {}) {
     this.process = options.process ?? runProcess
     this.queryTimeoutMs = options.queryTimeoutMs ?? 10_000
     this.curateTimeoutMs = options.curateTimeoutMs ?? 120_000
@@ -30,13 +30,13 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
 
   async discover(connection: MemoryProviderConnection): Promise<ProviderMemorySpace[]> {
     const configured = String(connection.defaultDirectory ?? '').trim()
-    const existingDirectory = this.memoryBodies.list()
+    const existingDirectory = this.memorySpaces.list()
       .find(body => (body.provider.typeId ?? body.provider.id) === this.id)?.provider.settings.workingDirectory
     const directory = configured === ''
-      ? String(existingDirectory ?? '').trim() || join(this.memoryBodies.runner.effectiveDataDir(), 'state', 'byterover', 'default')
+      ? String(existingDirectory ?? '').trim() || join(this.memorySpaces.runner.effectiveDataDir(), 'state', 'byterover', 'default')
       : isAbsolute(configured)
         ? configured
-        : resolve(this.memoryBodies.runner.effectiveDataDir(), configured)
+        : resolve(this.memorySpaces.runner.effectiveDataDir(), configured)
     return [{
       externalId: directory,
       name: basename(directory) || 'ByteRover',
@@ -45,7 +45,7 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
     }]
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     if (signal !== undefined) return this.checkStatus(body, signal)
     const cached = this.statusCache.get(body.id)
     if (cached !== undefined && Date.now() - cached.checkedAt < 60_000) return cached.value
@@ -67,7 +67,7 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
     else this.statusCache.delete(memoryBodyId)
   }
 
-  private async checkStatus(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  private async checkStatus(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       await this.run(body, ['status'], 15_000, signal)
       return { healthy: true }
@@ -76,7 +76,7 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const output = await this.run(body, ['query', '--', request.query.slice(0, 5_000)], this.queryTimeoutMs, signal)
     if (output.length < 20) return { results: [], hint: 'ByteRover found no relevant memories.' }
     const content = output.length > 8_000 ? `${output.slice(0, 8_000)}\n\n[... truncated]` : output
@@ -91,12 +91,12 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
     }
   }
 
-  async graph(body: MemoryBody): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace): Promise<MemoryGraphSnapshot> {
     this.connection(body)
     return { nodes: [], edges: [], generatedAt: new Date().toISOString() }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     if (request.query === undefined || request.query.trim() === '') {
       this.connection(body)
       return []
@@ -107,26 +107,26 @@ export class ByteRoverProvider implements MemoryProviderAdapter {
     }, signal)).results
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     await this.run(body, ['curate', '--', request.content], this.curateTimeoutMs, signal)
     return { action: 'stored', provider: this.id, summary: 'ByteRover curated the memory into its knowledge tree.' }
   }
 
-  private connection(body: MemoryBody): Record<string, string | number | boolean> {
+  private connection(body: MemorySpace): Record<string, string | number | boolean> {
     if ((body.provider.typeId ?? body.provider.id) !== this.id) throw new Error(`ByteRover cannot serve provider ${body.provider.id}`)
-    return this.memoryBodies.providerConnection(body.id, body.provider.id)
+    return this.memorySpaces.providerConnection(body.id, body.provider.id)
   }
 
-  private async run(body: MemoryBody, args: string[], timeoutMs: number, signal?: AbortSignal): Promise<string> {
+  private async run(body: MemorySpace, args: string[], timeoutMs: number, signal?: AbortSignal): Promise<string> {
     const connection = this.connection(body)
     const command = String(connection.cliPath ?? 'brv')
     const configuredDirectory = String(connection.workingDirectory ?? connection.defaultDirectory ?? '').trim()
-    const defaultDirectory = join(this.memoryBodies.runner.effectiveDataDir(), 'state', 'byterover', 'default')
+    const defaultDirectory = join(this.memorySpaces.runner.effectiveDataDir(), 'state', 'byterover', 'default')
     const cwd = configuredDirectory === ''
       ? defaultDirectory
       : isAbsolute(configuredDirectory)
         ? configuredDirectory
-        : resolve(this.memoryBodies.runner.effectiveDataDir(), configuredDirectory)
+        : resolve(this.memorySpaces.runner.effectiveDataDir(), configuredDirectory)
     mkdirSync(cwd, { recursive: true, mode: 0o700 })
     const apiKey = String(connection.apiKey ?? '').trim()
     const result = await this.process(command, args, {

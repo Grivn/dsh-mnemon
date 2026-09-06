@@ -4,7 +4,7 @@
 
 **简体中文** | [English](../../en/development/architecture.md) | [文档中心](../README.md)
 
-可组合视图记忆（Composable View Memory）只有三个主要业务概念：**Source（记忆来源）** 拥有记忆及其操作；**Strategy（组合策略）** 提议可用 Source 如何参与；**View（上下文视图）** 是特定范围和场景下交给 LLM 的有界上下文与交互形态。运行时、档案、记忆体是默认组合，不是 Core 对所有记忆的固定分类。
+可组合视图记忆（Composable View Memory）只有三个主要业务概念：**Source（记忆来源）** 拥有记忆及其操作；**Strategy（组合策略）** 提议可用 Source 如何参与；**View（上下文视图）** 是特定范围和场景下交给 LLM 的有界上下文与交互形态。运行时、档案、记忆空间是默认组合，不是 Core 对所有记忆的固定分类。
 
 ## 归属与装配
 
@@ -43,7 +43,7 @@ Memory Spaces **自己定义内部 Fiber 与 Provider 协议**。每个 Provider
 |---|---|---|
 | `dsh-mnemon-source-runtime` | Runtime JSON、USER/MEMORY 投影、分支过滤与容量 | eager 精确工作上下文 |
 | `dsh-mnemon-source-documents` | 受管 Markdown、索引、搜索、修订与归档 | 有界叙事封面与搜索 route |
-| `dsh-mnemon-source-memory-spaces` | 记忆体目录、内部 Provider、能力与召回质量策略 | 有界持久证据封面与 recall/related route |
+| `dsh-mnemon-source-memory-spaces` | 记忆空间目录、内部 Provider、能力与召回质量策略 | 有界持久证据封面与 recall/related route |
 | `dsh-mnemon-strategy-default-three-tier` | 不存储记忆 | 选择三种角色，分配投影、route 与 action |
 
 九个独立 Provider 插件包为 `dsh-mnemon-provider-{mnemon-native,openviking,honcho,mem0,hindsight,holographic,retaindb,byterover,supermemory}`。Provider 运行在 Memory Spaces **内部**，负责存储/检索驱动，不是 Core 的新贡献种类。Git、Notion、健康记录通常应实现 Source；不同的组合方式应实现 Strategy。
@@ -104,7 +104,7 @@ Host 的 `MemoryExecutions` 统一持有 Core 回合及对应的运行时绑定�
 
 Source 自己拥有可选的 `./client` DSH 模块、页面、管理协议与测试，通过公开 Source 页面 SDK 注册到工作台的 `mnemon.source.page` Slot。Client 生命周期与 React 渲染仍由 DSH 管理。
 
-Host 交给页面的是限定实例的管理客户端与脱敏元信息，不是裸 RPC、Host Context 或 LLM grant。读取和带确认、修订栅栏的修改指向一个 Source。档案归档到记忆体等默认协作由 Host 编排，也只调用公开管理协议。
+Host 交给页面的是限定实例的管理客户端与脱敏元信息，不是裸 RPC、Host Context 或 LLM grant。读取和带确认、修订栅栏的修改指向一个 Source。档案归档到记忆空间等默认协作由 Host 编排，也只调用公开管理协议。
 
 同一个共用工作台提供两个互斥的 DSH 入口。Sidebar 使用 `shell.overlay`，无会话也可打开，并保留自己的工作区选择；切到其他面板时，保留同一个 DSH 渲染子树及 Source 页面状态，入口负责与 Taskboard/SSH 协调，关闭后恢复聊天交互。Builtin 使用 `conversation.view`，读写和任务均使用所属会话的存储范围，不提供独立工作区选择器。两个入口渲染同一组 Source 自有子 Slot，不创建第二个 React root、兜底页面注册表或复制业务页面。
 

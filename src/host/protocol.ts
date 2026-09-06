@@ -18,8 +18,8 @@ import type {
   ResolvedMemoryPersistenceStrategy,
   MemoryProviderRuntimeStatus,
   Source,
-  MemoryBodyStats,
-  MemoryBodyView,
+  MemoryBodyStats as MemorySpaceStats,
+  MemoryBodyView as MemorySpaceView,
 } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { ConnectionHandle as DshClientConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { DocumentSnapshot } from 'dsh-mnemon-source-documents/contracts'
@@ -458,7 +458,7 @@ export interface StatusView {
   defaultRecallLimit: number
   recallQuality: ResolvedRecallQualityConfig
   memoryBodyDirectory: string
-  memoryBodies: MemoryBodyView[]
+  memoryBodies: MemorySpaceView[]
   providerServices?: MemoryProviderRuntimeStatus[]
   memorySystem?: MemoryCompositionStatus
   lifecycle?: LifecycleSnapshot
@@ -472,7 +472,7 @@ export interface StatusView {
     selectedWorkspace?: { id: string; title: string; path: string }
     effectiveWorkspace?: { id: string; title: string; path: string }
   }
-  stats?: MemoryBodyStats & { dbPath?: string }
+  stats?: MemorySpaceStats & { dbPath?: string }
 }
 
 export type MnemonPackComponent = 'runtime' | 'documents' | 'memory-spaces'

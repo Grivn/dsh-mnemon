@@ -46,7 +46,7 @@ All 15 `SidebarModal` call sites were opened in the live UI, with computed style
 | 区域 / Area | 已打开入口 / Opened dialogs | 数量 / Count |
 | --- | --- | --- |
 | 运行时记忆 / Runtime memory | 添加、编辑、移除确认 / Add, edit, remove confirmation | 3 |
-| 记忆体 / Memory spaces | 创建、编辑、删除确认 / Create, edit, delete confirmation | 3 |
+| 记忆空间 / Memory spaces | 创建、编辑、删除确认 / Create, edit, delete confirmation | 3 |
 | 记忆维护 / Memory maintenance | AI 元信息、沉淀策略、沉淀记忆 / AI metadata, persistence strategy, supervised write | 3 |
 | 项目档案 / Project documents | 创建、编辑、归档确认 / Create, edit, archive confirmation | 3 |
 | 其他 / Other | 版本检查、遗忘确认、全文预览 / Version check, forget confirmation, full-content preview | 3 |

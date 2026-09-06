@@ -20,8 +20,26 @@ function temporaryDirectory(): string {
   return directory
 }
 
-describe('MemoryBodyRegistry', () => {
-  it('refreshes once per public metadata operation, not once per body or Provider descriptor', () => {
+describe('MemorySpaceRegistry', () => {
+  it('preserves user-authored legacy names and database bytes when loading the renamed model', () => {
+    const dataDir = temporaryDirectory()
+    mkdirSync(join(dataDir, 'data', 'research'), { recursive: true })
+    const database = join(dataDir, 'data', 'research', 'mnemon.db')
+    writeFileSync(database, 'unchanged existing database')
+    const original = { id: 'research', name: '研究记忆体', description: 'User-authored title, not product copy.', active: false,
+      createdAt: '2026-08-13T00:00:00.000Z', updatedAt: '2026-08-13T00:00:00.000Z' }
+    writeFileSync(join(dataDir, 'data', '.dsh-memory-bodies.json'), JSON.stringify({ version: 1, bodies: [original] }))
+    const runner = createRunner(resolveMemorySpacesConfig({ cliPath: '/fake/mnemon', dataDir }), vi.fn<ProcessRunner>())
+    const registry = createRegistry(runner, true)
+    expect(registry.get('research')).toMatchObject(original)
+    registry.update('research', { active: true })
+    const stored = JSON.parse(readFileSync(registry.registryPath, 'utf8'))
+    expect(stored.bodies[0]).toMatchObject({ id: 'research', name: original.name, active: true })
+    expect(stored.spaces).toBeUndefined()
+    expect(readFileSync(database, 'utf8')).toBe('unchanged existing database')
+  })
+
+  it('refreshes once per public metadata operation, not once per memory space or Provider descriptor', () => {
     const dataDir = temporaryDirectory()
     const runner = createRunner(resolveMemorySpacesConfig({ cliPath: '/fake/mnemon', dataDir }), vi.fn<ProcessRunner>())
     const registry = createRegistry(runner, true)
@@ -52,7 +70,7 @@ describe('MemoryBodyRegistry', () => {
     expect(existsSync(join(dataDir, 'data', '.dsh-memory-bodies.json'))).toBe(false)
   })
 
-  it('migrates native stores into a global memory-body catalog without moving their databases', () => {
+  it('migrates native stores into a global memory-space catalog without moving their databases', () => {
     const dataDir = temporaryDirectory()
     mkdirSync(join(dataDir, 'data', 'project'), { recursive: true })
     writeFileSync(join(dataDir, 'data', 'project', 'mnemon.db'), 'existing database')
@@ -187,7 +205,7 @@ describe('MemoryBodyRegistry', () => {
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/)
   })
 
-  it('registers an OpenViking memory body without creating or deleting a native Store', async () => {
+  it('registers an OpenViking memory space without creating or deleting a native Store', async () => {
     const dataDir = temporaryDirectory()
     const process = vi.fn<ProcessRunner>()
     const runner = createRunner(resolveMemorySpacesConfig({ cliPath: '/fake/mnemon', dataDir }), process)
@@ -568,7 +586,7 @@ describe('MemoryBodyRegistry', () => {
 
     await expect(registry.create({
       name: '错误范围',
-      description: '不能把资源目录当作长期记忆体。',
+      description: '不能把资源目录当作长期记忆空间。',
       providerId: 'openviking',
       openViking: { endpoint: 'http://127.0.0.1:1933', targetUri: 'viking://resources' },
     })).rejects.toThrow('viking://user/.../memories root')

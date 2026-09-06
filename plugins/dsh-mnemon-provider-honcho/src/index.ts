@@ -15,7 +15,7 @@ export const definition = defineMemorySpaceProviderDefinition({
     secrets: descriptor.fields.filter(field => field.input === 'secret').map(field => field.key),
     scoreSemantics: 'provider-native',
   },
-  create: context => new HonchoProvider(context.memoryBodies, { requestTimeoutMs: context.config.timeoutMs }),
+  create: context => new HonchoProvider(context.memorySpaces ?? context.memoryBodies, { requestTimeoutMs: context.config.timeoutMs }),
 })
 
 export default defineMemorySpaceProvider<undefined>({

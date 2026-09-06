@@ -2,8 +2,8 @@ import type { JsonValue } from '../contracts.ts'
 import type {
   EdgeType,
   Insight,
-  MemoryBody,
-  MemoryBodyStats,
+  MemorySpace,
+  MemorySpaceStats,
   MemoryGraphSnapshot,
   MemoryListRequest,
   MemoryProviderConnection,
@@ -14,7 +14,7 @@ import type {
 /** Minimum parent authority a Provider needs; no private controller class. */
 export interface MemorySpaceAuthority {
   readonly runner: { effectiveDataDir(): string }
-  list(): MemoryBody[]
+  list(): MemorySpace[]
   providerConnection(id: string, expectedProviderId?: string): MemoryProviderConnection
 }
 
@@ -25,15 +25,18 @@ export interface MemorySpaceNativeRunner {
 }
 
 export interface MemoryProviderAdapterFactoryContext {
+  /** Canonical name; optional while older Source hosts remain supported. */
+  memorySpaces?: MemorySpaceAuthority
+  /** @deprecated Use memorySpaces when present; retained for existing Provider factories. */
   memoryBodies: MemorySpaceAuthority
   config: { timeoutMs: number; defaultRecallLimit?: number }
   nativeRunner?: MemorySpaceNativeRunner
 }
 
-export interface ProviderBodyStatus {
+export interface ProviderSpaceStatus {
   healthy: boolean
   error?: string
-  stats?: MemoryBodyStats
+  stats?: MemorySpaceStats
 }
 
 export interface ProviderSearchResult {
@@ -61,27 +64,30 @@ export interface ProviderMemorySpace {
 
 /**
  * Third-layer memory data plane. DSH owns routing and lifecycle; adapters own
- * only one body's persistence and retrieval semantics.
+ * only one memory space's persistence and retrieval semantics.
  */
 export interface MemoryProviderAdapter {
-  readonly id: MemoryBody['provider']['id']
+  readonly id: MemorySpace['provider']['id']
   readonly scoreSemantics?: ProviderScoreSemantics
   /** Enumerate the complete set of namespaces visible to this service connection. */
   discover?(connection: MemoryProviderConnection, signal?: AbortSignal): Promise<ProviderMemorySpace[]>
   /** Drop a short-lived health result before an explicit user reconnect. */
   invalidateStatus?(memoryBodyId?: string): void
-  status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus>
-  search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult>
-  graph(body: MemoryBody, signal?: AbortSignal): Promise<MemoryGraphSnapshot>
-  list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]>
-  remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue>
+  status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus>
+  search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult>
+  graph(body: MemorySpace, signal?: AbortSignal): Promise<MemoryGraphSnapshot>
+  list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]>
+  remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue>
   /** Optional cheap bounded metadata sampling, without a graph projection. */
-  metadataSample?(body: MemoryBody, limit: number, signal?: AbortSignal): Promise<Insight[]>
+  metadataSample?(body: MemorySpace, limit: number, signal?: AbortSignal): Promise<Insight[]>
   /** Persist an ordered host-authorized batch and return one receipt per request. */
-  rememberMany?(body: MemoryBody, requests: readonly RememberRequest[], signal?: AbortSignal): Promise<JsonValue[]>
-  related?(body: MemoryBody, id: string, depth: number, edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]>
-  link?(body: MemoryBody, sourceId: string, targetId: string, type: EdgeType, weight: number, reason?: string, signal?: AbortSignal): Promise<JsonValue>
-  forget?(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue>
+  rememberMany?(body: MemorySpace, requests: readonly RememberRequest[], signal?: AbortSignal): Promise<JsonValue[]>
+  related?(body: MemorySpace, id: string, depth: number, edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]>
+  link?(body: MemorySpace, sourceId: string, targetId: string, type: EdgeType, weight: number, reason?: string, signal?: AbortSignal): Promise<JsonValue>
+  forget?(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue>
   /** Release generation-owned clients, timers, pools, or subprocess handles. */
   dispose?(): void | Promise<void>
 }
+
+/** @deprecated Use ProviderSpaceStatus. */
+export type ProviderBodyStatus = ProviderSpaceStatus

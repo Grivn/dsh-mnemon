@@ -4,6 +4,12 @@
 
 This page is an integration reference. For daily use, start with the [Sidebar and conversation UI guide](../guides/ui-guide.md).
 
+## Memory space naming and compatibility
+
+The product term is **memory space** (Chinese: **记忆空间**). The Source exports `MemorySpace`, `MemorySpaceView`, `MemorySpaceCatalog`, and corresponding request and metadata types. Previously published `MemoryBody*` types remain deprecated aliases with the same shapes.
+
+Existing v0.5.x identifiers such as `mnemon_memory_bodies`, `mnemon_memory_body_create`, `body-directory`, and `memoryBodyId` / `memoryBodyIds` still refer to memory spaces. They remain stable for installed tools, Source pages, Provider adapters, and persisted Document/Pack lineage. The `.dsh-memory-bodies.json` filename and its `bodies` field are also retained. Renaming the product does not rename user-created spaces, change their IDs, move databases, or alter access grants.
+
 ## User-facing entry points
 
 | Entry | Default | Description |

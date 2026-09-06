@@ -42,7 +42,7 @@ export const sourceCatalog: MemorySourceManagementCatalog = {
   sources: [
     { sourceTypeId: 'runtime', role: 'working-context', label: '运行时记忆', assistance: ['mutate'] },
     { sourceTypeId: 'documents', role: 'narrative', label: '项目档案', assistance: ['mutate', 'archive'] },
-    { sourceTypeId: 'memory-spaces', role: 'durable-evidence', label: '记忆体', assistance: ['activation', 'agent-search', 'supervise', 'body-metadata-maintain', 'body-create'] },
+    { sourceTypeId: 'memory-spaces', role: 'durable-evidence', label: '记忆空间', assistance: ['activation', 'agent-search', 'supervise', 'body-metadata-maintain', 'body-create'] },
   ].map(({ sourceTypeId, role, label, assistance }) => ({
     sourceInstanceKey: 'source:mnemon-source-' + sourceTypeId,
     sourceTypeId, role, assistance, packageName: 'dsh-mnemon-source-' + sourceTypeId,

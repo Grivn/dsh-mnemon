@@ -15,7 +15,7 @@ export const definition = defineMemorySpaceProviderDefinition({
     secrets: descriptor.fields.filter(field => field.input === 'secret').map(field => field.key),
     scoreSemantics: 'normalized-relevance',
   },
-  create: context => new RetainDbProvider(context.memoryBodies, { requestTimeoutMs: context.config.timeoutMs }),
+  create: context => new RetainDbProvider(context.memorySpaces ?? context.memoryBodies, { requestTimeoutMs: context.config.timeoutMs }),
 })
 
 export default defineMemorySpaceProvider<undefined>({

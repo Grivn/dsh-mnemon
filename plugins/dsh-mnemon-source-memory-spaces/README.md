@@ -4,6 +4,8 @@ Memory Spaces owns its Provider contracts and private child-Fiber host. Provider
 
 The Source owns its storage registry, scoped native command transport, recall policy, routing, receipts and management operations. It imports **no Provider implementation** and defines no extra Context service. Each mount defaults to a separate data directory; set `dataDir` explicitly to select an existing authority.
 
+A **memory space** (中文：**记忆空间**) is one named Provider-backed scope containing individual memories. Use the canonical `MemorySpace`, `MemorySpaceView`, `MemorySpaceCatalog`, and `CreateMemorySpaceRequest` types from `./contracts`; `MemoryBody*` exports remain deprecated aliases for existing consumers. The Provider SDK exposes `MemorySpace` and `ProviderSpaceStatus` while retaining its old type aliases. Provider factories can use `context.memorySpaces ?? context.memoryBodies` to support both new and existing Source hosts. Published wire fields, registry filenames, and stored user names remain unchanged.
+
 Install the chosen Provider packages and configure them explicitly on the Source entry:
 
 ```yaml
@@ -29,4 +31,4 @@ The optional `./client` entry owns the Source's pages and `presentation/` resour
 
 `pnpm verify` checks Host behavior, real Source-backed page interactions, and Host/browser artifacts. Client tests consume the installed Core's public testing entry.
 
-[Plugin development](https://github.com/omdsh-dev/dsh-mnemon/blob/8466e3560a3b9de4e9f4b7302cbf005c84e8e69f/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/8466e3560a3b9de4e9f4b7302cbf005c84e8e69f/docs/zh-CN/development/extensions.md)
+[Plugin development](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/extensions.md)

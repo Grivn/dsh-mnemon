@@ -64,7 +64,7 @@ pnpm --filter dsh-mnemon-source-runtime verify
 | Host | 默认组合、配置/数据范围、工具、监督流程、RPC 权限、回执与体验 |
 | 制品 | 所有公开入口、独立安装/构建/测试、外部组合与浏览器制品 |
 
-远程 Provider 使用可控 HTTP 响应；Native 进程测试使用可控命令 runner，另有可选 Windows 二进制冒烟。额外的 opt-in 测试接受经过官方 checksum 校验的 Native 二进制，创建临时记忆体，通过 View 写入、召回并删除：
+远程 Provider 使用可控 HTTP 响应；Native 进程测试使用可控命令 runner，另有可选 Windows 二进制冒烟。额外的 opt-in 测试接受经过官方 checksum 校验的 Native 二进制，创建临时记忆空间，通过 View 写入、召回并删除：
 
 ```sh
 MNEMON_NATIVE_TEST_CLI=/absolute/path/to/mnemon pnpm --filter dsh-mnemon-source-memory-spaces exec vitest run tests/native-integration.spec.ts

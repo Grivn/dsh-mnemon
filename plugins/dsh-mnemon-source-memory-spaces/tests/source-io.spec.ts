@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { MemoryCompositionRunner } from 'dsh-mnemon/testing'
 import { HolographicProvider } from 'dsh-mnemon-provider-holographic'
 import { installMemorySpaces } from '../src/index.ts'
-import type { MemoryBodyCatalog } from '../src/contracts.ts'
+import type { MemorySpaceCatalog } from '../src/contracts.ts'
 import { providerEntries } from './providers.ts'
 import { strategy } from './fixture.ts'
 
@@ -31,7 +31,7 @@ describe('Memory Spaces metadata IO through public Cordis plugins', () => {
       const first = await mount()
       const store = join(directory, 'facts.json')
       await first.client.mutate('provider-service-update', { providerId: 'holographic', settings: { dataPath: store }, enabled: true }, { confirmed: true })
-      const catalog = (await first.client.read('body-directory')).value as unknown as MemoryBodyCatalog
+      const catalog = (await first.client.read('body-directory')).value as unknown as MemorySpaceCatalog
       const body = catalog.items[0]!
       expect(body.provider.id).toBe('holographic')
       status.mockClear(); search.mockClear(); list.mockClear()

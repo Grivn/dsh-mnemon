@@ -204,8 +204,9 @@
 .shell .bodyCardMeta {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
 }
 .shell .bodyCardMeta code {
   min-width: 0;
@@ -271,6 +272,10 @@
 @media (max-width: 760px) {
   .shell .memoryNavigation { padding-inline: 12px; }
   .shell .memoryTabs button { padding-inline: 10px; }
+}
+
+@media (max-width: 520px) {
+  .shell .memoryTabs button { padding-inline: 8px; font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

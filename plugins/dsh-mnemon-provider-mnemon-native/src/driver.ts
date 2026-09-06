@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { NORMALIZED_RELEVANCE_SCORE, type MemorySpaceNativeRunner, type MemoryProviderAdapter, type JsonValue, type Insight, type MemoryBody, type MemoryBodyStats, type MemoryGraphEdge, type MemoryGraphNode, type MemoryGraphSnapshot, type MemoryListRequest, type EdgeType, type RememberRequest, type SearchRequest, type ProviderBodyStatus, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemorySpaceNativeRunner, type MemoryProviderAdapter, type JsonValue, type Insight, type MemoryBody as MemorySpace, type MemoryBodyStats as MemorySpaceStats, type MemoryGraphEdge, type MemoryGraphNode, type MemoryGraphSnapshot, type MemoryListRequest, type EdgeType, type RememberRequest, type SearchRequest, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 function record(value: JsonValue | undefined): Record<string, JsonValue> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -115,11 +115,11 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
   readonly scoreSemantics = NORMALIZED_RELEVANCE_SCORE
   constructor(private readonly runner: MemorySpaceNativeRunner, private readonly config: { defaultRecallLimit: number } = { defaultRecallLimit: 10 }) {}
 
-  list(body: MemoryBody, _request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  list(body: MemorySpace, _request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     return this.allNativeInsights(body, signal, true)
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       const raw = await this.runner.runJson(['status'], { ...(signal === undefined ? {} : { signal }), store: body.id })
       const status = record(raw)
@@ -130,7 +130,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     }
   }
 
-  private parseStats(status: Record<string, JsonValue>): MemoryBodyStats {
+  private parseStats(status: Record<string, JsonValue>): MemorySpaceStats {
     const byCategoryRecord = record(status.by_category) ?? {}
     const byCategory: Record<string, number> = {}
     for (const [category, count] of Object.entries(byCategoryRecord)) if (typeof count === 'number') byCategory[category] = count
@@ -153,7 +153,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     }
   }
 
-  async graph(body: MemoryBody, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
     const [html, insights] = await Promise.all([
       this.runner.runText(['viz', '--format', 'html', '--output', '-'], { ...(signal === undefined ? {} : { signal }), store: body.id }),
       // Mnemon's HTML visualization omits tags and entities. A readonly recall
@@ -173,7 +173,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     }
   }
 
-  private async allNativeInsights(body: MemoryBody, signal?: AbortSignal, readonly = false): Promise<Insight[]> {
+  private async allNativeInsights(body: MemorySpace, signal?: AbortSignal, readonly = false): Promise<Insight[]> {
     const payload = await this.runner.runJson([
       ...(readonly ? ['--readonly'] : []),
       'recall', '', '--basic', '--limit', '100000',
@@ -182,7 +182,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     return values.map(normalizeInsight).filter((entry): entry is Insight => entry !== undefined)
   }
 
-  async metadataSample(body: MemoryBody, limit: number, signal?: AbortSignal): Promise<Insight[]> {
+  async metadataSample(body: MemorySpace, limit: number, signal?: AbortSignal): Promise<Insight[]> {
     const payload = await this.runner.runJson([
       '--readonly',
       'recall', '', '--basic', '--limit', String(limit),
@@ -192,7 +192,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     return values.map(normalizeInsight).filter((entry): entry is Insight => entry !== undefined)
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const mode = request.mode ?? 'smart'
     const args = mode === 'keyword'
       ? ['search', request.query, '--limit', String(request.limit ?? this.config.defaultRecallLimit)]
@@ -213,7 +213,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     }
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     const args = ['remember', request.content, '--cat', request.category ?? 'general', '--imp', String(request.importance ?? 3), '--source', request.source ?? 'user']
     const tags = commaList(request.tags, 'tags', 20)
     const entities = commaList(request.entities, 'entities', 50)
@@ -222,7 +222,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     return this.runner.runJson(args, { ...(signal === undefined ? {} : { signal }), store: body.id })
   }
 
-  async rememberMany(body: MemoryBody, requests: readonly RememberRequest[], signal?: AbortSignal): Promise<JsonValue[]> {
+  async rememberMany(body: MemorySpace, requests: readonly RememberRequest[], signal?: AbortSignal): Promise<JsonValue[]> {
     const temporary = mkdtempSync(join(tmpdir(), 'dsh-mnemon-runtime-archive-'))
     const draftPath = join(temporary, 'memory-draft.json')
     try {
@@ -270,20 +270,20 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
     }
   }
 
-  async related(body: MemoryBody, id: string, depth: number, edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]> {
+  async related(body: MemorySpace, id: string, depth: number, edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]> {
     const args = ['related', id, '--depth', String(depth)]
     if (edge !== undefined) args.push('--edge', edge)
     const payload = await this.runner.runJson(args, { ...(signal === undefined ? {} : { signal }), store: body.id })
     return Array.isArray(payload) ? payload.map(normalizeInsight).filter((entry): entry is Insight => entry !== undefined) : []
   }
 
-  async link(body: MemoryBody, sourceId: string, targetId: string, type: EdgeType, weight: number, reason?: string, signal?: AbortSignal): Promise<JsonValue> {
+  async link(body: MemorySpace, sourceId: string, targetId: string, type: EdgeType, weight: number, reason?: string, signal?: AbortSignal): Promise<JsonValue> {
     const args = ['link', sourceId, targetId, '--type', type, '--weight', String(weight)]
     if (reason !== undefined) args.push('--meta', JSON.stringify({ reason }))
     return this.runner.runJson(args, { ...(signal === undefined ? {} : { signal }), store: body.id })
   }
 
-  forget(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue> {
+  forget(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue> {
     return this.runner.runJson(['forget', id], { ...(signal === undefined ? {} : { signal }), store: body.id })
   }
 

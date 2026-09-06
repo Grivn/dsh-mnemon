@@ -39,5 +39,27 @@
       "keys": 958,
       "sha256": "67ecea602c1e6515b8382669a1d07cc1301d1cdb7c2d278ee7cbaf1324f3281f"
     }
+  },
+  "memorySpaceTerminology": {
+    "zh": {
+      "keys": 970,
+      "sha256": "9695883ce974c8285af814e8fa74ee85eefd453bd07bf59e6de9708b69aa1cef"
+    },
+    "en": {
+      "keys": 970,
+      "sha256": "0d053d62985459f373effb50f2d1edf9416e3df3f11302353bce8d2608c384e3"
+    },
+    "page": {
+      "rules": 1067,
+      "rulesSha256": "876750511ae5afc88604b6a78fadad2b3c4e33661c90b1838dd3845a59edc15d",
+      "classes": 276,
+      "classesSha256": "d8439033262749395ace4b6df2a5b87fbd2361d453a648332de61f5e2e773eee"
+    },
+    "sidebar": {
+      "rules": 286,
+      "rulesSha256": "2dac75711cb4c9b7a3de9684bff266677ef82bd48a04ea17e88164ce6f343316",
+      "classes": 29,
+      "classesSha256": "c2eeeb8d1e00063d29bfe2949339820184f3e8b22f631c362edd85aad8bfe573"
+    }
   }
 }

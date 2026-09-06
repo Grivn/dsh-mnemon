@@ -68,7 +68,7 @@ function runtimeArea(root: string): StorageAreaInventory {
   }
 }
 
-function memoryBodiesArea(root: string): StorageAreaInventory {
+function memorySpacesArea(root: string): StorageAreaInventory {
   const path = join(root, 'data')
   if (!existsSync(path)) return missing('memory-bodies', path)
   try {
@@ -83,7 +83,7 @@ function memoryBodiesArea(root: string): StorageAreaInventory {
       status: invalidRegistry ? 'invalid' : databaseCount === 0 && bodies.length === 0 ? 'empty' : 'ready',
       bytes: safeBytes(path), itemCount: Math.max(bodies.length, databaseCount),
       details: { registeredBodies: bodies.length, activeBodies: activeCount, databases: databaseCount, registry: existsSync(registryPath) },
-      ...(invalidRegistry ? { issue: 'memory-body registry is invalid' } : {}),
+      ...(invalidRegistry ? { issue: 'memory-space registry is invalid' } : {}),
     }
   } catch (error) {
     return { kind: 'memory-bodies', path, status: 'invalid', bytes: safeBytes(path), itemCount: 0, details: {}, issue: error instanceof Error ? error.message : String(error) }
@@ -137,7 +137,7 @@ function stateArea(root: string): StorageAreaInventory {
 function inspect(kind: StorageScopeKind, rawRoot: string | undefined, activeRoot: string): StorageScopeInventory {
   if (rawRoot === undefined) return { kind, configured: false, active: false, available: false, totalBytes: 0, areas: [], issue: 'scope is not configured' }
   const root = canonical(rawRoot)
-  const areas = [runtimeArea(root), memoryBodiesArea(root), documentsArea(root), stateArea(root)]
+  const areas = [runtimeArea(root), memorySpacesArea(root), documentsArea(root), stateArea(root)]
   const exists = existsSync(root)
   const available = exists && (() => { try { return statSync(root).isDirectory() } catch { return false } })()
   return {

@@ -4,11 +4,17 @@
 
 本页是集成参考。日常使用请先看 [Sidebar 与对话交互指南](../guides/ui-guide.md)。
 
+## 记忆空间命名与兼容性
+
+产品统一使用**记忆空间（memory space）**。Source 导出 `MemorySpace`、`MemorySpaceView`、`MemorySpaceCatalog` 及对应的请求和元数据类型；已发布的 `MemoryBody*` 类型作为弃用别名保留，数据形状不变。
+
+既有 v0.5.x 标识，如 `mnemon_memory_bodies`、`mnemon_memory_body_create`、`body-directory` 和 `memoryBodyId` / `memoryBodyIds`，仍表示记忆空间。为兼容已安装的工具、Source 页面、Provider 适配器和持久化的 Document/Pack 来源信息，这些标识保持稳定；`.dsh-memory-bodies.json` 文件名与其中的 `bodies` 字段也继续保留。术语调整不会重命名用户创建的空间、修改 ID、移动数据库或改变访问授权。
+
 ## 用户界面入口
 
 | 入口 | 默认 | 说明 |
 |---|---:|---|
-| Sidebar | 是 | 左侧栏独立“记忆系统”工作台；状态、运行时、档案、记忆体四个一级标签 |
+| Sidebar | 是 | 左侧栏独立“记忆系统”工作台；状态、运行时、档案、记忆空间四个一级标签 |
 | Builtin | 否 | 会话内标签页；复用相同工作台并自动跟随所属会话的存储范围 |
 | 本回合记忆 | 是 | 已完成回合的记忆工具摘要；展开后按工具名跳到对应页面 |
 | 存入记忆 | 是 | 已定稿助手回复旁的操作；确认后调用监督写入 |
@@ -39,9 +45,9 @@ Headless 会获得完整模型工具面。它把命令行任务作为普通用�
 | 工具 | 用途 | Root Agent 路径 |
 |---|---|---|
 | `mnemon_status` | CLI、配置、存储与目录聚合状态 | 直接服务 |
-| `mnemon_memory_bodies` | 读取记忆体目录、Provider 能力、健康与可用统计 | 直接服务 |
+| `mnemon_memory_bodies` | 读取记忆空间目录、Provider 能力、健康与可用统计 | 直接服务 |
 | `mnemon_recall` | 从一个或多个 active Provider 召回；异构结果排名融合 | 受 pinned Source 权限约束的 Host 直接服务 |
-| `mnemon_related` | 在 `capabilities.related=true` 的记忆体中遍历关系 | 受 pinned Source 权限约束的 Host 直接服务；Root 默认两跳 |
+| `mnemon_related` | 在 `capabilities.related=true` 的记忆空间中遍历关系 | 受 pinned Source 权限约束的 Host 直接服务；Root 默认两跳 |
 | `mnemon_document_search` | 确定性搜索受管档案 | Documents 控制层 |
 
 “只读”表示不修改受管正文或长期语义内容。`mnemon_document_search` 命中后仍会更新 `lastAccessedAt`，用于 LRU 排序，因此功能只读不等于磁盘只读。
@@ -55,9 +61,9 @@ Headless 会获得完整模型工具面。它把命令行任务作为普通用�
 | `mnemon_remember` | 按 Provider 语义沉淀洞察，回执区分已接受与持久提交 | `spawn` write worker |
 | `mnemon_link` | 在支持能力的 Provider 中建立 typed relationship | `spawn` write worker |
 | `mnemon_forget` | 在支持能力的 Provider 中按精确 ID 删除 | `spawn` write worker |
-| `mnemon_memory_body_create` | 由 Agent 创建独立 Mnemon Native 记忆体；第三方连接只由用户在 WebUI 管理 | `spawn` write worker |
+| `mnemon_memory_body_create` | 由 Agent 创建独立 Mnemon Native 记忆空间；第三方连接只由用户在 WebUI 管理 | `spawn` write worker |
 | `mnemon_memory_body_update` | 更新名称、说明或 active | `spawn` write worker |
-| `mnemon_memory_body_merge` | 非破坏性合并 Mnemon Native 记忆体 | `spawn` write worker |
+| `mnemon_memory_body_merge` | 非破坏性合并 Mnemon Native 记忆空间 | `spawn` write worker |
 
 worker 内调用同名工具时直接进入服务层，不再递归委派。
 
@@ -67,7 +73,7 @@ worker 内调用同名工具时直接进入服务层，不再递归委派。
 
 - **运行时**：明确偏好、稳定项目约定、环境事实和高频经验。
 - **档案**：具有完整结构和理由的设计、调查、流程、复盘或交接。
-- **记忆体**：需要跨任务保留，或适合图关系与深召回的稳定事实、决策和洞察。
+- **记忆空间**：需要跨任务保留，或适合图关系与深召回的稳定事实、决策和洞察。
 - **跳过**：问题、猜测、临时进度、完成日志、原始输出、秘密和可轻易从仓库重新发现的普通事实。
 
 `mnemon_forget` 是破坏性语义操作；只有用户明确要求，或内容已确认错误 / 过时时才应执行。
@@ -128,8 +134,8 @@ rc.2 rollback authority: trusted-host
 | `versions` | 检查 Mnemon 与 dsh-mnemon 当前 / 最新版本和安装来源 |
 | `runtime-memory` | 运行时快照 |
 | `documents` / `document` / `document-search` | 档案目录、正文与确定性搜索 |
-| `graph` / `bodies` / `body-directory` | active 多空间图谱投影、含 Provider 能力的记忆体目录与快速目录投影 |
-| `body-reconnect` | 清除短期健康状态并刷新单个记忆体，不修改持久数据 |
+| `graph` / `bodies` / `body-directory` | active 多空间图谱投影、含 Provider 能力的记忆空间目录与快速目录投影 |
+| `body-reconnect` | 清除短期健康状态并刷新单个记忆空间，不修改持久数据 |
 | `provider-services` | 脱敏的 Provider 服务目录；可包含已配置的凭据字段名，绝不包含凭据值 |
 | `list` / `entities` | 内容列表与实体聚合 |
 | `search` / `agent-search` / `related` | 直接检索、证据回答与关系遍历 |
@@ -138,7 +144,7 @@ rc.2 rollback authority: trusted-host
 
 ### 写通道
 
-记忆体激活使用独立控制通道和更窄的请求 schema：
+记忆空间激活使用独立控制通道和更窄的请求 schema：
 
 ```text
 channel:   /dsh-mnemon-activation
@@ -147,7 +153,7 @@ rc.2 rollback authority: trusted-host
 endpoint:  body
 ```
 
-`body` 只接受 `memoryBodyId`、布尔值 `active` 和常规 session / workspace 路由字段。它只控制记忆体是否参与 DSH 读取与路由，不接受元信息、Provider 连接、凭据、删除或持久记忆 mutation。只读模式会在 Host 边界拒绝。
+`body` 只接受 `memoryBodyId`、布尔值 `active` 和常规 session / workspace 路由字段。它只控制记忆空间是否参与 DSH 读取与路由，不接受元信息、Provider 连接、凭据、删除或持久记忆 mutation。只读模式会在 Host 边界拒绝。
 
 其余更宽泛的 mutation 仍使用写通道：
 
@@ -163,7 +169,7 @@ rc.2 rollback authority: loopback（`remoteAccess=trusted-host` 时为 trusted-h
 | `supervise` | 用独立任务 Agent 处理候选并返回落定回执 |
 | `document` | create / update / archive |
 | `remember` / `link` / `forget` | 长期语义写入、关系与软删除 |
-| `body-create` / `body-update` / `body-delete` | 记忆体创建/连接、编辑，以及确认后的 Native 删除或远程断开 |
+| `body-create` / `body-update` / `body-delete` | 记忆空间创建/连接、编辑，以及确认后的 Native 删除或远程断开 |
 | `body-reconnect` | 为迁移到读通道前发布的旧客户端保留的兼容入口 |
 | `provider-service-update` | 更新单个 Provider 服务；凭据仅在 Host 保存，响应脱敏 |
 | `version-update` | 更新明确组件；Host 固定命令与参数 |

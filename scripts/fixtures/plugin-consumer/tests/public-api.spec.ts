@@ -7,7 +7,7 @@ import { MemoryCompositionRunner, type MemoryTestTurn } from 'dsh-mnemon/testing
 import * as providerSdk from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import { resolveEmbedding, resolvePersistenceStrategy, resolveRecallQuality } from 'dsh-mnemon-source-memory-spaces'
 import { createMemorySpaceProviderFixture, mountMemorySpaceProvider } from 'dsh-mnemon-source-memory-spaces/testing'
-import provider from '../lib/external-provider.js'
+import provider, { canonicalMemorySpace, LegacyHttpProvider } from '../lib/external-provider.js'
 import { memoryPlugin, memoryStrategyConfiguration } from '../lib/external-strategy-extension.js'
 // @ts-expect-error The installed SDK must not expose Core's engine.
 import type { MemoryRuntime } from 'dsh-mnemon/extension-sdk'
@@ -62,6 +62,8 @@ describe('published author API', () => {
     const mounted = await mountMemorySpaceProvider(provider, { instanceId: 'account', config: undefined })
     try {
       const { authority, body } = createMemorySpaceProviderFixture(mounted.descriptor, {}, { dataDir: '/unused', instanceId: 'account' })
+      expect(canonicalMemorySpace(body, { healthy: true })).toEqual({ space: body, status: { healthy: true } })
+      expect(new LegacyHttpProvider(authority).sharesAuthority()).toBe(true)
       const adapter = mounted.createAdapter({ memoryBodies: authority, config: { timeoutMs: 100 } })
       expect(adapter.id).toBe('account')
       expect(mounted.registered).toBe(true)

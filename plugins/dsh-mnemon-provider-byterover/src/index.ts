@@ -15,7 +15,7 @@ export const definition = defineMemorySpaceProviderDefinition({
     secrets: descriptor.fields.filter(field => field.input === 'secret').map(field => field.key),
     scoreSemantics: 'normalized-relevance',
   },
-  create: context => new ByteRoverProvider(context.memoryBodies, { queryTimeoutMs: context.config.timeoutMs }),
+  create: context => new ByteRoverProvider(context.memorySpaces ?? context.memoryBodies, { queryTimeoutMs: context.config.timeoutMs }),
 })
 
 export default defineMemorySpaceProvider<undefined>({

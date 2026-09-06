@@ -1,11 +1,11 @@
-import type { MemoryBodyCatalog, MemorySpacesStatus } from './contracts.ts'
+import type { MemorySpaceCatalog, MemorySpacesStatus } from './contracts.ts'
 const MODEL_MEMORY_BODY_LIMIT = 16
 function boundedToolText(value: string, maximum: number): string {
   return value.length <= maximum ? value : `${value.slice(0, maximum - 1)}…`
 }
 
 /** Strip control-plane paths, provider settings, and statistics from model output. */
-export function modelBodyCatalog(catalog: MemoryBodyCatalog) {
+export function modelSpaceCatalog(catalog: MemorySpaceCatalog) {
   const items = catalog.items.slice(0, MODEL_MEMORY_BODY_LIMIT)
   return {
     items: items.map(body => ({

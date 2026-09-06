@@ -18,7 +18,7 @@
       <text x="52" y="112">Source · 来源</text><text x="332" y="112">Strategy · 策略</text><text x="570" y="112">Core · 核心</text><text x="824" y="112">View · 视图</text><text x="1028" y="112">DSH 宿主</text>
     </g>
     <g fill="#475467" font-size="15">
-      <text x="52" y="143">运行时 · 档案</text><text x="52" y="167">记忆体 · 自定义</text>
+      <text x="52" y="143">运行时 · 档案</text><text x="52" y="167">记忆空间 · 自定义</text>
       <text x="332" y="143">选择 · 预算</text><text x="332" y="167">组合 · 使用指引</text>
       <text x="570" y="143">校验组合提案</text><text x="570" y="167">调用来源投影</text>
       <text x="824" y="143">上下文</text><text x="824" y="167">读取 · 写入操作</text>
@@ -31,6 +31,6 @@
       <text x="285" y="120">事实</text><text x="523" y="120">提案</text>
     </g>
     <text x="32" y="234" fill="#475467" font-size="15">读取与已授权写入交回所属 Source；新的回合可以读取新的修订。</text>
-    <text x="32" y="257" fill="#667085" font-size="14">Provider 子模块归记忆体 Source 所有，不属于 Core。</text>
+    <text x="32" y="257" fill="#667085" font-size="14">Provider 子模块归记忆空间 Source 所有，不属于 Core。</text>
   </g>
 </svg>

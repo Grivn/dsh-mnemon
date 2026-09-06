@@ -29,10 +29,10 @@ node scripts/serve-web-regression.mjs --cli /absolute/path/to/test-owned/mnemon 
 | 幂等与并发 | Headless 重启后配置字节不变；修订号冲突重新读取，新 Sidebar 选择优先；只读设置不绕过权限 |
 | 入口切换 | Sidebar 与 Builtin 实时双向切换、刷新后保留，始终只挂载一个入口；默认 Sidebar 不变 |
 | 共用界面 | 相同四个主页面、导航、筛选和编辑器；Builtin 只隐藏页眉范围/工作区/对齐控件，无专用 CSS |
-| 工作区范围 | A/B 的运行时记忆相互隔离；A 的档案和已激活 Native 记忆体不出现在 B |
+| 工作区范围 | A/B 的运行时记忆相互隔离；A 的档案和已激活 Native 记忆空间不出现在 B |
 | 全局和自定义范围 | 两个会话分别共享全局根或配置的自定义根，不混入工作区记忆；切回工作区后原数据仍在 |
 | 页面往返 | 最终版本连续十轮任务看板与会话 Builtin 往返，始终读取 A 的原记录；存入记忆弹窗取消不写入 |
-| Native | 真实 CLI 状态调用成功，A 显示 Mnemon 0.2.5、1/1 记忆体已激活及一份项目档案 |
+| Native | 真实 CLI 状态调用成功，A 显示 Mnemon 0.2.5、1/1 记忆空间已激活及一份项目档案 |
 
 完整 `pnpm run verify` 通过：630 项测试通过，1 项 Windows 专用测试在 macOS 跳过；108 个构建文件确定性检查、35 个 Headless 工具及 5 个代表调用、Headless 配置迁移和幂等重启、115 文件发布包、10 个 Node 兼容入口、publint 与 attw 均通过。组件测试覆盖两种入口的全部八种记忆层组合、旧请求失效、会话切换时编辑器清理、独立任务作用域、可见性和快捷入口清理；Host 测试覆盖 global/workspace/custom 及旧 dataDir 路由。
 

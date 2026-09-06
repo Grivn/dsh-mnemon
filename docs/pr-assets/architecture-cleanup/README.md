@@ -47,7 +47,7 @@ Run `pnpm e2e:serve` after building. This uses a disposable real DSH WebUI/Profi
 | Sidebar launch, return, one chat turn / 入口、返回、会话回合 | Connected; local stub reply completed / 已连接，本地桩回合完成 |
 | Runtime add/edit/clear branch / 新增、编辑、清空分支 | Count and content updated; scope badge removed / 条目数与内容更新，分支标签移除 |
 | Documents create/edit/search / 档案新增、编辑、检索 | Markdown table rendered; revision 1 → 2; query found the document / 表格渲染，修订递增，检索命中 |
-| Native space create/activate / 原生记忆体创建、激活 | Created through the 390px dialog; 1/1 active / 窄屏创建成功，1/1 激活 |
+| Native space create/activate / 原生记忆空间创建、激活 | Created through the 390px dialog; 1/1 active / 窄屏创建成功，1/1 激活 |
 | Native browse/keyword recall/related/forget / 浏览、召回、关联、忘记 | 2 results and a related item; confirmed soft-delete reduced recall to 1 / 召回 2 条并展示关联，确认软删除后剩 1 条 |
 | Three enhancements / 三项增强 | All three switches persisted on together / 三个开关同时开启并保存 |
 | Layer disable/re-enable / 记忆层关闭与恢复 | Documents alone became Off; Host stayed Connected; revision-2 data returned after enabling / 仅档案关闭，Host 保持连接，重启该层后修订 2 数据恢复 |
