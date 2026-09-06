@@ -107,6 +107,9 @@
       ],
       "dsh-mnemon-provider-supermemory": [
         "./plugins/dsh-mnemon-provider-supermemory/src/index.ts"
+      ],
+      "dsh-mnemon-source-memory-spaces/native-cli": [
+        "./plugins/dsh-mnemon-source-memory-spaces/src/native-cli.ts"
       ]
     },
     "resolveJsonModule": true

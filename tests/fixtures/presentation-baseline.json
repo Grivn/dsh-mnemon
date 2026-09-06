@@ -23,5 +23,21 @@
   "en": {
     "keys": 920,
     "sha256": "aa9c822766476f503eacbc0fedb69d440427403c95c84ac3c1a5919a3fad23f5"
+  },
+  "versionMaintenance": {
+    "page": {
+      "rules": 1064,
+      "rulesSha256": "9e082ee15eb3660581c91fe8c55fc29700e1db8a3975cf5dcf134aa41f4eeede",
+      "classes": 276,
+      "classesSha256": "d8439033262749395ace4b6df2a5b87fbd2361d453a648332de61f5e2e773eee"
+    },
+    "zh": {
+      "keys": 958,
+      "sha256": "179e371769d5ed3821154a1c0a566866dac4bb3670201725a5a2970e3cfd8e8a"
+    },
+    "en": {
+      "keys": 958,
+      "sha256": "67ecea602c1e6515b8382669a1d07cc1301d1cdb7c2d278ee7cbaf1324f3281f"
+    }
   }
 }

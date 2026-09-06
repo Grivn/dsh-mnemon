@@ -3,7 +3,7 @@ import type { HostConnectionHandle, HostRpcAuthority, HostRpcHandler, RpcResult 
 import type { MnemonLifecycle } from './lifecycle.ts'
 import type { LiveMnemonRuntime } from './runtime.ts'
 import { assertParticipation } from './access.ts'
-import { VersionUpdateManager } from './version-updates.ts'
+import { isVersionComponentId, VersionUpdateManager } from './version-updates.ts'
 import type { MemoryCapability, MemoryJsonValue, MemoryOperationScope, MemorySourceManagementInstance } from '../core/contracts/index.ts'
 import type { CreateMemoryBodyRequest, Insight, MemoryBodyCatalog, PreparedMemoryPlacement, RememberRequest } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { RuntimeMemoryMutation } from 'dsh-mnemon-source-runtime/contracts'
@@ -277,7 +277,8 @@ export function createWriteHandler(input: LiveMnemonRuntime, lifecycle?: MnemonL
       const payload = object(rawPayload)
       if (endpoint === 'version-update') {
         if (versions === undefined) throw new Error('version updates are unavailable')
-        if (payload.component !== 'mnemon' && payload.component !== 'dsh-mnemon') return badRequest('unknown version component')
+        if (!input.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only (writeEnabled: false)')
+        if (!isVersionComponentId(payload.component)) return badRequest('unknown version component')
         return success(await versions.update(payload.component))
       }
       const runtime = scoped(input, payload, lifecycle)

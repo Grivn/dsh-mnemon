@@ -29,7 +29,16 @@ npm view @deepseek-ai/dsh dist-tags
 
 ## 2. 安装 Mnemon
 
-macOS 推荐 Homebrew Cask：
+macOS、Linux 和 Windows 均推荐使用 npm（Node.js 22+）。在运行 DSH 的宿主机器上执行：
+
+```sh
+npm install --global @mnemon-dev/mnemon@latest
+mnemon --version
+```
+
+后续通过 `mnemon update` 更新；状态页识别到所属 npm 安装时，也可使用“检查版本”中的更新操作。若从 Homebrew、Go 或下载的二进制迁移，请让 npm 全局命令目录在 PATH 中优先于旧命令，并同步调整 `MNEMON_CLI_PATH` / `mnemon.cliPath`。改变宿主环境后重启 DSH，再在状态页核对可执行文件路径。
+
+macOS 也可选择 Homebrew Cask：
 
 ```sh
 brew install --cask mnemon-dev/tap/mnemon
@@ -47,7 +56,7 @@ go install github.com/mnemon-dev/mnemon@latest
 mnemon --version
 ```
 
-Windows 官方发行包同时提供 AMD64 与 ARM64 ZIP。下面的 PowerShell 会把 v0.2.3 安装到可自动发现的用户 Programs 目录，并使用官方 checksum 校验下载内容：
+如果选择在 Windows 手工安装，官方发行包同时提供 AMD64 与 ARM64 ZIP。下面的 PowerShell 会把 v0.2.3 安装到可自动发现的用户 Programs 目录，并使用官方 checksum 校验下载内容：
 
 ```powershell
 $version = '0.2.3'
@@ -82,7 +91,7 @@ $mnemon = Join-Path $mnemonBin 'mnemon.exe'
 & $mnemon --version
 ```
 
-Windows 上，dsh-mnemon 会从 `PATH`、导出的 `GOBIN` 或 `GOPATH`、默认 `%USERPROFILE%\go\bin`、`%LOCALAPPDATA%\Programs\mnemon` 和 Program Files 中发现原生 `mnemon.exe`。CLI 调用刻意禁用 shell，因此不接受 `.cmd` 与 `.bat` wrapper。
+Windows 上，dsh-mnemon 会从 `PATH`、导出的 `GOBIN` 或 `GOPATH`、默认 `%USERPROFILE%\go\bin`、`%LOCALAPPDATA%\Programs\mnemon` 和 Program Files 中发现原生 `mnemon.exe`。同时支持官方 npm 的 `mnemon.cmd` 启动器：验证包身份后通过 Node 调用其 JavaScript 入口，全程不使用 shell。其他 `.cmd` 与 `.bat` wrapper 仍不受支持。
 
 如果 DSH 仍无法找到二进制，请设置 `MNEMON_CLI_PATH`，或在用户 settings 中写入绝对路径；不要为此整体替换插件的 profile patch：
 

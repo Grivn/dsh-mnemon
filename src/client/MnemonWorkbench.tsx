@@ -4,8 +4,9 @@ import { IconChevronLeftOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import { consumeMnemonAnchor, subscribeMnemonAnchor, type MnemonAnchor } from "./anchor.ts"
 
-import { type ClientConnectionHandle, type ClientSettingsScope, type Config, type JsonValue, type MemoryProviderRuntimeStatus, type MemorySourceManagementCatalog, type MemorySourceManagementInstance, type StatusView, type StorageAreaInventory, type StorageScopeInventory, type StorageScopeKind, type VersionComponentStatus, type VersionInstallMode, type VersionStatus, type VersionUpdateResult } from "../host/protocol.ts"
+import { type ClientConnectionHandle, type ClientSettingsScope, type Config, type JsonValue, type MemoryProviderRuntimeStatus, type MemorySourceManagementCatalog, type MemorySourceManagementInstance, type StatusView, type StorageAreaInventory, type StorageScopeInventory, type StorageScopeKind } from "../host/protocol.ts"
 import { MnemonClient } from "./api.ts"
+import { VersionDialog } from "./VersionDialog.tsx"
 import { translateZh, type MnemonKey, type MnemonTranslate } from "./locales.ts"
 
 import { ProviderIcon } from "./ProviderIcon.tsx"
@@ -136,109 +137,6 @@ function WorkspaceNavigation(props: { page: Page; onSelect(page: Page): void; so
   return <div className={appearanceClass(css.topNavigation, sidebarCss.topNavigation)}>
     <div className={appearanceClass(css.nav, sidebarCss.nav)} role="tablist" aria-label={t('nav.aria')}>{entries.filter(entry => entry.primary).map(button)}</div>
   </div>
-}
-
-function versionModeLabel(t: MnemonTranslate, mode: VersionInstallMode): string {
-  if (mode === 'homebrew') return t('versions.modeHomebrew')
-  if (mode === 'go') return t('versions.modeGo')
-  if (mode === 'npm') return t('versions.modeNpm')
-  if (mode === 'link') return t('versions.modeLink')
-  if (mode === 'missing') return t('versions.modeMissing')
-  return t('versions.modeManual')
-}
-
-function versionHint(t: MnemonTranslate, component: VersionComponentStatus): string {
-  if (component.checkError !== undefined) return t('versions.latestUnavailable')
-  if (component.updateHint === 'brew') return t('versions.hintHomebrew')
-  if (component.updateHint === 'brew-missing') return t('versions.hintBrewMissing')
-  if (component.updateHint === 'go') return t('versions.hintGo')
-  if (component.updateHint === 'pnpm') return t('versions.hintPnpm')
-  if (component.updateHint === 'pnpm-missing') return t('versions.hintPnpmMissing')
-  if (component.updateHint === 'link') return t('versions.hintLink')
-  if (component.updateHint === 'install') return t('versions.hintInstall')
-  return t('versions.hintManual')
-}
-
-function dshInstallLabel(t: MnemonTranslate, component: VersionComponentStatus): string {
-  if (component.installMode === 'npm') return t('versions.profileLocation', { name: component.installProfile ?? '—' })
-  if (component.installMode === 'link') return component.installProfile === undefined
-    ? t('versions.sourceLocation')
-    : t('versions.linkSourceLocation', { name: component.installProfile })
-  return t('versions.packageLocation')
-}
-
-function VersionDialog(props: { client: MnemonClient; writeEnabled: boolean; onClose: () => void; onRefreshStatus: () => void }): JSX.Element {
-  const t = useT()
-  const [snapshot, setSnapshot] = useState<VersionStatus | null>(null)
-  const [checking, setChecking] = useState(true)
-  const [updating, setUpdating] = useState<VersionComponentStatus['id'] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<VersionUpdateResult | null>(null)
-  const checkRequestRef = useRef(0)
-  const checkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const check = useCallback(async () => {
-    const requestVersion = ++checkRequestRef.current
-    setChecking(true)
-    setError(null)
-    let timeout: ReturnType<typeof setTimeout> | undefined
-    try {
-      const deadline = new Promise<never>((_resolve, reject) => {
-        timeout = setTimeout(() => reject(new Error(t('versions.timeout'))), 15_000)
-        checkTimeoutRef.current = timeout
-      })
-      const next = await Promise.race([props.client.versions(), deadline])
-      if (checkRequestRef.current === requestVersion) setSnapshot(next)
-    }
-    catch (reason) { if (checkRequestRef.current === requestVersion) setError(message(reason)) }
-    finally {
-      if (timeout !== undefined) clearTimeout(timeout)
-      if (checkTimeoutRef.current === timeout) checkTimeoutRef.current = null
-      if (checkRequestRef.current === requestVersion) setChecking(false)
-    }
-  }, [props.client, t])
-  useEffect(() => {
-    void check()
-    return () => {
-      checkRequestRef.current += 1
-      if (checkTimeoutRef.current !== null) clearTimeout(checkTimeoutRef.current)
-      checkTimeoutRef.current = null
-    }
-  }, [check])
-  const update = async (component: VersionComponentStatus) => {
-    setUpdating(component.id)
-    setError(null)
-    setResult(null)
-    try {
-      const next = await props.client.updateVersion(component.id)
-      setResult(next)
-      await check()
-      props.onRefreshStatus()
-    } catch (reason) {
-      setError(message(reason))
-    } finally {
-      setUpdating(null)
-    }
-  }
-  const updatingBusy = updating !== null
-  const controlsBusy = checking || updatingBusy
-  return <SidebarModal title={t('versions.title')} description={t('versions.description')} busy={updatingBusy} contentReady={!checking} onClose={props.onClose} footer={<><span className={css.modalFooterMeta}>{snapshot === null ? '' : t('versions.checkedAt', { time: new Date(snapshot.checkedAt).toLocaleTimeString() })}</span><div className={css.modalFooterActions}><button type="button" data-dialog-close className={css.ghostButton} disabled={updatingBusy} onClick={props.onClose}>{t('common.cancel')}</button><button type="button" data-autofocus className={css.secondaryButton} disabled={controlsBusy} onClick={() => void check()}>{checking ? t('versions.checkingShort') : t('versions.recheck')}</button></div></>}>
-    <div className={css.versionDialogBody}>
-      {checking && snapshot === null && <div className={css.versionChecking} role="status"><span />{t('versions.checking')}</div>}
-      {error !== null && <div className={css.versionError} role="alert"><strong>{t('versions.failed')}</strong><p>{error}</p></div>}
-      {result !== null && <div className={css.versionResult} role="status"><strong>{result.updated ? t('versions.updated', { name: result.component === 'mnemon' ? 'Mnemon CLI' : 'dsh-mnemon' }) : t('versions.alreadyCurrent')}</strong>{result.restartRequired && <p>{t('versions.restartRequired')}</p>}</div>}
-      {snapshot !== null && <div className={css.versionList}>{snapshot.components.map(component => {
-        const canUpdate = props.writeEnabled && component.outdated && component.updateSupported && component.checkError === undefined
-        const state = component.checkError !== undefined ? t('versions.unknown') : component.outdated ? t('versions.available') : t('versions.current')
-        return <article key={component.id} data-outdated={component.outdated || undefined}>
-          <header><div><strong>{component.name}</strong><span>{versionModeLabel(t, component.installMode)}</span></div><em>{state}</em></header>
-          <div className={css.versionNumbers}><div><small>{t('versions.installed')}</small><code>{component.current ?? '—'}</code></div><span>→</span><div><small>{t('versions.latest')}</small><code>{component.latest ?? '—'}</code></div></div>
-          {component.id === 'mnemon' && component.executablePath !== undefined && <small className={css.versionLocation} title={component.executablePath}><span>{t('versions.executable')}</span><code>{component.executablePath}</code></small>}
-          {component.id === 'dsh-mnemon' && component.installPath !== undefined && <small className={css.versionLocation} title={component.installPath}><span>{dshInstallLabel(t, component)}</span><code>{component.installPath}</code></small>}
-          <footer><p>{versionHint(t, component)}</p>{canUpdate && <button type="button" className={css.primaryButton} disabled={controlsBusy} onClick={() => void update(component)}>{updating === component.id ? t('versions.updating') : t('versions.update')}</button>}</footer>
-        </article>
-      })}</div>}
-    </div>
-  </SidebarModal>
 }
 
 /** Fixed descriptor-driven baseline; custom Source pages can only add to it. */

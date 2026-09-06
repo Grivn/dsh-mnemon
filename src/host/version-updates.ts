@@ -2,8 +2,9 @@ import { accessSync, constants, existsSync, readFileSync, readdirSync, realpathS
 import { homedir } from 'node:os'
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findMnemonCommand, mnemonNpmLauncher } from 'dsh-mnemon-source-memory-spaces/native-cli'
 import { runProcess, type ProcessResult, type ProcessRunner } from './process.ts'
-import type { VersionComponentId, VersionComponentStatus, VersionInstallMode, VersionStatus, VersionUpdateResult } from "./protocol.ts"
+import type { VersionComponentId, VersionComponentStatus, VersionInstallMode, VersionPackageId, VersionPackageStatus, VersionStatus, VersionUpdateResult } from "./protocol.ts"
 
 export type { VersionComponentId, VersionComponentStatus, VersionInstallMode, VersionStatus, VersionUpdateResult } from "./protocol.ts"
 
@@ -12,6 +13,7 @@ interface PackageManifest {
   version?: string
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
+  bin?: Record<string, string>
 }
 
 interface DshInstall {
@@ -22,8 +24,9 @@ interface DshInstall {
 }
 
 interface MnemonInstall {
-  mode: Extract<VersionInstallMode, 'homebrew' | 'go' | 'manual' | 'missing'>
+  mode: Extract<VersionInstallMode, 'homebrew' | 'go' | 'npm' | 'manual' | 'missing'>
   command?: string
+  hint?: string
   updateCommand?: string
   updateArgs?: string[]
 }
@@ -39,7 +42,12 @@ export interface VersionUpdateDependencies {
 }
 
 const DSH_MNEMON_PACKAGE = 'dsh-mnemon'
-const findMnemonCommand = (config: { cliPath?: string }): string | undefined => config.cliPath ?? process.env.MNEMON_CLI_PATH ?? resolveExecutable('mnemon') ?? resolveExecutable('/opt/homebrew/bin/mnemon') ?? resolveExecutable(join(homedir(), '.local/bin/mnemon'))
+const MNEMON_NPM_PACKAGE = '@mnemon-dev/mnemon'
+const SUBPACKAGE = /^dsh-mnemon-(source|strategy|provider)-[a-z0-9][a-z0-9._-]*$/
+
+export function isVersionComponentId(value: unknown): value is VersionComponentId {
+  return typeof value === 'string' && (value === 'mnemon' || value === DSH_MNEMON_PACKAGE || SUBPACKAGE.test(value))
+}
 const MNEMON_MODULE = 'github.com/mnemon-dev/mnemon'
 const PACKAGE_MANIFEST_PATH = [new URL('../package.json', import.meta.url), new URL('../../package.json', import.meta.url)]
   .map(url => fileURLToPath(url)).find(path => manifest(path)?.name === DSH_MNEMON_PACKAGE) ?? fileURLToPath(new URL('../package.json', import.meta.url))
@@ -168,15 +176,8 @@ async function fetchNpmLatest(name: string, tag = 'latest'): Promise<string | un
   return typeof version === 'string' ? version : undefined
 }
 
-async function fetchMnemonLatest(): Promise<string | undefined> {
-  const body = await fetchJson('https://api.github.com/repos/mnemon-dev/mnemon/releases/latest')
-  if (typeof body !== 'object' || body === null) return undefined
-  const tag = (body as Record<string, unknown>).tag_name
-  return typeof tag === 'string' ? tag.replace(/^v/, '') : undefined
-}
-
-function dependencySpec(profile: PackageManifest | undefined): string | undefined {
-  return profile?.dependencies?.[DSH_MNEMON_PACKAGE] ?? profile?.devDependencies?.[DSH_MNEMON_PACKAGE]
+function dependencySpec(profile: PackageManifest | undefined, name = DSH_MNEMON_PACKAGE): string | undefined {
+  return profile?.dependencies?.[name] ?? profile?.devDependencies?.[name]
 }
 
 function isLinkSpec(spec: string | undefined): boolean {
@@ -195,6 +196,7 @@ function profileFromAncestor(packageManifestPath: string): DshInstall | undefine
     const profile = manifest(join(directory, 'package.json'))
     if (profile?.name?.startsWith('dsh-profile-') === true) {
       const spec = dependencySpec(profile)
+      if (spec === undefined) return undefined
       const linked = isLinkSpec(spec)
       return {
         mode: linked ? 'link' : 'npm',
@@ -250,6 +252,22 @@ function updateOutput(result: ProcessResult): string | undefined {
   return output === '' ? undefined : output.slice(-4_000)
 }
 
+/** Follow public package links afresh after an update, without Node's resolution cache. */
+function packageAt(directory: string, name: string): string | undefined {
+  for (let depth = 0; depth < 16; depth++) {
+    const path = join(directory, 'node_modules', name, 'package.json')
+    if (manifest(path)?.name === name) return path
+    const parent = dirname(directory)
+    if (parent === directory) break
+    directory = parent
+  }
+  return undefined
+}
+
+function samePath(left: string, right: string): boolean {
+  try { return realpathSync(left) === realpathSync(right) } catch { return false }
+}
+
 export class VersionUpdateManager {
   private dshMnemonVersion: string
   private readonly packageManifestPath: string
@@ -259,6 +277,8 @@ export class VersionUpdateManager {
   private readonly executable: (command: string) => string | undefined
   private readonly fetchNpmLatest: (name: string, tag?: string) => Promise<string | undefined>
   private readonly fetchMnemonLatest: () => Promise<string | undefined>
+  private readonly pendingRestart = new Set<VersionComponentId>()
+  private updating = false
 
   constructor(dependencies: VersionUpdateDependencies = {}) {
     this.packageManifestPath = dependencies.packageManifestPath ?? PACKAGE_MANIFEST_PATH
@@ -268,18 +288,18 @@ export class VersionUpdateManager {
     this.processRunner = dependencies.processRunner ?? runProcess
     this.executable = dependencies.resolveExecutable ?? resolveExecutable
     this.fetchNpmLatest = dependencies.fetchNpmLatest ?? fetchNpmLatest
-    this.fetchMnemonLatest = dependencies.fetchMnemonLatest ?? fetchMnemonLatest
+    this.fetchMnemonLatest = dependencies.fetchMnemonLatest ?? (() => this.fetchNpmLatest(MNEMON_NPM_PACKAGE))
   }
 
   get currentDshMnemonVersion(): string {
     return this.dshMnemonVersion
   }
 
-  private async latestDshMnemonVersion(): Promise<string | undefined> {
-    const channel = parseSemver(this.currentDshMnemonVersion)?.prerelease[0]
+  private async latestPackageVersion(name: string, current?: string): Promise<string | undefined> {
+    const channel = current === undefined ? undefined : parseSemver(current)?.prerelease[0]
     const tags = channel !== undefined && ['alpha', 'beta', 'rc'].includes(channel) ? ['latest', channel] : ['latest']
     const candidates = await Promise.all(tags.map(async tag => {
-      const version = await settledWithin(this.fetchNpmLatest(DSH_MNEMON_PACKAGE, tag), undefined)
+      const version = await settledWithin(this.fetchNpmLatest(name, tag), undefined)
       const parsed = version === undefined ? undefined : parseSemver(version)
       if (parsed === undefined) return undefined
       // Stable users never opt in implicitly, even if a registry tag is wrong.
@@ -289,15 +309,50 @@ export class VersionUpdateManager {
     return candidates.filter((version): version is string => version !== undefined).sort(compareVersions).at(-1)
   }
 
+  private latestDshMnemonVersion(): Promise<string | undefined> {
+    return this.latestPackageVersion(DSH_MNEMON_PACKAGE, this.currentDshMnemonVersion)
+  }
+
+  private async latestMnemonVersion(): Promise<string | undefined> {
+    const version = await settledWithin(this.fetchMnemonLatest(), undefined)
+    const parsed = version === undefined ? undefined : parseSemver(version)
+    return parsed !== undefined && parsed.prerelease.length === 0 ? version : undefined
+  }
+
+  private npmInvocation(): { command: string; args: string[] } | undefined {
+    const npm = this.executable('npm')
+    if (npm === undefined) return undefined
+    if (!/\.cmd$/i.test(npm)) return { command: npm, args: [] }
+    const cli = join(dirname(npm), 'node_modules/npm/bin/npm-cli.js')
+    return existsSync(cli) ? { command: process.execPath, args: [cli] } : undefined
+  }
+
   private async inspectMnemon(): Promise<{ install: MnemonInstall; current?: string }> {
     const configured = this.mnemonCliPath() ?? findMnemonCommand({})
     const command = configured === undefined ? undefined : this.executable(configured)
     if (command === undefined) return { install: { mode: 'missing' } }
+    const launcher = mnemonNpmLauncher(command)
     let current: string | undefined
     try {
-      current = versionFrom((await resultOrThrow(this.processRunner, command, ['--version'], CHECK_TIMEOUT_MS)).stdout)
+      current = versionFrom((await resultOrThrow(this.processRunner, launcher === undefined ? command : process.execPath, launcher === undefined ? ['--version'] : [launcher, '--version'], CHECK_TIMEOUT_MS)).stdout)
     } catch {
-      return { install: { mode: 'manual', command } }
+      return { install: { mode: launcher === undefined ? 'manual' : 'npm', command, hint: 'cli-unreadable' } }
+    }
+    if (launcher !== undefined) {
+      const install: MnemonInstall = { mode: 'npm', command, hint: 'npm-unmanaged' }
+      const npm = this.npmInvocation()
+      if (npm === undefined) install.hint = 'npm-missing'
+      else {
+        try {
+          const globalRoot = (await resultOrThrow(this.processRunner, npm.command, [...npm.args, 'root', '--global'], CHECK_TIMEOUT_MS)).stdout.trim()
+          if (isAbsolute(globalRoot) && samePath(dirname(dirname(launcher)), join(globalRoot, MNEMON_NPM_PACKAGE))) {
+            install.hint = 'npm'
+            install.updateCommand = process.execPath
+            install.updateArgs = [launcher, 'update']
+          }
+        } catch { /* Keep npm provenance, but do not offer an unverified update target. */ }
+      }
+      return { install, ...(current === undefined ? {} : { current }) }
     }
     let realCommand = command
     try { realCommand = realpathSync(command) } catch {}
@@ -336,13 +391,49 @@ export class VersionUpdateManager {
     return { ...(current === undefined ? {} : { current }), install: { mode: 'manual', command } }
   }
 
+  private subpackages(install: DshInstall): Array<{ status: VersionPackageStatus; manifestPath?: string }> {
+    const starterPath = install.mode === 'npm' && install.profileDir !== undefined
+      ? packageAt(install.profileDir, DSH_MNEMON_PACKAGE) ?? this.packageManifestPath : this.packageManifestPath
+    const starter = manifest(starterPath)
+    const profile = install.profileDir === undefined ? undefined : manifest(join(install.profileDir, 'package.json'))
+    const names = [...new Set([...Object.keys(starter?.dependencies ?? {}), ...Object.keys(profile?.dependencies ?? {}), ...Object.keys(profile?.devDependencies ?? {})])].filter(name => SUBPACKAGE.test(name)).sort()
+    return names.map(name => {
+      const directSpec = dependencySpec(profile, name)
+      const managedBy = directSpec === undefined ? 'starter' : 'profile'
+      const base = directSpec === undefined ? dirname(starterPath) : install.profileDir!
+      const path = packageAt(base, name)
+      const value = path === undefined ? undefined : manifest(path)
+      const linked = isLinkSpec(directSpec ?? starter?.dependencies?.[name]) || install.mode === 'link'
+        || (path !== undefined && !realpathSync(dirname(path)).replaceAll('\\', '/').includes('/node_modules/'))
+      const mode: VersionInstallMode = linked ? 'link' : path === undefined ? 'missing' : install.mode === 'npm' ? 'npm' : 'manual'
+      const supported = managedBy === 'profile' && mode === 'npm' && this.executable('pnpm') !== undefined
+      return {
+        ...(path === undefined ? {} : { manifestPath: path }),
+        status: {
+          id: name as VersionPackageId, name, kind: SUBPACKAGE.exec(name)![1] as VersionPackageStatus['kind'], managedBy,
+          ...(starter?.dependencies?.[name] === undefined ? {} : { expectedVersion: starter.dependencies[name] }),
+          ...(value?.version === undefined ? {} : { current: value.version }),
+          ...(path === undefined ? {} : { installPath: realpathSync(dirname(path)) }),
+          ...(install.profileName === undefined ? {} : { installProfile: install.profileName }),
+          installMode: mode, outdated: false, updateSupported: supported,
+          updateHint: linked ? 'link' : managedBy === 'starter' ? 'starter' : supported ? 'pnpm' : mode === 'npm' ? 'pnpm-missing' : 'manual',
+          restartRequired: this.pendingRestart.has(name as VersionPackageId) || this.pendingRestart.has(DSH_MNEMON_PACKAGE),
+        },
+      }
+    })
+  }
+
   async check(): Promise<VersionStatus> {
-    const [mnemonLocal, mnemonLatest, dshLatest] = await Promise.all([
-      settledWithin(this.inspectMnemon(), { install: { mode: 'missing' } }),
-      settledWithin(this.fetchMnemonLatest(), undefined),
-      settledWithin(this.latestDshMnemonVersion(), undefined),
-    ])
     const dshInstall = inspectDshInstall(this.packageManifestPath, this.dshHome)
+    const [mnemonLocal, mnemonLatest, dshLatest, packages] = await Promise.all([
+      settledWithin(this.inspectMnemon(), { install: { mode: 'manual', hint: 'cli-unreadable' } }),
+      this.latestMnemonVersion(),
+      settledWithin(this.latestDshMnemonVersion(), undefined),
+      Promise.all(this.subpackages(dshInstall).map(async ({ status }) => {
+        const latest = await this.latestPackageVersion(status.id, status.current)
+        return { ...status, ...(latest === undefined ? { checkError: 'latest-unavailable' } : { latest }), outdated: status.current !== undefined && latest !== undefined && compareVersions(status.current, latest) < 0 }
+      })),
+    ])
     const pnpm = this.executable('pnpm')
     const mnemonOutdated = mnemonLocal.current !== undefined && mnemonLatest !== undefined && compareVersions(mnemonLocal.current, mnemonLatest) < 0
     const dshOutdated = dshLatest !== undefined && compareVersions(this.currentDshMnemonVersion, dshLatest) < 0
@@ -360,11 +451,11 @@ export class VersionUpdateManager {
           outdated: mnemonOutdated,
           installMode: mnemonLocal.install.mode,
           updateSupported: mnemonSupported,
-          updateHint: mnemonLocal.install.mode === 'homebrew'
+          updateHint: mnemonLocal.install.hint ?? (mnemonLocal.install.mode === 'homebrew'
             ? mnemonSupported ? 'brew' : 'brew-missing'
             : mnemonLocal.install.mode === 'go'
               ? 'go'
-              : mnemonLocal.install.mode === 'missing' ? 'install' : 'manual',
+              : mnemonLocal.install.mode === 'missing' ? 'install' : 'manual'),
           ...(mnemonLatest === undefined ? { checkError: 'latest-unavailable' } : {}),
         },
         {
@@ -377,6 +468,8 @@ export class VersionUpdateManager {
           outdated: dshOutdated,
           installMode: dshInstall.mode,
           updateSupported: dshSupported,
+          packages,
+          restartRequired: this.pendingRestart.size > 0,
           updateHint: dshInstall.mode === 'npm'
             ? dshSupported ? 'pnpm' : 'pnpm-missing'
             : dshInstall.mode === 'link' ? 'link' : 'manual',
@@ -387,9 +480,15 @@ export class VersionUpdateManager {
   }
 
   async update(component: VersionComponentId): Promise<VersionUpdateResult> {
+    if (this.updating) throw new Error('A version update is already in progress')
+    this.updating = true
+    try { return await this.performUpdate(component) } finally { this.updating = false }
+  }
+
+  private async performUpdate(component: VersionComponentId): Promise<VersionUpdateResult> {
     if (component === 'mnemon') {
       const before = await this.inspectMnemon()
-      const latest = await this.fetchMnemonLatest()
+      const latest = await this.latestMnemonVersion()
       if (before.current === undefined) throw new Error('Mnemon CLI is unavailable')
       if (latest === undefined) throw new Error('Unable to verify the latest Mnemon release')
       if (compareVersions(before.current, latest) >= 0) return { component, previousVersion: before.current, currentVersion: before.current, updated: false, restartRequired: false }
@@ -408,21 +507,24 @@ export class VersionUpdateManager {
       }
     }
 
-    if (component !== 'dsh-mnemon') throw new Error(`Unknown version component: ${String(component)}`)
-    const latest = await this.latestDshMnemonVersion()
-    if (latest === undefined) throw new Error('Unable to verify the latest dsh-mnemon release')
-    if (compareVersions(this.currentDshMnemonVersion, latest) >= 0) return { component, previousVersion: this.currentDshMnemonVersion, currentVersion: this.currentDshMnemonVersion, updated: false, restartRequired: false }
     const install = inspectDshInstall(this.packageManifestPath, this.dshHome)
+    const child = component === DSH_MNEMON_PACKAGE ? undefined : this.subpackages(install).find(item => item.status.id === component)?.status
+    if (component !== DSH_MNEMON_PACKAGE && child === undefined) throw new Error(`Unknown version component: ${String(component)}`)
+    if (child !== undefined && !child.updateSupported) throw new Error('This subpackage must be updated through its Starter or original installation method')
+    const previousVersion = child?.current ?? this.currentDshMnemonVersion
+    const latest = await this.latestPackageVersion(component, previousVersion)
+    if (latest === undefined) throw new Error('Unable to verify the latest dsh-mnemon release')
+    if (compareVersions(previousVersion, latest) >= 0) return { component, previousVersion, currentVersion: previousVersion, updated: false, restartRequired: this.pendingRestart.has(component) }
     const pnpm = this.executable('pnpm')
     if (install.mode !== 'npm' || install.profileDir === undefined || pnpm === undefined) throw new Error('This dsh-mnemon installation cannot be updated automatically')
-    const previousVersion = this.currentDshMnemonVersion
-    const output = await resultOrThrow(this.processRunner, pnpm, ['add', `${DSH_MNEMON_PACKAGE}@${latest}`, '--save-exact'], UPDATE_TIMEOUT_MS, { cwd: install.profileDir })
+    const output = await resultOrThrow(this.processRunner, pnpm, ['add', `${component}@${latest}`, '--save-exact'], UPDATE_TIMEOUT_MS, { cwd: install.profileDir })
     // The running module may still reside in pnpm's old versioned directory.
     // Read the profile's current public link, not that stale package path.
-    const installedVersion = manifest(join(install.profileDir, 'node_modules', DSH_MNEMON_PACKAGE, 'package.json'))?.version
-    if (installedVersion !== latest) throw new Error(`dsh-mnemon update did not install the requested version ${latest}; found ${installedVersion ?? 'no package'}`)
+    const installedVersion = manifest(join(install.profileDir, 'node_modules', component, 'package.json'))?.version
+    if (installedVersion !== latest) throw new Error(`${component} update did not install the requested version ${latest}; found ${installedVersion ?? 'no package'}`)
     const outputText = updateOutput(output)
-    this.dshMnemonVersion = installedVersion
+    if (component === DSH_MNEMON_PACKAGE) this.dshMnemonVersion = installedVersion
+    this.pendingRestart.add(component)
     return {
       component,
       previousVersion,

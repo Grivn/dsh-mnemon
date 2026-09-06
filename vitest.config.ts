@@ -12,6 +12,7 @@ export default defineConfig({
       'dsh-mnemon-source-documents/client': fileURLToPath(new URL('./plugins/dsh-mnemon-source-documents/src/client.ts', import.meta.url)),
       'dsh-mnemon-source-memory-spaces/client': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/client.ts', import.meta.url)),
       'dsh-mnemon-source-memory-spaces/testing': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/testing.ts', import.meta.url)),
+      'dsh-mnemon-source-memory-spaces/native-cli': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/native-cli.ts', import.meta.url)),
       'dsh-mnemon-source-memory-spaces/provider-sdk': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/provider-sdk.ts', import.meta.url)),
       'dsh-mnemon/extension-sdk': fileURLToPath(new URL('./src/sdk/index.ts', import.meta.url)),
       'dsh-mnemon/contracts': fileURLToPath(new URL('./src/core/contracts/index.ts', import.meta.url)),

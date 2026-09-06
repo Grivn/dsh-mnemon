@@ -368,6 +368,12 @@ describe('Host assistance and channels', () => {
     expect(await createWriteHandler(f.runtime, undefined, versions)('version-update', { component: 'mnemon' })).toMatchObject({ ok: true })
     expect(await createWriteHandler(f.runtime, undefined, versions)('version-update', { component: 'other' })).toMatchObject({ ok: false })
     expect(versions.update).toHaveBeenCalledOnce()
+    expect(await createWriteHandler(f.runtime, undefined, versions)('version-update', { component: 'dsh-mnemon-source-runtime' })).toMatchObject({ ok: true })
+    expect(versions.update).toHaveBeenLastCalledWith('dsh-mnemon-source-runtime')
+    expect(await createWriteHandler(f.runtime, undefined, versions)('version-update', { component: 'dsh-mnemon-source-runtime@latest' })).toMatchObject({ ok: false })
+    const readonly = protocolFixture({ writeEnabled: false })
+    expect(await createWriteHandler(readonly.runtime, undefined, versions)('version-update', { component: 'mnemon' })).toMatchObject({ ok: false })
+    expect(versions.update).toHaveBeenCalledTimes(2)
   })
 
   it('exposes task model choices and cached turn activities without Source work', async () => {
