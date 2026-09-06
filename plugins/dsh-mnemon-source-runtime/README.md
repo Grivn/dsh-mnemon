@@ -25,4 +25,4 @@ The optional `./client` entry is an ordinary DSH Client plugin. This package own
 
 From a source checkout, install the declared dependencies and run `pnpm verify` to check Host behavior, Source-backed page interactions and Host/browser artifacts. Unreleased SDK work consumes a packed `dsh-mnemon` peer, not repository aliases or copied root tests.
 
-[Plugin development](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/extensions.md)
+[Plugin development](https://github.com/omdsh-dev/dsh-mnemon/blob/29a50ad27246e618a5755f4e2e74e47c530aa27e/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/29a50ad27246e618a5755f4e2e74e47c530aa27e/docs/zh-CN/development/extensions.md)

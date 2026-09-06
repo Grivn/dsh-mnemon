@@ -22,4 +22,4 @@ The default Starter already installs this package as a disabled Entry. Use its s
 
 Installing an npm package is not the same as activating a contribution. From a source checkout, run `pnpm verify` with declared public peers installed; use a packed peer for unreleased SDK work.
 
-[Plugin development and independent fixtures](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/extensions.md)
+[Plugin development and independent fixtures](https://github.com/omdsh-dev/dsh-mnemon/blob/29a50ad27246e618a5755f4e2e74e47c530aa27e/docs/en/development/extensions.md) · [中文指南](https://github.com/omdsh-dev/dsh-mnemon/blob/29a50ad27246e618a5755f4e2e74e47c530aa27e/docs/zh-CN/development/extensions.md)
