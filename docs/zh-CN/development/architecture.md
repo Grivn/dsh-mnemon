@@ -1,21 +1,23 @@
-# Composable View Memory 架构
+<a id="composable-view-memory-架构"></a>
+
+# 可组合视图记忆架构
 
 **简体中文** | [English](../../en/development/architecture.md) | [文档中心](../README.md)
 
-系统只有三个主要业务概念：**Source** 拥有记忆及其操作；**Strategy** 提议可用 Source 如何参与；**View** 是特定范围和场景下交给 LLM 的有界上下文与交互形态。Runtime、Documents、Memory Spaces 是默认组合，不是 Core 对所有记忆的固定分类。
+可组合视图记忆（Composable View Memory）只有三个主要业务概念：**Source（记忆来源）** 拥有记忆及其操作；**Strategy（组合策略）** 提议可用 Source 如何参与；**View（上下文视图）** 是特定范围和场景下交给 LLM 的有界上下文与交互形态。运行时、档案、记忆体是默认组合，不是 Core 对所有记忆的固定分类。
 
 ## 归属与装配
 
 ```mermaid
 flowchart TB
-  Starter["dsh-mnemon Starter · cordis.patch.yml"] --> Host["Host · ctx.mnemonMemory"]
+  Starter["dsh-mnemon 默认安装包 · cordis.patch.yml"] --> Host["宿主 · ctx.mnemonMemory"]
   Starter --> Runtime["dsh-mnemon-source-runtime"]
   Starter --> Docs["dsh-mnemon-source-documents"]
   Starter --> Spaces["dsh-mnemon-source-memory-spaces"]
   Starter --> Strategy["dsh-mnemon-strategy-default-three-tier"]
   Starter --> Helpers["三种随附增强 · 默认停用"]
-  Helpers -. selection / projection / capture .-> Strategy
-  Spaces --> Providers["dsh-mnemon-provider-* · private child Fibers"]
+  Helpers -. 选择 / 投影 / 记录 .-> Strategy
+  Spaces --> Providers["dsh-mnemon-provider-* · 私有子 Fiber"]
 ```
 
 图中实线表示 Starter 安装归属，虚线表示用户开启后才生效的策略贡献，不是业务调用链。DSH 创建顶层 Entry/Fiber；Source、Strategy 与策略贡献使用同一套 `installMemory(ctx, ...)` SDK 注册，由 Cordis 负责卸载。Core 只提供 `ctx.mnemonMemory`，不替 Memory Spaces 实现 Fiber，也不提供 `ctx.mnemonMemorySpace`。
@@ -52,13 +54,13 @@ Memory Spaces **自己定义内部 Fiber 与 Provider 协议**。每个 Provider
 
 ```mermaid
 flowchart LR
-  Facts["Source facts"] --> Strategy["Strategy → ViewSpec"]
-  Strategy --> Core["Core validation"]
-  Core --> Project["Source projection + ReadGrant"]
-  Project --> View["Immutable View"]
+  Facts["Source 能力事实"] --> Strategy["Strategy → ViewSpec"]
+  Strategy --> Core["Core 校验"]
+  Core --> Project["Source 投影 + ReadGrant"]
+  Project --> View["不可变 View"]
   View --> Wake["Wake → LLM"]
-  View --> Route["Route / Action → owning Source"]
-  Route --> Result["Evidence / Receipt"]
+  View --> Route["读取 / 写入 → 所属 Source"]
+  Route --> Result["证据 Evidence / 回执 Receipt"]
 ```
 
 View 包含投影片段、route、action offer 与仅留在 Host 的 ReadGrant。Wake 只渲染有界模型表示，并包含可调用 route/action 的 schema；不泄露 grant 载荷、控制器或凭据。Evidence 记录来源与一致性，不是另一份持久记忆。
@@ -72,18 +74,18 @@ sequenceDiagram
   participant Core
   participant Source
   participant LLM
-  DSH->>Host: turn begins (scope, scenario)
-  Host->>Core: acquire Serving generation; compose
-  Core->>Source: facts; project after Strategy selection
-  Source-->>Core: fragments + opaque ReadGrant
-  Core-->>Host: immutable View
-  Host->>LLM: own plugin message: bounded Wake + routes/actions
-  LLM->>Host: selected route/action + input
-  Host->>Core: scope, authority and budget checks
-  Core->>Source: query / mutate
-  Source-->>LLM: bounded Evidence / committed Receipt via Host
-  DSH->>Host: turn ends
-  Host->>Core: release lease; drain retired generation
+  DSH->>Host: 回合开始（范围、场景）
+  Host->>Core: 获取当前服务运行代并组合
+  Core->>Source: 获取能力事实；按 Strategy 选择调用投影
+  Source-->>Core: 片段 + 不透明 ReadGrant
+  Core-->>Host: 不可变 View
+  Host->>LLM: 自有插件消息：有界 Wake + 读取/写入入口
+  LLM->>Host: 选中的读取/写入入口 + 输入
+  Host->>Core: 检查范围、权限与预算
+  Core->>Source: 查询 / 修改
+  Source-->>LLM: 经 Host 返回有界证据 / 提交回执
+  DSH->>Host: 回合结束
+  Host->>Core: 释放租约；排空已退役运行代
 ```
 
 ## 生命周期与失败

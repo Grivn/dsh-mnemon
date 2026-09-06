@@ -20,7 +20,7 @@ The CLI checksum identifies the installed binary; it is not an independent upstr
 
 ## Media
 
-[Watch the 22.72-second recording](./demo.mp4). It is a continuous real browser recording transcoded to H.264 / yuv420p with fast-start metadata: no constructed interface, label replacement, generated answer or composited frame. The video has no audio. A single MP4 replaces the old duplicated GIF/video presentation on the project landing page.
+[Watch the 22.72-second recording](./demo.mp4) (English UI, no audio). It is a continuous real browser recording transcoded to H.264 / yuv420p with fast-start metadata: no constructed interface, label replacement, generated answer or composited frame. A single MP4 replaces the old duplicated GIF/video presentation on the project landing page.
 
 | Surface | English | 简体中文 |
 |---|---|---|
@@ -46,5 +46,7 @@ The screenshots show the default disabled enhancement state. The recording also 
 本组素材来自真实本地 DSH、当前 0.5.2 实现与隔离的合成数据，不是设计稿或拼接界面。四条热记忆、两份档案及两个记忆体由页面创建；四条长期证据由真实 CLI 写入夹具的明确存储根，未调用嵌入或模型。页面随后完成激活、同步与浏览。
 
 中英文桌面均验证了三个增强开关的开启、重新打开设置后的持久化，以及恢复默认关闭。390px 窄屏另发现设置裁切，失败证据单列，不计作通过。录屏为连续浏览器画面转码，保留真实按钮和内容。它不证明 LLM 效果、云 Provider 兼容性或真实手机表现。
+
+截图通过 DSH 实际语言设置切换界面；两种语言保留同一组英文合成记忆，便于对照，不代表界面漏译。[22.72 秒演示](./demo.mp4)使用英文界面、无音轨。没有对截图或视频中的文字做后期替换。
 
 旧版图片、GIF、视频与 PR 证据保留原路径和版本身份，见[历史证据索引](../../pr-assets/README.md)。不覆盖历史结果，也不因主文档停止引用就删除被旧 PR 使用的素材。

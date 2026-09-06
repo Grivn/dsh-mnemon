@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" lang="en" role="img" aria-labelledby="title description">
   <title id="title">Source + Strategy → View</title>
   <desc id="description">Sources own memory. A Strategy proposes composition from Source facts. Core validates the proposal and calls Source projection to produce an immutable View. The DSH Host pins it to one executing turn and routes reads and authorized actions to the owning Source.</desc>
   <defs>

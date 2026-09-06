@@ -59,7 +59,9 @@ follow an exact cold reference when full text is required
 
 `storageScope` 决定整个根，而不只是 Mnemon 数据库。`workspace` 范围会为每个已登记 DSH 工作区解析独立的 `<workspace>/.mnemon`。显式启用的 `runtimeUserScope=global` 是唯一的分根例外：Runtime 从全局根读取 USER.md，MEMORY.md 与其他所有组件仍留在所选根。工作台任务使用查看工作区；对话工具与生命周期使用所属会话的 cwd 和已固定的 View。`state/memory-providers.json` 保存第三方 endpoint、目标 URI、身份和可选凭据；文件权限为 `0600`，Host 只返回已配置字段名，不回传凭据值。
 
-## Runtime Memory
+<a id="runtime-memory"></a>
+
+## 运行时记忆
 
 ### 语义
 
@@ -103,7 +105,9 @@ branches（可选）
 
 容量按投影正文的实际 UTF-8 字节计算。单条内容最大 8 KiB。当 `add`、`replace` 或 `remove` 遇到容量溢出时，Host 会在任何 Provider 写入前重新检查源 revision。只有一个可写 Memory Space 时完全不调用模型；存在多个空间时，worker 只读取有界路由摘录并返回目标 id，不重写记忆内容。Mnemon Native 按目标空间通过 schema-v1 draft 各导入一次，其他 Provider 继续使用适配器定义的写入语义。Host 要求每个源条目都有一条精确终态回执（跳过的重复项还必须有精确 Recall 证据），随后按重要性和字节预算选择热记忆保留项，并在原 revision fence 下把余量与待处理变更一次提交。Provider 无法与本地文件共享同一事务，因此稍后的 revision 冲突可能留下已经归档的重复项；持久层仍保留去重，重试是安全的。
 
-## Project Documents
+<a id="project-documents"></a>
+
+## 项目档案
 
 ### 用途
 
@@ -148,7 +152,9 @@ Documents 的物理共享范围由 `storageScope` 决定：
 
 默认搜索只覆盖 active。搜索会更新命中文档的 `lastAccessedAt`，因此它对正文只读，但会写索引元数据。
 
-## Memory Spaces
+<a id="memory-spaces"></a>
+
+## 记忆体
 
 记忆体是第三层统一语义与路由单位，具体数据面由 Provider 决定：
 

@@ -27,7 +27,7 @@ See [Architecture](./development/architecture.md), [Development](./development/R
 - Stronger multi-component backup/restore drills and repair tools for damaged metadata or missing projections.
 - Explicit data-format migration and rollback procedures when persistent formats actually need to change.
 - Better background-review history and diagnostics; broader internationalization of Host errors and command output.
-- A reusable DSH directory picker when the Host exposes the necessary capability; track [dsh-external/issues#603](https://github.com/dsh-external/issues/issues/603).
+- A reusable DSH directory picker when the Host exposes the necessary capability. Historical tracking ID: `dsh-external/issues#603`; its public URL is currently unavailable, so it is not a live tracking link.
 - Candidate Source/Strategy evaluation and controlled promotion for RSI: preserve inputs, artifacts, permissions and comparison results before an explicit installation decision.
 
 ## Boundaries that remain

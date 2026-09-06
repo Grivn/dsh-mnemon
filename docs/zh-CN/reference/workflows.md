@@ -17,19 +17,19 @@ Host 只在 Wake 内容变化时追加新的 user-role 插件消息，不再重�
 ```text
 turn/start
   -> 进入 system-prompt/assemble hook
-  -> beginTurn(root turn + operation scope)
-  -> Source facts → Strategy ViewSpec → validation → Source projection
-  -> pin Source revisions/digests and Host-only authority
-  -> build bounded Wake
-  -> 继续真正的 Host prompt assembly
+  -> beginTurn（根回合 + 操作范围）
+  -> Source 能力事实 → Strategy 提案 ViewSpec → 校验 → Source 投影
+  -> 固定 Source 修订/摘要与仅留在 Host 的权限
+  -> 生成有界 Wake
+  -> 继续 Host 提示词组装
   -> 让静态协议 section 与已固定的 Runtime Source 对齐
-  -> append the changed Wake as this plugin's own complete snapshot message
+  -> 将变化后的 Wake 作为本插件的完整快照消息追加
 
 agent/pre-step(step=1)
-  -> cancel pending/running background review for a new turn
-  -> mark Prime once
+  -> 为新回合取消待执行/执行中的后台审查
+  -> 仅标记一次 Prime
   -> 每个会话至多追加一次简短 recall/writeback cue
-  -> main Agent decides whether to call a memory tool
+  -> 主 Agent 决定是否调用记忆工具
 ```
 
 Source snapshot 不执行语义召回。Prime 只初始化路由状态，不执行异步 CLI 状态查询。
@@ -39,22 +39,22 @@ Source snapshot 不执行语义召回。Prime 只初始化路由状态，不执�
 ## Agent 召回
 
 ```text
-Root or child Agent calls mnemon_recall(query, optional memoryBodyIds)
+根 Agent 或子 Agent 调用 mnemon_recall（query，可选 memoryBodyIds）
           |
           v
-resolve the executing Agent's own turn pin and retained runtime
+解析当前执行 Agent 自己固定的回合与保留的运行时
           |
           v
-read the pinned Memory Space Source state on the Host
+读取 Host 上已固定的记忆体 Source 状态
           |
           v
-validate requested IDs are a subset; otherwise use every pinned active ID
+校验请求 ID 是已固定集合的子集；未指定时使用全部已固定的激活 ID
           |
           v
-Memory Spaces Source searches granted Provider namespaces concurrently
+记忆体 Source 并发检索已授权的 Provider 命名空间
           |
           v
-quality normalization + reciprocal-rank fusion
+质量归一化 + 倒数排名融合
           |
           v
 丢弃低相关项；首次最多准入 4 条 / 3,600 字符
@@ -70,7 +70,7 @@ LLM 判断 evidence 是否足够
           |
           v
 两次在当前执行 Agent 回合共享至多 6 条、每条 1,200 字符、
-总正文 4,800 字符的 envelope
+总正文 4,800 字符的总预算
 ```
 
 模型工具不暴露 `category`、`source` 或 `intent` 过滤器：模型猜错过滤条件不能遮住精确证据。Recall 并非强制执行，普通 root 回合是 0 次 Provider 查询。LLM 主动调用后，Host 允许一个首次查询；只有 LLM 查看 evidence 后仍认为不足，才允许再提交一个实质不同的精炼查询。同查询和并发重复请求会 join 或重放；第三个不同查询只重放最新 evidence，不再到达 Provider。随后至多执行一次 Related，而且只能使用两次 Recall 任一已准入的 `memoryBodyId + id`；重复 Related 同样重放结果。
@@ -84,16 +84,16 @@ Recall、Related 和单次 Documents 搜索槽位按执行中的 Agent 回合计
 Web “检索”页与模型工具路径不同：
 
 ```text
-Direct search
-  -> RPC read channel
-  -> Source-scoped management search
-  -> raw evidence
+直接检索
+  -> RPC 读取通道
+  -> 限定到 Source 的管理检索
+  -> 原始证据
 
-Agent search
-  -> the same deterministic direct search
-  -> spawn a worker with no Mnemon tools
-  -> answer only from supplied evidence
-  -> Host filters citations to actual memoryBodyId/id pairs
+Agent 查询
+  -> 同一条确定性直接检索路径
+  -> 派发不含 Mnemon 工具的任务 Agent
+  -> 仅根据已提供的证据回答
+  -> Host 将引用限定到实际的 memoryBodyId/id 对
 ```
 
 “实体”和“内容”页也经 Source 管理协议执行确定性读取，不需要第二个模型。“内容”使用 Provider 的只读 browse 契约，不冒充语义 Recall。
@@ -103,18 +103,18 @@ Agent search
 根 Agent 或 `/mnemon remember` 的长期写入流程：
 
 ```text
-durable candidate
+长期记忆候选
        |
        v
-spawn write worker
+派发写入任务 Agent
        |
-       +-- list Memory Spaces
-       +-- choose the narrowest suitable scope
-       +-- recall when duplicate/conflict checking is useful
-       +-- create a new scope only for a recurring distinct domain
-       +-- remember / link / forget / merge as requested
+       +-- 列出记忆体
+       +-- 选择最小的适用范围
+       +-- 需要查重或检查冲突时召回
+       +-- 只有反复出现的独立领域才创建新范围
+       +-- 按请求执行 remember / link / forget / merge
        v
-structured receipt
+结构化回执
 ```
 
 空存储根首次创建 Memory Space 时使用 Mnemon 原生 `default` ID，后续 ID 由 Host 生成。向 inactive 目标写入成功后会激活它。这里的激活只影响 DSH 路由；来源数据库的合并是非破坏性的。
@@ -124,15 +124,15 @@ structured receipt
 ## Runtime add：正常路径
 
 ```text
-request
-  -> normalize content
-  -> acquire in-process queue and file lock
-  -> reload memories.json
-  -> validate unique match / duplicate / capacity
-  -> write temporary JSON and Markdown projections
-  -> rename projections
-  -> rename memories.json as the commit marker
-  -> return compact receipt
+请求
+  -> 规范化内容
+  -> 获取进程内队列与文件锁
+  -> 重新加载 memories.json
+  -> 校验唯一匹配 / 重复 / 容量
+  -> 写入临时 JSON 与 Markdown 投影
+  -> 重命名投影文件
+  -> 重命名 memories.json，作为提交标记
+  -> 返回紧凑回执
 ```
 
 `replace` 和 `remove` 必须通过 `old_text` 唯一命中一条。只有请求中的 add 或增大正文的 replace 会超过目标上限时，才触发容量维护。
@@ -140,32 +140,32 @@ request
 ## USER.md 容量整理
 
 ```text
-USER add exceeds 4 KiB
+USER 新增后超过 4 KiB
           |
           v
-snapshot revision + committed entries
+保存修订与已提交条目的快照
           |
           v
-spawn no-tool local compactor
+派发无工具权限的本地压缩任务
           |
           v
-return compacted entries + sourceIndexes
+返回压缩条目 + sourceIndexes
           |
           v
-Host validates:
-  - every source index appears exactly once
-  - no duplicate or out-of-range index
-  - importance is not lowered
-  - candidate fits the Host byte budget
-  - revision is still current
+Host 校验：
+  - 每个来源索引恰好出现一次
+  - 没有重复或越界索引
+  - 重要性未降低
+  - 候选符合 Host 字节预算
+  - 修订仍是当前版本
           |
-          +-- invalid/conflict -> preserve original data
-          |
-          v
-deterministic UTF-8 packing
+          +-- 无效/冲突 -> 保留原始数据
           |
           v
-retry pending add
+按 UTF-8 字节确定性装填
+          |
+          v
+重试待处理的新增操作
 ```
 
 用户画像不会被发送到 Memory Spaces。worker 没有任何工具权限。
@@ -173,7 +173,7 @@ retry pending add
 ## MEMORY.md 归档与压缩
 
 ```text
-MEMORY add exceeds 10 KiB
+MEMORY 新增后超过 10 KiB
           |
           v
 snapshot revision + 可归档的已提交 entries
@@ -206,44 +206,44 @@ planner 没有数据面工具，不能创建 Memory Space。每次写入都由 H
 ## Documents 创建、更新和归档
 
 ```text
-create/update request
+创建/更新请求
           |
           v
-capacityPlan using rendered UTF-8 bytes
+按渲染后的 UTF-8 字节执行 capacityPlan
           |
      +----+----+
      |         |
-    fits     overflow
+   未超限     溢出
      |         |
      v         v
- commit    select least-recently-used active Document
+   提交    选择最久未访问的活跃档案
                |
                v
-          snapshot document + revision
+          保存档案与修订的快照
                |
                v
-          spawn archive worker
+          派发归档任务 Agent
                |
                v
-       write/verify concise Mnemon cold reference
-       with title, summary, planned path, SHA-256
+       写入并验证紧凑的 Mnemon 冷引用
+       包含标题、摘要、计划路径、SHA-256
                |
           +----+----+
           |         |
-        failed    receipt ok
+         失败     回执有效
           |         |
           v         v
-   keep active   revision check
+      保持活跃    检查修订
                     |
                +----+----+
                |         |
-             conflict   current
+                冲突     一致
                |         |
                v         v
-          keep active  move file to archived
+             保持活跃   将文件移入归档
                              |
                              v
-                    retry original mutation
+                       重试原始修改
 ```
 
 人工归档使用同一条“先索引、后迁移”路径。Mnemon 索引已经成功但 revision 冲突时不会回滚索引，因此可能出现安全的重复引用，而不会丢失 active 原文。
@@ -260,49 +260,49 @@ score =
   + toolDiversityScore
 
 toolDiversityScore:
-  unique tools < 3  -> 0
-  unique tools = 3  -> 1
-  unique tools >= 4 -> 2
+  不同工具数 < 3  -> 0
+  不同工具数 = 3  -> 1
+  不同工具数 >= 4 -> 2
 
-eligible when score >= 5
+score >= 5 时达到门槛
 ```
 
 达到门槛并不代表一定写入：
 
 ```text
-completed turn
+已完成的回合
       |
       v
-score >= 5 ? -- no --> retain activity for later turns
+score >= 5 ? -- 否 --> 为后续回合保留累计活动
       |
-     yes
+      是
       |
       v
-Host dirty admission
-  - 当前轮明确要求不写记忆 -> stop
+Host 判断是否存在待整理内容
+  - 当前轮明确要求不写记忆 -> 停止
   - 持久化意图、累计 >=320 用户字符、
-    >=600 助手字符或已完成非 Mnemon 工作 -> continue
+    >=600 助手字符或已完成非 Mnemon 工作 -> 继续
       |
       v
-wait idleReviewMs (default 30 s)
+等待 idleReviewMs（默认 30 秒）
       |
-      +-- new turn --> cancel timer/worker, retain activity
-      |
-      v
-confirm Agent is idle and turn/end exists
+      +-- 新回合 --> 取消定时器/任务，保留累计活动
       |
       v
-fork completed parent checkpoint
+确认 Agent 已空闲且已有 turn/end
       |
       v
-conservative maintenance decision
-  - at most one hot-memory mutation by persona
-  - at most one Document create/update by persona
-  - no direct long-term remember/forget tools
+派发继承已完成父执行检查点的子任务
       |
-      +-- completed, including skip -> clear activity
+      v
+保守的整理决策
+  - persona 约束至多一次热记忆修改
+  - persona 约束至多一次档案创建/更新
+  - 不提供长期 remember/forget 直写工具
       |
-      +-- failed/aborted ------------> retain activity
+      +-- 已完成（含跳过）--> 清空累计活动
+      |
+      +-- 失败/中止 --------> 保留累计活动
 ```
 
 admission 有意只使用结构信号，不调用 LLM 分类；因此达到 activity 门槛但没有 dirty candidate 的普通 checkpoint 不会启动后台模型。“最多一次”当前由 worker persona 约束，不是 Host mutation counter。后台水位尚未持久化，Host 重启会丢失未处理的累计信号。
