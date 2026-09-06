@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { HostAgent, HostContextShape, HostSubagentsService, ToolDefinition } from "../src/host/dsh.ts"
-import type { RememberRequest, MemoryBodyCatalog, SearchRequest, Insight, MemoryPlacementCandidate, PreparedMemoryPlacement } from 'dsh-mnemon-source-memory-spaces/contracts'
+import type { RememberRequest, MemoryBodyCatalog as MemorySpaceCatalog, SearchRequest, Insight, MemoryPlacementCandidate, PreparedMemoryPlacement } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { DocumentMutationResult, DocumentView, DocumentMutation } from 'dsh-mnemon-source-documents/contracts'
 import type { RuntimeMemoryMaintenancePlan, RuntimeMemoryMutation, RuntimeMemoryMutationResult, RuntimeMemorySnapshot } from 'dsh-mnemon-source-runtime/contracts'
 import type { MemoryEvidence, MemoryJsonValue } from 'dsh-mnemon/contracts'
@@ -42,7 +42,7 @@ function parent(origin?: 'subagent'): HostAgent {
 function service(): SpaceData {
   const project = {
     id: 'project',
-    name: '项目记忆体',
+    name: '项目记忆空间',
     description: '项目决策',
     active: true,
     providerEnabled: true,
@@ -68,7 +68,7 @@ function service(): SpaceData {
     config: { writeEnabled: true },
     bodyDirectory: vi.fn(() => catalog),
     bodies: vi.fn(async () => catalog),
-    search: vi.fn(async request => ({ query: request.query, mode: 'smart', results: [{ id: 'm1', content: 'SQLite', memoryBodyId: 'project', memoryBodyName: '项目记忆体' }] })),
+    search: vi.fn(async request => ({ query: request.query, mode: 'smart', results: [{ id: 'm1', content: 'SQLite', memoryBodyId: 'project', memoryBodyName: '项目记忆空间' }] })),
     metadataSample: vi.fn(async (memoryBodyId: string) => ({
       memoryBodyId,
       name: memoryBodyId === 'release' ? 'Release' : 'Product',
@@ -84,13 +84,13 @@ function service(): SpaceData {
       action: 'added',
       id: `stored-${createHash('sha256').update(request.content).digest('hex').slice(0, 8)}`,
       memoryBodyId: request.memoryBodyId,
-      memoryBodyName: '项目记忆体',
+      memoryBodyName: '项目记忆空间',
     })),
     rememberMany: vi.fn(async (requests: readonly RememberRequest[]) => requests.map(request => ({
       action: 'added',
       id: `stored-${createHash('sha256').update(request.content).digest('hex').slice(0, 8)}`,
       memoryBodyId: request.memoryBodyId,
-      memoryBodyName: '项目记忆体',
+      memoryBodyName: '项目记忆空间',
     }))),
     link: vi.fn(async () => ({ action: 'linked' })),
     forget: vi.fn(async () => ({ action: 'forgotten' })),
@@ -108,7 +108,7 @@ function addSecondWritableBody(memoryService: SpaceData): void {
     items: [source, {
       ...source,
       id: 'release',
-      name: '发布记忆体',
+      name: '发布记忆空间',
       description: '发布门禁、回滚和金丝雀策略',
       dbPath: '/tmp/release.db',
     }],
@@ -159,8 +159,8 @@ function toolRegistry() {
 
 interface SpaceData {
   config: ReturnType<typeof resolveConfig>
-  bodyDirectory(): MemoryBodyCatalog
-  bodies(): Promise<MemoryBodyCatalog>
+  bodyDirectory(): MemorySpaceCatalog
+  bodies(): Promise<MemorySpaceCatalog>
   search(request: SearchRequest, signal?: AbortSignal): Promise<{ query: string; mode: string; results: Insight[] }>
   metadataSample(id: string, signal?: AbortSignal): Promise<unknown>
   related(id: string, depth?: number, edge?: string, signal?: AbortSignal, memoryBodyId?: string): Promise<Insight[]>
@@ -1174,7 +1174,7 @@ describe('Mnemon memory subagent coordinator', () => {
   it('answers from pre-recalled evidence without granting any Mnemon retrieval tools', async () => {
     const host = subagents({ answer: '项目使用 SQLite。', citations: ['project/m1', 'project/missing'] })
     const coordinator = createCoordinator(host.value)
-    await expect(coordinator.answer(parent(), '数据库是什么？', [{ id: 'm1', content: 'Use {{database}} SQLite.', memoryBodyId: 'project', memoryBodyName: '项目记忆体' }], new AbortController().signal)).resolves.toMatchObject({
+    await expect(coordinator.answer(parent(), '数据库是什么？', [{ id: 'm1', content: 'Use {{database}} SQLite.', memoryBodyId: 'project', memoryBodyName: '项目记忆空间' }], new AbortController().signal)).resolves.toMatchObject({
       answer: '项目使用 SQLite。',
       citations: ['project/m1'],
       delegation: { runId: 'child-run-1', provider: 'spawn' },

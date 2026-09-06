@@ -1,4 +1,9 @@
-/** Contracts owned by the Memory Spaces Source, not the Mnemon Core. */
+/**
+ * Contracts owned by the Memory Spaces Source, not the Mnemon Core.
+ * The canonical model is MemorySpace. Existing memoryBodyId(s), memoryBodies,
+ * and related wire fields keep their v0.5.x spelling for installed consumers
+ * and persisted Document/Pack lineage; they all refer to memory spaces.
+ */
 export type { MemoryJsonValue as JsonValue } from 'dsh-mnemon/contracts'
 
 export type MemoryProviderId = string
@@ -166,7 +171,7 @@ export interface MemoryProviderRuntimeStatus {
   error?: string
 }
 
-export interface MemoryBodyProvider {
+export interface MemorySpaceProvider {
   id: MemoryProviderId
   /** Implementation type; differs from id when one module has several child instances. */
   typeId?: string
@@ -185,7 +190,7 @@ export interface MemoryBodyProvider {
   capabilities: MemoryProviderCapabilities
 }
 
-export interface OpenVikingBodyConnection {
+export interface OpenVikingSpaceConnection {
   endpoint: string
   targetUri: string
   apiKey?: string
@@ -194,19 +199,19 @@ export interface OpenVikingBodyConnection {
   actorPeerId?: string
 }
 
-export interface MemoryBody {
+export interface MemorySpace {
   id: string
   name: string
   description: string
   active: boolean
   dbPath: string
-  provider: MemoryBodyProvider
+  provider: MemorySpaceProvider
   placement?: MemoryPlacementDecision
   createdAt: string
   updatedAt: string
 }
 
-export interface CreateMemoryBodyRequest {
+export interface CreateMemorySpaceRequest {
   name: string
   description: string
   active?: boolean
@@ -214,31 +219,31 @@ export interface CreateMemoryBodyRequest {
   connection?: MemoryProviderConnection
   /** Candidate-specific settings used only while resolving automatic placement. */
   providerConnections?: Partial<Record<MemoryProviderId, MemoryProviderConnection>>
-  openViking?: OpenVikingBodyConnection
+  openViking?: OpenVikingSpaceConnection
   placement?: AutomaticMemoryPlacementRequest
 }
 
-export interface UpdateMemoryBodyRequest {
+export interface UpdateMemorySpaceRequest {
   name?: string
   description?: string
   active?: boolean
   connection?: MemoryProviderConnection
   clearSecrets?: string[]
-  openViking?: Partial<OpenVikingBodyConnection> & { clearApiKey?: boolean }
+  openViking?: Partial<OpenVikingSpaceConnection> & { clearApiKey?: boolean }
 }
 
-export interface MemoryBodyMetadataUpdate {
+export interface MemorySpaceMetadataUpdate {
   memoryBodyId: string
   title: string
   description: string
 }
 
-export interface MemoryBodyMetadataMaintenanceResult {
+export interface MemorySpaceMetadataMaintenanceResult {
   delegated: true
   runId: string
   provider: string
   summary: string
-  updates: MemoryBodyMetadataUpdate[]
+  updates: MemorySpaceMetadataUpdate[]
 }
 
 export type Category = 'preference' | 'decision' | 'fact' | 'insight' | 'context' | 'general'
@@ -303,7 +308,7 @@ export interface RememberRequest {
   memoryBodyId?: string
 }
 
-export interface MemoryBodyStats {
+export interface MemorySpaceStats {
   totalInsights: number
   deletedInsights: number
   edgeCount: number
@@ -313,7 +318,7 @@ export interface MemoryBodyStats {
   topEntities: Array<{ entity: string; count: number }>
 }
 
-export interface MemoryBodyView extends MemoryBody {
+export interface MemorySpaceView extends MemorySpace {
   /** True when Mnemon's persisted active-file selection points to this Store. */
   mnemonDefault: boolean
   /** False when an external provider is disabled while its Memory Space registration remains preserved. */
@@ -322,11 +327,11 @@ export interface MemoryBodyView extends MemoryBody {
   /** A fast directory response is visible while provider health resolves independently. */
   statusLoading?: boolean
   error?: string
-  stats?: MemoryBodyStats
+  stats?: MemorySpaceStats
 }
 
-export interface MemoryBodyCatalog {
-  items: MemoryBodyView[]
+export interface MemorySpaceCatalog {
+  items: MemorySpaceView[]
   providers: MemoryProviderDescriptor[]
   /** Sanitized policy exposed to memory workers; provider connection values are never included. */
   persistenceStrategy?: Omit<ResolvedMemoryPersistenceStrategy, 'providerConnections'>
@@ -357,7 +362,7 @@ export interface MemoryGraphSnapshot {
   nodes: MemoryGraphNode[]
   edges: MemoryGraphEdge[]
   generatedAt: string
-  memoryBodies?: Array<Pick<MemoryBody, 'id' | 'name' | 'active'>>
+  memoryBodies?: Array<Pick<MemorySpace, 'id' | 'name' | 'active'>>
   /** Per-space observation state for capability-aware overview rendering. */
   sources?: MemoryReadSource[]
 }
@@ -414,11 +419,11 @@ export interface MemoryListView {
   sources?: MemoryReadSource[]
 }
 
-export interface MemoryBodyMetadataSample {
+export interface MemorySpaceMetadataSample {
   memoryBodyId: string
   name: string
   description: string
-  providerId: MemoryBody['provider']['id']
+  providerId: MemorySpace['provider']['id']
   providerLabel: string
   method: 'native-basic' | 'browse' | 'search'
   evidence: Array<Pick<Insight, 'content' | 'category' | 'entities'>>
@@ -530,9 +535,9 @@ export interface MemorySpacesStatus {
   defaultRecallLimit: number
   recallQuality: ResolvedRecallQualityConfig
   memoryBodyDirectory: string
-  memoryBodies: MemoryBodyView[]
+  memoryBodies: MemorySpaceView[]
   providerServices?: MemoryProviderRuntimeStatus[]
-  stats?: MemoryBodyStats & { dbPath?: string }
+  stats?: MemorySpaceStats & { dbPath?: string }
 }
 
 export interface EntityView {
@@ -542,3 +547,27 @@ export interface EntityView {
   /** Omitted only when talking to a pre-provider-aware Host. */
   sources?: MemoryReadSource[]
 }
+
+// Published type spellings retained for independently installed v0.5.x consumers.
+/** @deprecated Use CreateMemorySpaceRequest. The wire shape is unchanged. */
+export type CreateMemoryBodyRequest = CreateMemorySpaceRequest
+/** @deprecated Use UpdateMemorySpaceRequest. The wire shape is unchanged. */
+export type UpdateMemoryBodyRequest = UpdateMemorySpaceRequest
+/** @deprecated Use MemorySpace. The wire shape is unchanged. */
+export type MemoryBody = MemorySpace
+/** @deprecated Use MemorySpaceCatalog. The wire shape is unchanged. */
+export type MemoryBodyCatalog = MemorySpaceCatalog
+/** @deprecated Use MemorySpaceMetadataMaintenanceResult. The wire shape is unchanged. */
+export type MemoryBodyMetadataMaintenanceResult = MemorySpaceMetadataMaintenanceResult
+/** @deprecated Use MemorySpaceMetadataSample. The wire shape is unchanged. */
+export type MemoryBodyMetadataSample = MemorySpaceMetadataSample
+/** @deprecated Use MemorySpaceMetadataUpdate. The wire shape is unchanged. */
+export type MemoryBodyMetadataUpdate = MemorySpaceMetadataUpdate
+/** @deprecated Use MemorySpaceProvider. The wire shape is unchanged. */
+export type MemoryBodyProvider = MemorySpaceProvider
+/** @deprecated Use MemorySpaceStats. The wire shape is unchanged. */
+export type MemoryBodyStats = MemorySpaceStats
+/** @deprecated Use MemorySpaceView. The wire shape is unchanged. */
+export type MemoryBodyView = MemorySpaceView
+/** @deprecated Use OpenVikingSpaceConnection. The wire shape is unchanged. */
+export type OpenVikingBodyConnection = OpenVikingSpaceConnection

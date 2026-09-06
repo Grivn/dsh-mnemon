@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_MEMORY_VIEW_BUDGET, MemoryCompositionRunner } from 'dsh-mnemon/testing'
 import { installMemorySpaces } from '../src/index.ts'
-import { MemoryBodyRegistry } from '../src/memory-bodies.ts'
+import { MemorySpaceRegistry } from '../src/memory-spaces.ts'
 import { createRunner } from '../src/runner.ts'
 import { resolveMemorySpacesConfig } from '../src/config.ts'
 import { defineMemorySpaceProvider, MEMORY_SPACE_PROVIDER_API_VERSION, NORMALIZED_RELEVANCE_SCORE } from '../src/provider-sdk.ts'
@@ -107,9 +107,9 @@ describe('standalone Memory Spaces Source', () => {
     try {
       const nativeRunner = createRunner(resolveMemorySpacesConfig({ dataDir: directory }))
       const catalog = new MemoryProviderCatalog([descriptor])
-      const first = new MemoryBodyRegistry(nativeRunner, true, undefined, catalog)
+      const first = new MemorySpaceRegistry(nativeRunner, true, undefined, catalog)
       first.syncProviderService('fixture', {}, [{ externalId: 'notes', name: 'Notes', description: 'A namespace', connection: {} }])
-      const second = new MemoryBodyRegistry(nativeRunner, true, undefined, catalog)
+      const second = new MemorySpaceRegistry(nativeRunner, true, undefined, catalog)
       const id = first.list()[0]!.id
       first.setActive(id, false)
       expect(second.get(id).active).toBe(false)

@@ -9,7 +9,7 @@ import * as p7 from 'dsh-mnemon-provider-byterover'
 import * as p8 from 'dsh-mnemon-provider-supermemory'
 import { MemoryProviderCatalog } from '../src/providers/catalog.ts'
 import { MemoryProviderAdapterRegistry } from '../src/providers/registry.ts'
-import { MemoryBodyRegistry } from '../src/memory-bodies.ts'
+import { MemorySpaceRegistry } from '../src/memory-spaces.ts'
 import { MemorySpacesService } from '../src/service.ts'
 import { NORMALIZED_RELEVANCE_SCORE } from '../src/providers/adapter.ts'
 
@@ -26,15 +26,15 @@ export function adapterRegistry() {
   })))
 }
 export function createRegistry(
-  runner: ConstructorParameters<typeof MemoryBodyRegistry>[0],
+  runner: ConstructorParameters<typeof MemorySpaceRegistry>[0],
   enabled = true,
-  now?: ConstructorParameters<typeof MemoryBodyRegistry>[2],
+  now?: ConstructorParameters<typeof MemorySpaceRegistry>[2],
   providers = catalog,
-) { return new MemoryBodyRegistry(runner, enabled, now, providers) }
+) { return new MemorySpaceRegistry(runner, enabled, now, providers) }
 export function createService(
   runner: ConstructorParameters<typeof MemorySpacesService>[0],
   config: ConstructorParameters<typeof MemorySpacesService>[1],
-  bodies?: MemoryBodyRegistry,
+  bodies?: MemorySpaceRegistry,
   quality?: ConstructorParameters<typeof MemorySpacesService>[3],
   adapters = adapterRegistry(),
   providers = catalog,

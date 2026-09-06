@@ -448,7 +448,10 @@ button.readSourceCard:hover { border-color: color-mix(in srgb, var(--mn-provider
   .searchActions > button { flex: 1; }
   .searchControls select { width: 100%; min-width: 0; }
   .listToolbar { grid-template-columns: 1fr; }
-  .bodyDirectoryHeader { display: grid; }
+  .bodyDirectoryHeader { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .bodyDirectoryHeader > div { min-width: 0; }
+  .bodyDirectoryPath { max-width: 100%; }
+  .bodyDirectoryControls { flex-wrap: wrap; justify-content: flex-start; padding-right: 0; }
   .createIdentityGrid,
 .placementMode,
 .placementRuleGrid,

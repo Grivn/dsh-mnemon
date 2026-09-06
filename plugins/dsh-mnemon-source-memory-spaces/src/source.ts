@@ -12,7 +12,7 @@ import type {
 } from 'dsh-mnemon/contracts'
 import { COMPOSABLE_MEMORY_API_VERSION } from 'dsh-mnemon/contracts'
 import { defineMemorySource, memoryInputInteger as integer, createMemoryMutationReceipt as receipt, memoryInputRecord as record, memoryInputStringArray as stringArray, memoryInputText as text, truncateMemoryText as truncate } from 'dsh-mnemon/extension-sdk'
-import { modelBodyCatalog, modelStatus, modelJson } from './view-model.ts'
+import { modelSpaceCatalog, modelStatus, modelJson } from './view-model.ts'
 import { MemorySpacesService, mutationResultCompletion } from './service.ts'
 import { createRunner } from './runner.ts'
 import { MemoryProviderCatalog } from './providers/catalog.ts'
@@ -21,7 +21,7 @@ import { resolveMemorySpacesConfig, type MemorySpacesConfig } from './config.ts'
 import { MemorySpaceProviderSnapshot } from './providers/host.ts'
 import type {
   Category,
-  CreateMemoryBodyRequest,
+  CreateMemorySpaceRequest,
   EdgeType,
   Intent,
   Insight,
@@ -30,9 +30,9 @@ import type {
   MemoryProviderId,
   PreparedMemoryPlacement,
   RememberRequest,
-  MemoryBodyMetadataUpdate,
+  MemorySpaceMetadataUpdate,
   Source,
-  UpdateMemoryBodyRequest,
+  UpdateMemorySpaceRequest,
 } from './contracts.ts'
 
 const CATEGORIES = new Set<Category>(['preference', 'decision', 'fact', 'insight', 'context', 'general'])
@@ -67,7 +67,7 @@ function providerConnections(value: MemoryJsonValue | undefined): Record<MemoryP
   ]))
 }
 
-function createBodyRequest(value: MemoryJsonValue): CreateMemoryBodyRequest {
+function createSpaceRequest(value: MemoryJsonValue): CreateMemorySpaceRequest {
   const input = record(value, 'Memory Space body-create request')
   const providerId = text(input.providerId, 'providerId', 128, false) as MemoryProviderId | undefined
   const connection = scalarRecord(input.connection, 'connection')
@@ -76,14 +76,14 @@ function createBodyRequest(value: MemoryJsonValue): CreateMemoryBodyRequest {
   const rulesValue = placementValue?.rules === undefined ? undefined : record(placementValue.rules, 'placement.rules')
   const allowedProviderIds = rulesValue === undefined ? undefined : stringArray(rulesValue.allowedProviderIds, 'placement.rules.allowedProviderIds', 100)
   const requiredCapabilities = rulesValue === undefined ? undefined : stringArray(rulesValue.requiredCapabilities, 'placement.rules.requiredCapabilities', 20)
-  const placement: CreateMemoryBodyRequest['placement'] = placementValue === undefined ? undefined : {
+  const placement: CreateMemorySpaceRequest['placement'] = placementValue === undefined ? undefined : {
     mode: text(placementValue.mode, 'placement.mode', 20)! as 'automatic',
     ...(text(placementValue.prompt, 'placement.prompt', 4_000, false) === undefined ? {} : { prompt: text(placementValue.prompt, 'placement.prompt', 4_000, false)! }),
     ...(rulesValue === undefined ? {} : {
       rules: {
         ...(allowedProviderIds === undefined ? {} : { allowedProviderIds }),
         ...(text(rulesValue.dataBoundary, 'placement.rules.dataBoundary', 30, false) === undefined ? {} : { dataBoundary: text(rulesValue.dataBoundary, 'placement.rules.dataBoundary', 30, false)! as 'allow-remote' | 'local-only' }),
-        ...(requiredCapabilities === undefined ? {} : { requiredCapabilities: requiredCapabilities as NonNullable<NonNullable<NonNullable<CreateMemoryBodyRequest['placement']>['rules']>['requiredCapabilities']> }),
+        ...(requiredCapabilities === undefined ? {} : { requiredCapabilities: requiredCapabilities as NonNullable<NonNullable<NonNullable<CreateMemorySpaceRequest['placement']>['rules']>['requiredCapabilities']> }),
         ...(text(rulesValue.preference, 'placement.rules.preference', 30, false) === undefined ? {} : { preference: text(rulesValue.preference, 'placement.rules.preference', 30, false)! as 'balanced' | 'local-first' | 'shared-first' }),
       },
     }),
@@ -99,7 +99,7 @@ function createBodyRequest(value: MemoryJsonValue): CreateMemoryBodyRequest {
   }
 }
 
-function updateBodyRequest(value: MemoryJsonValue): { memoryBodyId: string; request: UpdateMemoryBodyRequest } {
+function updateSpaceRequest(value: MemoryJsonValue): { memoryBodyId: string; request: UpdateMemorySpaceRequest } {
   const input = record(value, 'Memory Space body-update request')
   const connection = scalarRecord(input.connection, 'connection')
   return {
@@ -142,11 +142,11 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
       case 'embedding-status': return managementResult(service, await service.embeddingStatus(request.signal))
       case 'status-summary': return managementResult(service, service.statusSummary())
       case 'status': return managementResult(service, await service.status(request.signal))
-      case 'body-directory': return managementResult(service, service.bodyDirectory())
-      case 'bodies': return managementResult(service, await service.bodies(request.signal))
+      case 'body-directory': return managementResult(service, service.spaceDirectory())
+      case 'bodies': return managementResult(service, await service.spaces(request.signal))
       // Management output is always sanitized. Configured secret names may be
       // shown, but credential values never cross the Host/Client boundary.
-      case 'provider-services': return managementResult(service, service.memoryBodies.providerServices())
+      case 'provider-services': return managementResult(service, service.memorySpaces.providerServices())
       case 'graph': return managementResult(service, await service.graph(request.signal, stringArray(input.memoryBodyIds, 'memoryBodyIds', 10_000)))
       case 'list': return managementResult(service, await service.list({
         ...(text(input.query, 'query', 2_000, false) === undefined ? {} : { query: text(input.query, 'query', 2_000, false)! }),
@@ -175,8 +175,8 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
         request.signal,
         text(input.memoryBodyId, 'memoryBodyId', 300, false),
       ))
-      case 'body-reconnect': return managementResult(service, await service.reconnectBody(text(input.memoryBodyId, 'memoryBodyId', 300)!, request.signal))
-      case 'prepare-body-placement': return managementResult(service, service.prepareBodyPlacement(createBodyRequest(request.input)))
+      case 'body-reconnect': return managementResult(service, await service.reconnectSpace(text(input.memoryBodyId, 'memoryBodyId', 300)!, request.signal))
+      case 'prepare-body-placement': return managementResult(service, service.prepareSpacePlacement(createSpaceRequest(request.input)))
       case 'finalize-placement': {
         const prepared = record(input.prepared!, 'prepared placement') as unknown as PreparedMemoryPlacement
         if (!Array.isArray(prepared.candidates) || prepared.candidates.length === 0) throw new Error('placement candidates are required')
@@ -203,7 +203,7 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
         input.enabled === undefined ? true : input.enabled === true,
         request.signal,
       )
-      return managementResult(service, service.memoryBodies.providerServices().items.find(item => item.providerId === providerId)!)
+      return managementResult(service, service.memorySpaces.providerServices().items.find(item => item.providerId === providerId)!)
     }
     case 'remember': return managementResult(service, await service.remember({
       content: text(input.content, 'content', 100_000)!,
@@ -230,12 +230,12 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
     ))
     case 'body-create': {
       const bodyInput = input.request ?? request.input
-      const body = await service.createBody(createBodyRequest(bodyInput), request.signal, placementDecision(input.placementDecision))
+      const body = await service.createSpace(createSpaceRequest(bodyInput), request.signal, placementDecision(input.placementDecision))
       return managementResult(service, body)
     }
     case 'body-update': {
-      const parsed = updateBodyRequest(request.input)
-      return managementResult(service, service.updateBody(parsed.memoryBodyId, parsed.request))
+      const parsed = updateSpaceRequest(request.input)
+      return managementResult(service, service.updateSpace(parsed.memoryBodyId, parsed.request))
     }
     case 'remember-many': {
       if (!Array.isArray(input.requests) || input.requests.length > 1_000) throw new Error('remember-many requires at most 1000 requests')
@@ -243,7 +243,7 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
     }
     case 'body-create-for-persistence': {
       const selection = input.selection === undefined ? undefined : record(input.selection, 'placement selection')
-      return managementResult(service, await service.createBodyForPersistence(createBodyRequest(input.request ?? request.input), selection === undefined ? undefined : {
+      return managementResult(service, await service.createSpaceForPersistence(createSpaceRequest(input.request ?? request.input), selection === undefined ? undefined : {
         providerId: text(selection.providerId, 'providerId', 128)!,
         reason: text(selection.reason, 'reason', 4_000)!,
         confidence: text(selection.confidence, 'confidence', 40)!,
@@ -253,17 +253,17 @@ async function manageMemorySpaces(service: MemorySpacesService, request: MemoryS
       if (!Array.isArray(input.updates) || input.updates.length > 20) throw new Error('metadata update requires at most 20 entries')
       const updates = input.updates.map(value => {
         const update = record(value, 'metadata update')
-        return { memoryBodyId: text(update.memoryBodyId, 'memoryBodyId', 300)!, title: text(update.title, 'title', 48)!, description: text(update.description, 'description', 200)! } satisfies MemoryBodyMetadataUpdate
+        return { memoryBodyId: text(update.memoryBodyId, 'memoryBodyId', 300)!, title: text(update.title, 'title', 48)!, description: text(update.description, 'description', 200)! } satisfies MemorySpaceMetadataUpdate
       })
-      return managementResult(service, service.updateBodyMetadata(updates))
+      return managementResult(service, service.updateSpaceMetadata(updates))
     }
-    case 'body-merge': return managementResult(service, await service.mergeBodies(
+    case 'body-merge': return managementResult(service, await service.mergeSpaces(
       text(input.targetMemoryBodyId, 'targetMemoryBodyId', 300)!,
       stringArray(input.sourceMemoryBodyIds, 'sourceMemoryBodyIds', 1_000) ?? [],
       input.deactivateSources !== false, request.signal,
     ))
-    case 'reload': service.memoryBodies.reload(); return managementResult(service, { reloaded: true })
-    case 'body-delete': return managementResult(service, await service.deleteBody(text(input.memoryBodyId, 'memoryBodyId', 300)!, request.signal))
+    case 'reload': service.memorySpaces.reload(); return managementResult(service, { reloaded: true })
+    case 'body-delete': return managementResult(service, await service.deleteSpace(text(input.memoryBodyId, 'memoryBodyId', 300)!, request.signal))
     default: throw new Error(`unsupported Memory Spaces management mutation operation: ${request.operation}`)
   }
 }
@@ -478,9 +478,9 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
           const known = stringArray(record(request.grant.value, 'Memory Spaces scope').knownMemoryBodyIds, 'knownMemoryBodyIds', 10_000) ?? allowedBodies
           let value: unknown
           if (input.section === 'directory') {
-            const catalog = service.bodyDirectory()
+            const catalog = service.spaceDirectory()
             const owned = createdByView.get(request.view.id)
-            value = modelBodyCatalog({ ...catalog, items: catalog.items.filter(body => known.includes(body.id) || owned?.has(body.id)) })
+            value = modelSpaceCatalog({ ...catalog, items: catalog.items.filter(body => known.includes(body.id) || owned?.has(body.id)) })
           } else if (input.section === 'health') value = modelStatus(await service.status(request.signal))
           else throw new Error('unknown Memory Spaces inspection section')
           return evidence(request, [{ id: 'memory-spaces:' + String(input.section), content: modelJson(value, request.route.maxCharacters ?? 12_000) }])
@@ -492,24 +492,24 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
           if (category !== undefined && !CATEGORIES.has(category)) throw new Error(`unsupported category: ${category}`)
           if (source !== undefined && !SOURCES.has(source)) throw new Error(`unsupported source: ${source}`)
           if (intent !== undefined && !INTENTS.has(intent)) throw new Error(`unsupported intent: ${intent}`)
-          const requestedBodies = stringArray(input.memoryBodyIds, 'memoryBodyIds', 10_000) ?? allowedBodies
-          if (requestedBodies.some(id => !allowedBodies.includes(id))) throw new Error('Recall requested a Memory Space outside this View ReadGrant')
+          const requestedSpaces = stringArray(input.memoryBodyIds, 'memoryBodyIds', 10_000) ?? allowedBodies
+          if (requestedSpaces.some(id => !allowedBodies.includes(id))) throw new Error('Recall requested a Memory Space outside this View ReadGrant')
           const mode = text(input.mode, 'mode', 20, false) as 'smart' | 'keyword' | 'basic' | undefined
           const result = await service.search({
             query: text(input.query, 'query', 2_000)!,
             ...(mode === undefined ? {} : { mode }),
             limit: Math.min(request.route.maxResults ?? 20, integer(input.limit, 10, 1, 20)),
-            memoryBodyIds: requestedBodies,
+            memoryBodyIds: requestedSpaces,
             ...(category === undefined ? {} : { category }), ...(source === undefined ? {} : { source }), ...(intent === undefined ? {} : { intent }),
           }, request.signal)
           return evidence(request, result.results, result.results.length === 0 ? result.hint : undefined)
         }
         if (request.route.sourceRouteId === 'related') {
           const id = text(input.id, 'id', 2_000)!
-          const requestedBody = text(input.memoryBodyId, 'memoryBodyId', 300, false)
+          const requestedSpace = text(input.memoryBodyId, 'memoryBodyId', 300, false)
           const admitted = admittedByView.get(request.view.id)
           const owners = [...(admitted?.entries() ?? [])].filter(([reference]) => reference.endsWith('/' + id)).map(([, bodyId]) => bodyId)
-          const owner = requestedBody === undefined ? owners.length === 1 ? owners[0] : undefined : admitted?.get(requestedBody + '/' + id)
+          const owner = requestedSpace === undefined ? owners.length === 1 ? owners[0] : undefined : admitted?.get(requestedSpace + '/' + id)
           if (owner === undefined) throw new Error('related-memory traversal requires evidence already admitted by this View')
           if (!allowedBodies.includes(owner)) throw new Error('related-memory owner is outside this View ReadGrant')
           const edge = text(input.edge, 'edge', 30, false) as EdgeType | undefined
@@ -529,9 +529,9 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
         const created = createdByView.get(request.view.id) ?? new Set<string>()
         const writeBodies = [...new Set([...knownBodies, ...created])]
         const admittedOwner = (id: string): string | undefined => {
-          const requestedBody = text(input.memoryBodyId, 'memoryBodyId', 300, false)
+          const requestedSpace = text(input.memoryBodyId, 'memoryBodyId', 300, false)
           const entries = admittedByView.get(request.view.id)
-          if (requestedBody !== undefined) return entries?.get(requestedBody + '/' + id)
+          if (requestedSpace !== undefined) return entries?.get(requestedSpace + '/' + id)
           const owners = [...(entries?.entries() ?? [])].filter(([reference]) => reference.endsWith('/' + id)).map(([, owner]) => owner)
           return owners.length === 1 ? owners[0] : undefined
         }
@@ -540,7 +540,7 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
         if (request.offer.sourceActionId === 'manage-spaces') {
           if (input.operation === 'create') {
             const selection = input.selection === undefined ? undefined : record(input.selection, 'placement selection')
-            const body = await service.createBodyForPersistence(createBodyRequest(input.request!), selection === undefined ? undefined : {
+            const body = await service.createSpaceForPersistence(createSpaceRequest(input.request!), selection === undefined ? undefined : {
               providerId: text(selection.providerId, 'providerId', 128)!, reason: text(selection.reason, 'reason', 4_000)!, confidence: text(selection.confidence, 'confidence', 40)!,
             }, request.signal)
             created.add(body.id)
@@ -551,7 +551,7 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
           } else if (input.operation === 'update') {
             bodyId = text(input.memoryBodyId, 'memoryBodyId', 300)!
             if (!writeBodies.includes(bodyId)) throw new Error('Memory Space update is outside this View scope')
-            const body = service.updateBody(bodyId, {
+            const body = service.updateSpace(bodyId, {
               ...(input.name === undefined ? {} : { name: text(input.name, 'name', 100)! }),
               ...(input.description === undefined ? {} : { description: text(input.description, 'description', 1_000)! }),
               ...(typeof input.active === 'boolean' ? { active: input.active } : {}),
@@ -562,7 +562,7 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
             const sources = stringArray(input.sourceMemoryBodyIds, 'sourceMemoryBodyIds', 20) ?? []
             if ([target, ...sources].some(id => !writeBodies.includes(id))) throw new Error('Memory Space merge is outside this View scope')
             bodyId = target
-            result = await service.mergeBodies(target, sources, input.deactivateSources !== false, request.signal) as unknown as MemoryJsonValue
+            result = await service.mergeSpaces(target, sources, input.deactivateSources !== false, request.signal) as unknown as MemoryJsonValue
           } else throw new Error('unsupported Memory Space management action')
         } else if (request.offer.sourceActionId === 'remember') {
           bodyId = text(input.memoryBodyId, 'memoryBodyId', 300, false)
@@ -587,12 +587,12 @@ export function createMemorySpacesSource(providerSnapshot: MemorySpaceProviderSn
         } else if (request.offer.sourceActionId === 'link') {
           const sourceId = text(input.sourceId, 'sourceId', 2_000)!
           const targetId = text(input.targetId, 'targetId', 2_000)!
-          const sourceBody = admittedOwner(sourceId)
-          const targetBody = admittedOwner(targetId)
-          if (sourceBody === undefined || targetBody === undefined || sourceBody !== targetBody || !allowedBodies.includes(sourceBody)) {
+          const sourceSpace = admittedOwner(sourceId)
+          const targetSpace = admittedOwner(targetId)
+          if (sourceSpace === undefined || targetSpace === undefined || sourceSpace !== targetSpace || !allowedBodies.includes(sourceSpace)) {
             throw new Error('link requires two evidence items admitted by this View from the same Memory Space')
           }
-          bodyId = sourceBody
+          bodyId = sourceSpace
           const edge = text(input.type, 'type', 30, false) as EdgeType | undefined
           if (edge !== undefined && !EDGES.has(edge)) throw new Error(`unsupported edge: ${edge}`)
           const weight = typeof input.weight === 'number' ? input.weight : 0.5

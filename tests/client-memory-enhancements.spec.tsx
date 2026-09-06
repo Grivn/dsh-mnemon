@@ -147,6 +147,6 @@ describe('Memory enhancement settings', () => {
     expect(screen.queryByRole('heading', { name: '记忆增强' })).toBeNull()
     expect(screen.queryByText(/legacy host/u)).toBeNull()
     expect(screen.getByRole('heading', { name: '记忆层' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: '记忆体 Provider' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '记忆空间 Provider' })).toBeTruthy()
   })
 })

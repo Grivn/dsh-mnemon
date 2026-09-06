@@ -2,7 +2,7 @@
 
 **简体中文** | [English](../../en/guides/memory-providers.md) | [文档中心](../README.md)
 
-记忆体是 dsh-mnemon 可替换的第三层：记忆体契约保持稳定，Provider 负责具体数据面。**Mnemon Native 是官方优先、默认实现**；三方 Provider 是显式选择的集成，适合已经使用其他记忆引擎，或需要不同共享、提炼与召回模型的团队。
+记忆空间是 dsh-mnemon 可替换的第三层：记忆空间契约保持稳定，Provider 负责具体数据面。**Mnemon Native 是官方优先、默认实现**；三方 Provider 是显式选择的集成，适合已经使用其他记忆引擎，或需要不同共享、提炼与召回模型的团队。
 
 每个适配器都是独立发布的 `dsh-mnemon-provider-*` 包，由 Memory Spaces Source 作为子插件安装。Starter 随附九个包，外部服务仍需显式配置后启用；不捆绑外部后端服务或 CLI。参见[官方包列表](../../../README.zh-CN.md#官方插件)和 [Provider 作者契约](../development/extensions.md)。
 
@@ -22,9 +22,11 @@
 
 Host 只暴露适配器能够兑现的能力；UI 与 Agent 工具不会伪造缺失的图谱、关联、链接、浏览或删除语义。
 
-## 服务与记忆体字段
+<a id="服务与记忆体字段"></a>
 
-| Provider | 工作区行为 | 设置中的服务配置 | 记忆体中的实例配置 |
+## 服务与记忆空间字段
+
+| Provider | 工作区行为 | 设置中的服务配置 | 记忆空间中的实例配置 |
 |---|---|---|---|
 | OpenViking | 保持 Provider 全局作用域 | `endpoint`、`apiKey`、`account` | `targetUri`、`user`、`actorPeerId` |
 | Honcho | 保持 Provider 全局作用域 | `endpoint`、`apiKey` | `workspace`、`userId`、`agentId` |
@@ -35,13 +37,13 @@ Host 只暴露适配器能够兑现的能力；UI 与 Agent 工具不会伪造�
 | ByteRover | 默认随工作区，可由目录覆盖 | `cliPath`、`apiKey`、`defaultDirectory` | `workingDirectory` |
 | Supermemory | 保持 Provider 全局作用域 | `endpoint`、`apiKey` | `containerTag`、`searchMode` |
 
-“**设置 → 记忆系统**”只保存 Provider 服务配置，不创建记忆体；同一范围内该 Provider 的所有记忆体复用它。“**记忆体 → 概览**”负责创建、编辑、启停与删除记忆体，并只呈现 workspace、user、bank、container、target URI 等实例范围。Host 在调用适配器前合并两层配置。Secret 保存在 `<storageRoot>/state/memory-providers.json`，权限为 `0600`；WebUI 只以掩码表示已配置的 Secret，输入新值即可替换。
+“**设置 → 记忆系统**”只保存 Provider 服务配置，不创建记忆空间；同一范围内该 Provider 的所有记忆空间复用它。“**记忆空间 → 概览**”负责创建、编辑、启停与删除记忆空间，并只呈现 workspace、user、bank、container、target URI 等实例范围。Host 在调用适配器前合并两层配置。Secret 保存在 `<storageRoot>/state/memory-providers.json`，权限为 `0600`；WebUI 只以掩码表示已配置的 Secret，输入新值即可替换。
 
-DSH 的“工作区”模式不会统一重写所有 Provider 命名空间。Mnemon Native 自动随工作区切换；Holographic 与 ByteRover 默认使用工作区下的本地路径，但允许显式路径覆盖；其余远程 Provider 继续使用记忆体中配置的 URI、workspace、user、bank、project 或 container，切换 DSH 工作区不会隐式改写这些身份。
+DSH 的“工作区”模式不会统一重写所有 Provider 命名空间。Mnemon Native 自动随工作区切换；Holographic 与 ByteRover 默认使用工作区下的本地路径，但允许显式路径覆盖；其余远程 Provider 继续使用记忆空间中配置的 URI、workspace、user、bank、project 或 container，切换 DSH 工作区不会隐式改写这些身份。
 
 ## 手动与智能选择
 
-手动模式保留原工作流：创建记忆体、选择一个引擎、完成配置，之后仍使用同一套检索、内容、实体和沉淀入口。
+手动模式保留原工作流：创建记忆空间、选择一个引擎、完成配置，之后仍使用同一套检索、内容、实体和沉淀入口。
 
 智能模式从用户勾选的候选建立 allowlist：
 
@@ -55,12 +57,12 @@ DSH 的“工作区”模式不会统一重写所有 Provider 命名空间。Mne
 ## 运维边界
 
 - WebUI 不直接调用远程服务或本地 CLI；Provider I/O 都留在 Host，统一具备取消、超时、进程输出上限和 shell-disabled 参数执行。
-- “断开”三方记忆体只删除本地目录登记，不删除底层数据。单条记忆的“遗忘”是另一项按能力开放的操作。
+- “断开”三方记忆空间只删除本地目录登记，不删除底层数据。单条记忆的“遗忘”是另一项按能力开放的操作。
 - Holographic 是对本地结构化事实语义的 TypeScript 适配，使用原子 JSON 存储，并保持独立的数据格式与生命周期实现。
 - Hindsight 使用轻量存活检查，并从 Provider 的 bank stats、实体目录与图谱响应读取真实统计、实体和关系；旧版缺少统计接口时仍可使用召回与图谱表面。
 - ByteRover 只开放聚焦的 `status`、`query` 与 `curate`；不会虚构广域知识树浏览和删除能力。
 - Supermemory 的浏览结果合并已抽取 memory entries 与仍可浏览的 ingested documents，并按 Provider ID 去重；文档未完成抽取时也不会从“内容”页消失。
-- Mnemon Pack 包含 Mnemon Native 记忆体、运行时与档案；三方连接、凭据、本地三方 Store 与远程数据都不进入 Pack。
+- Mnemon Pack 包含 Mnemon Native 记忆空间、运行时与档案；三方连接、凭据、本地三方 Store 与远程数据都不进入 Pack。
 - 外部产品的可用性、价格、隐私、保留策略和许可证由各自运营方决定。把私有记忆发送给远程 Provider 前应先评估这些边界。
 
 来源归属与许可证边界见[第三方声明](../../../THIRD_PARTY_NOTICES.md)。

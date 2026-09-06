@@ -978,12 +978,12 @@ describe('MnemonSettingsCard', () => {
     const disclosure = screen.getByText('OpenViking').closest('button') as HTMLButtonElement
     expect(disclosure.getAttribute('aria-expanded')).toBe('false')
     expect((screen.getByRole('checkbox', { name: '启用 OpenViking' }) as HTMLInputElement).checked).toBe(true)
-    expect(screen.getByText('当前工作区：dsh-mnemon；标记“工作区”的 Provider 配置与记忆体使用此范围。')).toBeTruthy()
+    expect(screen.getByText('当前工作区：dsh-mnemon；标记“工作区”的 Provider 配置与记忆空间使用此范围。')).toBeTruthy()
     fireEvent.click(screen.getByText('OpenViking'))
     expect(disclosure.getAttribute('aria-expanded')).toBe('true')
     expect((screen.getByLabelText('服务地址') as HTMLInputElement).value).toBe('http://127.0.0.1:1933')
     expect(screen.queryByLabelText('记忆范围 URI')).toBeNull()
-    expect(screen.queryByLabelText('记忆体名称')).toBeNull()
+    expect(screen.queryByLabelText('记忆空间名称')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: '清除已保存的凭据' })).toBeNull()
     const apiKey = screen.getByLabelText('API Key') as HTMLInputElement
     expect(apiKey.value).toBe('service-secret')
@@ -1008,7 +1008,7 @@ describe('MnemonSettingsCard', () => {
       sessionId: 'session-1',
       workspaceId: 'workspace-1',
     }))
-    expect(await screen.findByText('服务配置已保存，记忆体目录已同步')).toBeTruthy()
+    expect(await screen.findByText('服务配置已保存，记忆空间目录已同步')).toBeTruthy()
     expect(disclosure.getAttribute('aria-expanded')).toBe('true')
     expect(call.mock.calls.filter(([, endpoint]) => endpoint === 'provider-services')).toHaveLength(1)
     expect(call.mock.calls.some(([, endpoint]) => endpoint === 'body-create')).toBe(false)
@@ -1077,7 +1077,7 @@ describe('MnemonSettingsCard', () => {
     await waitFor(() => expect(call).toHaveBeenCalledWith('/dsh-mnemon-write', 'provider-service-update', expect.objectContaining({
       providerId: 'supermemory', enabled: true, settings: { endpoint: 'https://api.supermemory.ai', apiKey: 'service-secret' },
     })))
-    expect(await screen.findByText('服务配置已保存，记忆体目录已同步')).toBeTruthy()
+    expect(await screen.findByText('服务配置已保存，记忆空间目录已同步')).toBeTruthy()
 
     fireEvent.click(providerToggle)
     await waitFor(() => expect(call).toHaveBeenCalledWith('/dsh-mnemon-write', 'provider-service-update', expect.objectContaining({

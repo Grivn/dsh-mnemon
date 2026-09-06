@@ -8,21 +8,21 @@ import {
   type MemoryProviderCatalog,
 } from './providers/catalog.ts'
 import type {
-  CreateMemoryBodyRequest,
-  MemoryBody,
-  MemoryBodyProvider,
+  CreateMemorySpaceRequest,
+  MemorySpace,
+  MemorySpaceProvider,
   MemoryPlacementDecision,
   MemoryProviderServiceCatalog,
   MemoryProviderServiceView,
   MemoryProviderConnection,
   MemoryProviderId,
-  MemoryBodyMetadataUpdate,
-  OpenVikingBodyConnection,
-  UpdateMemoryBodyRequest,
+  MemorySpaceMetadataUpdate,
+  OpenVikingSpaceConnection,
+  UpdateMemorySpaceRequest,
 } from './contracts.ts'
 import type { ProviderMemorySpace } from './providers/adapter.ts'
 
-export type { CreateMemoryBodyRequest, MemoryBody, UpdateMemoryBodyRequest } from './contracts.ts'
+export type { CreateMemorySpaceRequest, MemorySpace, UpdateMemorySpaceRequest } from './contracts.ts'
 
 const NATIVE_REGISTRY_VERSION = 1
 const PROVIDER_REGISTRY_VERSION = 4
@@ -52,7 +52,7 @@ interface StoredOpenVikingConnection {
   actorPeerId: string
 }
 
-interface StoredMemoryBody extends Omit<MemoryBody, 'dbPath' | 'provider'> {
+interface StoredMemorySpace extends Omit<MemorySpace, 'dbPath' | 'provider'> {
   providerId: MemoryProviderId
   /** Stable provider-side namespace used to refresh this local projection. */
   externalId?: string
@@ -63,35 +63,35 @@ interface StoredMemoryBody extends Omit<MemoryBody, 'dbPath' | 'provider'> {
   openViking?: StoredOpenVikingConnection
 }
 
-interface StoredNativeMemoryBody extends Omit<StoredMemoryBody, 'providerId' | 'connection' | 'openViking'> {}
+interface StoredNativeMemorySpace extends Omit<StoredMemorySpace, 'providerId' | 'connection' | 'openViking'> {}
 
 interface NativeRegistryFile {
   version: 1
-  bodies: StoredNativeMemoryBody[]
+  bodies: StoredNativeMemorySpace[]
 }
 
 interface LegacyProviderRegistryFile {
   version: 2
-  bodies: StoredMemoryBody[]
+  bodies: StoredMemorySpace[]
 }
 
 interface LegacyProviderRegistryFileOnDisk {
   version: 1 | 2
-  bodies: StoredMemoryBody[]
+  bodies: StoredMemorySpace[]
 }
 
 interface ProviderRegistryFile {
   version: 4
   services: Partial<Record<MemoryProviderId, MemoryProviderConnection>>
   enabled?: Partial<Record<MemoryProviderId, boolean>>
-  bodies: StoredMemoryBody[]
+  bodies: StoredMemorySpace[]
 }
 
 interface LegacyProviderRegistryFileV3 {
   version: 3
   services: Partial<Record<MemoryProviderId, MemoryProviderConnection>>
   enabled?: Partial<Record<MemoryProviderId, boolean>>
-  bodies: StoredMemoryBody[]
+  bodies: StoredMemorySpace[]
 }
 
 function requiredText(value: string, label: string, max: number): string {
@@ -156,7 +156,7 @@ function providerDisplayLocation(
   return field === undefined ? '' : String(connection[field.key])
 }
 
-function legacyOpenVikingConnection(connection: StoredOpenVikingConnection | OpenVikingBodyConnection): MemoryProviderConnection {
+function legacyOpenVikingConnection(connection: StoredOpenVikingConnection | OpenVikingSpaceConnection): MemoryProviderConnection {
   return Object.fromEntries(Object.entries(connection).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
 }
 
@@ -186,7 +186,7 @@ function normalizePlacementDecision(value: unknown, providerId: MemoryProviderId
   }
 }
 
-export function validateMemoryBodyId(value: string): string {
+export function validateMemorySpaceId(value: string): string {
   const normalized = value.trim()
   if (!ID_PATTERN.test(normalized)) throw new Error('memoryBodyId must match [a-zA-Z0-9][a-zA-Z0-9_-]*')
   return normalized
@@ -199,13 +199,13 @@ export function validateMemoryBodyId(value: string): string {
  * compatible. External connection metadata lives under state and is never
  * included in Memory Space Packs.
  */
-export class MemoryBodyRegistry {
+export class MemorySpaceRegistry {
   readonly directory: string
   readonly registryPath: string
   readonly providerRegistryPath: string
   private refreshing = false
   private readonly state: {
-    bodies: StoredMemoryBody[]
+    spaces: StoredMemorySpace[]
     services: Partial<Record<MemoryProviderId, MemoryProviderConnection>>
     serviceEnabled: Partial<Record<MemoryProviderId, boolean>>
     diskRevision?: string
@@ -219,25 +219,26 @@ export class MemoryBodyRegistry {
     private readonly persistent = true,
     private readonly now: () => Date = () => new Date(),
     private readonly providerCatalog: MemoryProviderCatalog = EMPTY_MEMORY_PROVIDER_CATALOG,
-    sharedState?: MemoryBodyRegistry['state'],
+    sharedState?: MemorySpaceRegistry['state'],
   ) {
-    this.state = sharedState ?? { bodies: [], services: {}, serviceEnabled: {} }
+    this.state = sharedState ?? { spaces: [], services: {}, serviceEnabled: {} }
     this.directory = join(runner.effectiveDataDir(), 'data')
+    // Keep the published v1 filename and serialized bodies key for existing stores and Packs.
     this.registryPath = join(this.directory, '.dsh-memory-bodies.json')
     this.providerRegistryPath = join(runner.effectiveDataDir(), 'state', 'memory-providers.json')
     if (sharedState === undefined) this.reload()
   }
 
-  private get bodies(): StoredMemoryBody[] { return this.state.bodies }
-  private set bodies(value: StoredMemoryBody[]) { this.state.bodies = value }
+  private get spaces(): StoredMemorySpace[] { return this.state.spaces }
+  private set spaces(value: StoredMemorySpace[]) { this.state.spaces = value }
   private get services(): Partial<Record<MemoryProviderId, MemoryProviderConnection>> { return this.state.services }
   private set services(value: Partial<Record<MemoryProviderId, MemoryProviderConnection>>) { this.state.services = value }
   private get serviceEnabled(): Partial<Record<MemoryProviderId, boolean>> { return this.state.serviceEnabled }
   private set serviceEnabled(value: Partial<Record<MemoryProviderId, boolean>>) { this.state.serviceEnabled = value }
 
   /** One generation-local descriptor view over the same persistent authority. */
-  withProviderCatalog(providerCatalog: MemoryProviderCatalog): MemoryBodyRegistry {
-    return new MemoryBodyRegistry(this.runner, this.persistent, this.now, providerCatalog, this.state)
+  withProviderCatalog(providerCatalog: MemoryProviderCatalog): MemorySpaceRegistry {
+    return new MemorySpaceRegistry(this.runner, this.persistent, this.now, providerCatalog, this.state)
   }
 
   private isNative(providerId: MemoryProviderId): boolean {
@@ -249,27 +250,27 @@ export class MemoryBodyRegistry {
     return descriptor.typeId ?? descriptor.id
   }
 
-  list(): MemoryBody[] {
+  list(): MemorySpace[] {
     this.refreshIfChanged()
     this.reconcileDiscoveredStores()
-    return this.bodies.filter(body => this.providerCatalog.has(body.providerId)).map(body => this.view(body))
+    return this.spaces.filter(body => this.providerCatalog.has(body.providerId)).map(body => this.view(body))
   }
 
-  active(): MemoryBody[] {
+  active(): MemorySpace[] {
     // list() has just refreshed this synchronous authority snapshot. Avoid
     // restatting both registry files once more for every projected body.
     return this.list().filter(body => body.active && (this.isNative(body.provider.id)
       || Object.hasOwn(this.services, body.provider.id) && this.serviceEnabled[body.provider.id] === true))
   }
 
-  get(id: string): MemoryBody {
-    const normalized = validateMemoryBodyId(id)
+  get(id: string): MemorySpace {
+    const normalized = validateMemorySpaceId(id)
     const body = this.list().find(entry => entry.id === normalized)
-    if (body === undefined) throw new Error(`unknown memory body: ${normalized}`)
+    if (body === undefined) throw new Error(`unknown memory space: ${normalized}`)
     return body
   }
 
-  openVikingConnection(id: string): OpenVikingBodyConnection {
+  openVikingConnection(id: string): OpenVikingSpaceConnection {
     const connection = this.providerConnection(id, 'openviking')
     return {
       endpoint: String(connection.endpoint ?? ''),
@@ -283,17 +284,17 @@ export class MemoryBodyRegistry {
 
   providerConnection(id: string, expectedProviderId?: MemoryProviderId): MemoryProviderConnection {
     this.refreshIfChanged()
-    const normalized = validateMemoryBodyId(id)
-    const body = this.bodies.find(entry => entry.id === normalized)
-    if (body === undefined || this.isNative(body.providerId)) throw new Error(`memory body has no external provider connection: ${normalized}`)
+    const normalized = validateMemorySpaceId(id)
+    const body = this.spaces.find(entry => entry.id === normalized)
+    if (body === undefined || this.isNative(body.providerId)) throw new Error(`memory space has no external provider connection: ${normalized}`)
     if (expectedProviderId !== undefined && body.providerId !== expectedProviderId) {
-      throw new Error(`memory body ${normalized} uses ${body.providerId}, not ${expectedProviderId}`)
+      throw new Error(`memory space ${normalized} uses ${body.providerId}, not ${expectedProviderId}`)
     }
     return this.connectionFor(body)
   }
 
   /** Used only after a public operation has refreshed the registry authority. */
-  private connectionFor(body: StoredMemoryBody): MemoryProviderConnection {
+  private connectionFor(body: StoredMemorySpace): MemoryProviderConnection {
     const legacy = this.providerTypeId(body.providerId) === 'openviking' && body.openViking !== undefined
       ? legacyOpenVikingConnection(body.openViking)
       : undefined
@@ -345,7 +346,7 @@ export class MemoryBodyRegistry {
     // longer addressable and must not linger as unhealthy, uneditable cards.
     // Keep only the reusable service configuration so reconnecting can
     // discover and rebuild the projections from the source of truth.
-    if (!enabled) this.bodies = this.bodies.filter(body => body.providerId !== providerId)
+    if (!enabled) this.spaces = this.spaces.filter(body => body.providerId !== providerId)
     this.save()
     return this.providerServices().items.find(item => item.providerId === providerId)!
   }
@@ -362,8 +363,8 @@ export class MemoryBodyRegistry {
     if (this.isNative(providerId)) throw new Error('Mnemon Native Stores are discovered from disk')
     let normalizedService = this.providerCatalog.normalizeService(providerId, service)
     const seen = new Set<string>()
-    const existing = this.bodies.filter(body => body.providerId === providerId)
-    const reservedIds = new Set(this.bodies.filter(body => body.providerId !== providerId).map(body => body.id))
+    const existing = this.spaces.filter(body => body.providerId === providerId)
+    const reservedIds = new Set(this.spaces.filter(body => body.providerId !== providerId).map(body => body.id))
     const timestamp = this.now().toISOString()
     const projections = discovered.map(candidate => {
       const externalId = requiredText(candidate.externalId, 'provider externalId', 2000)
@@ -372,10 +373,10 @@ export class MemoryBodyRegistry {
       const connection = this.providerCatalog.normalizeMemory(providerId, candidate.connection)
       this.providerCatalog.normalize(providerId, { ...normalizedService, ...connection })
       const previous = existing.find(body => body.externalId === externalId)
-      let id = previous?.id ?? validateMemoryBodyId(`${providerId}-${createHash('sha256').update(externalId).digest('hex').slice(0, 24)}`)
+      let id = previous?.id ?? validateMemorySpaceId(`${providerId}-${createHash('sha256').update(externalId).digest('hex').slice(0, 24)}`)
       let suffix = 1
       while (reservedIds.has(id)) {
-        id = validateMemoryBodyId(`${providerId}-${createHash('sha256').update(`${externalId}:${suffix}`).digest('hex').slice(0, 24)}`)
+        id = validateMemorySpaceId(`${providerId}-${createHash('sha256').update(`${externalId}:${suffix}`).digest('hex').slice(0, 24)}`)
         suffix += 1
       }
       reservedIds.add(id)
@@ -395,7 +396,7 @@ export class MemoryBodyRegistry {
         connection,
         createdAt: previous?.createdAt ?? timestamp,
         updatedAt: this.nextTimestamp(previous?.updatedAt, timestamp),
-      } satisfies StoredMemoryBody
+      } satisfies StoredMemorySpace
     })
     // Some non-enumerating Providers declare how their first discovered
     // namespace seeds a reusable service default. The generic host never
@@ -409,12 +410,12 @@ export class MemoryBodyRegistry {
     }
     this.services[providerId] = normalizedService
     this.serviceEnabled[providerId] = true
-    this.bodies = [...this.bodies.filter(body => body.providerId !== providerId), ...projections]
+    this.spaces = [...this.spaces.filter(body => body.providerId !== providerId), ...projections]
     this.save()
     return this.providerServices().items.find(item => item.providerId === providerId)!
   }
 
-  placementCandidates(request: Pick<CreateMemoryBodyRequest, 'connection' | 'providerConnections' | 'openViking'>): MemoryPlacementCandidate[] {
+  placementCandidates(request: Pick<CreateMemorySpaceRequest, 'connection' | 'providerConnections' | 'openViking'>): MemoryPlacementCandidate[] {
     return this.providerCatalog.providers.map(descriptor => {
       const providerTypeId = descriptor.typeId ?? descriptor.id
       const requestConnection = request.providerConnections?.[descriptor.id]
@@ -440,7 +441,7 @@ export class MemoryBodyRegistry {
     })
   }
 
-  async create(request: CreateMemoryBodyRequest, signal?: AbortSignal, placement?: MemoryPlacementDecision): Promise<MemoryBody> {
+  async create(request: CreateMemorySpaceRequest, signal?: AbortSignal, placement?: MemoryPlacementDecision): Promise<MemorySpace> {
     const name = requiredText(request.name, 'name', 100)
     const description = requiredText(request.description, 'description', 1000)
     if (request.placement !== undefined && placement === undefined) throw new Error('automatic provider placement must be resolved before creating a Memory Space')
@@ -454,8 +455,8 @@ export class MemoryBodyRegistry {
     const nativeProvider = this.isNative(providerId)
     let id = nativeProvider && nativeStoreIds.length === 0 && !reservedIds.has('default')
       ? 'default'
-      : validateMemoryBodyId(nativeProvider ? randomUUID() : `${providerId}-${randomUUID()}`)
-    while (reservedIds.has(id) || nativeStoreIds.includes(id)) id = validateMemoryBodyId(randomUUID())
+      : validateMemorySpaceId(nativeProvider ? randomUUID() : `${providerId}-${randomUUID()}`)
+    while (reservedIds.has(id) || nativeStoreIds.includes(id)) id = validateMemorySpaceId(randomUUID())
     const connectionInput = request.providerConnections?.[providerId]
       ?? (this.providerTypeId(providerId) === 'openviking' && request.connection === undefined && request.openViking !== undefined
       ? request.openViking as unknown as MemoryProviderConnection
@@ -473,7 +474,7 @@ export class MemoryBodyRegistry {
     }
     if (nativeProvider) await this.runner.runText(['store', 'create', id], { ...(signal === undefined ? {} : { signal }), store: id })
     const timestamp = this.now().toISOString()
-    const body: StoredMemoryBody = {
+    const body: StoredMemorySpace = {
       id,
       name,
       description,
@@ -485,21 +486,21 @@ export class MemoryBodyRegistry {
       createdAt: timestamp,
       updatedAt: timestamp,
     }
-    this.bodies.push(body)
+    this.spaces.push(body)
     this.save()
     return this.view(body)
   }
 
-  update(id: string, request: UpdateMemoryBodyRequest): MemoryBody {
+  update(id: string, request: UpdateMemorySpaceRequest): MemorySpace {
     this.refreshIfChanged()
-    const normalized = validateMemoryBodyId(id)
-    const index = this.bodies.findIndex(body => body.id === normalized)
-    if (index < 0) throw new Error(`unknown memory body: ${normalized}`)
-    const current = this.bodies[index]!
-    if (request.openViking !== undefined && this.providerTypeId(current.providerId) !== 'openviking') throw new Error('OpenViking connection settings only apply to OpenViking memory bodies')
+    const normalized = validateMemorySpaceId(id)
+    const index = this.spaces.findIndex(body => body.id === normalized)
+    if (index < 0) throw new Error(`unknown memory space: ${normalized}`)
+    const current = this.spaces[index]!
+    if (request.openViking !== undefined && this.providerTypeId(current.providerId) !== 'openviking') throw new Error('OpenViking connection settings only apply to OpenViking memory spaces')
     const nativeProvider = this.isNative(current.providerId)
     if ((request.connection !== undefined || request.clearSecrets !== undefined) && nativeProvider) {
-      throw new Error('Mnemon Native memory bodies do not have provider connection settings')
+      throw new Error('Mnemon Native memory spaces do not have provider connection settings')
     }
     const legacyPatch = request.openViking === undefined ? undefined : {
       ...request.openViking,
@@ -520,7 +521,7 @@ export class MemoryBodyRegistry {
       this.providerCatalog.normalize(current.providerId, { ...this.services[current.providerId], ...connection })
     }
     const { openViking: _legacyOpenViking, ...currentBody } = current
-    const body: StoredMemoryBody = {
+    const body: StoredMemorySpace = {
       ...currentBody,
       ...(request.name === undefined ? {} : { name: requiredText(request.name, 'name', 100) }),
       ...(request.description === undefined ? {} : { description: optionalText(request.description, 'description', 1000) }),
@@ -529,42 +530,42 @@ export class MemoryBodyRegistry {
       ...(connection === undefined ? {} : { connection }),
       updatedAt: this.nextTimestamp(current.updatedAt),
     }
-    this.bodies[index] = body
+    this.spaces[index] = body
     this.save()
     return this.view(body)
   }
 
   /** Validate every model-authored update before committing the batch. */
-  updateMetadata(updates: readonly MemoryBodyMetadataUpdate[]): MemoryBody[] {
+  updateMetadata(updates: readonly MemorySpaceMetadataUpdate[]): MemorySpace[] {
     this.refreshIfChanged()
     if (updates.length === 0 || updates.length > 20) throw new Error('metadata maintenance requires 1 through 20 Memory Spaces')
     const seen = new Set<string>()
     const replacements = updates.map(update => {
-      const id = validateMemoryBodyId(update.memoryBodyId)
+      const id = validateMemorySpaceId(update.memoryBodyId)
       if (seen.has(id)) throw new Error(`duplicate metadata update: ${id}`)
       seen.add(id)
-      const index = this.bodies.findIndex(body => body.id === id)
-      if (index < 0) throw new Error(`unknown memory body: ${id}`)
+      const index = this.spaces.findIndex(body => body.id === id)
+      if (index < 0) throw new Error(`unknown memory space: ${id}`)
       return {
         index,
         body: {
-          ...this.bodies[index]!,
+          ...this.spaces[index]!,
           name: requiredText(update.title, 'title', 48),
           description: requiredText(update.description, 'description', 200),
           metadataSource: 'ai',
-          updatedAt: this.nextTimestamp(this.bodies[index]!.updatedAt),
-        } satisfies StoredMemoryBody,
+          updatedAt: this.nextTimestamp(this.spaces[index]!.updatedAt),
+        } satisfies StoredMemorySpace,
       }
     })
-    for (const replacement of replacements) this.bodies[replacement.index] = replacement.body
+    for (const replacement of replacements) this.spaces[replacement.index] = replacement.body
     this.save()
     return replacements.map(replacement => this.view(replacement.body))
   }
 
-  async remove(id: string, signal?: AbortSignal): Promise<MemoryBody> {
+  async remove(id: string, signal?: AbortSignal): Promise<MemorySpace> {
     const body = this.get(id)
     if (!this.isNative(body.provider.id)) {
-      this.bodies = this.bodies.filter(entry => entry.id !== body.id)
+      this.spaces = this.spaces.filter(entry => entry.id !== body.id)
       this.save()
       return body
     }
@@ -595,22 +596,22 @@ export class MemoryBodyRegistry {
       options: { ...(signal === undefined ? {} : { signal }), store: commandStore },
     })
     await this.runner.runTextBatch(commands)
-    this.bodies = this.bodies.filter(entry => entry.id !== body.id)
+    this.spaces = this.spaces.filter(entry => entry.id !== body.id)
     this.save()
     return body
   }
 
-  setActive(id: string, active: boolean): MemoryBody {
+  setActive(id: string, active: boolean): MemorySpace {
     return this.update(id, { active })
   }
 
   /** Advance the safe catalog checkpoint after provider-backed content changes. */
-  touch(id: string): MemoryBody {
-    const normalized = validateMemoryBodyId(id)
-    const index = this.bodies.findIndex(body => body.id === normalized)
-    if (index < 0) throw new Error(`unknown memory body: ${normalized}`)
-    const body = { ...this.bodies[index]!, updatedAt: this.nextTimestamp(this.bodies[index]!.updatedAt) }
-    this.bodies[index] = body
+  touch(id: string): MemorySpace {
+    const normalized = validateMemorySpaceId(id)
+    const index = this.spaces.findIndex(body => body.id === normalized)
+    if (index < 0) throw new Error(`unknown memory space: ${normalized}`)
+    const body = { ...this.spaces[index]!, updatedAt: this.nextTimestamp(this.spaces[index]!.updatedAt) }
+    this.spaces[index] = body
     this.save()
     return this.view(body)
   }
@@ -619,7 +620,7 @@ export class MemoryBodyRegistry {
   reload(): void {
     this.refreshing = true
     try {
-      this.bodies = []
+      this.spaces = []
       this.services = {}
       this.serviceEnabled = {}
       this.loadAndReconcile()
@@ -653,7 +654,7 @@ export class MemoryBodyRegistry {
         const parsed = JSON.parse(readFileSync(this.registryPath, 'utf8')) as NativeRegistryFile | LegacyProviderRegistryFile
         if ((parsed.version === NATIVE_REGISTRY_VERSION || parsed.version === 2) && Array.isArray(parsed.bodies)) {
           migratedProviderRegistry = parsed.version === 2
-          this.bodies = parsed.bodies.filter(body => ID_PATTERN.test(body.id)).map(body => {
+          this.spaces = parsed.bodies.filter(body => ID_PATTERN.test(body.id)).map(body => {
             // Earlier dsh-mnemon builds gave an already-existing upstream
             // `default` Store a synthetic Chinese product name. That made a
             // compatibility import look like a newly-created default Memory
@@ -705,7 +706,7 @@ export class MemoryBodyRegistry {
         }
       } catch {
         // Rebuild a valid catalog from native stores without touching their DBs.
-        this.bodies = []
+        this.spaces = []
       }
     }
     if (this.persistent && existsSync(this.providerRegistryPath)) {
@@ -723,8 +724,8 @@ export class MemoryBodyRegistry {
         }
         if ((parsed.version === 1 || parsed.version === 2 || parsed.version === 3 || parsed.version === PROVIDER_REGISTRY_VERSION) && Array.isArray(parsed.bodies)) {
           migratedProviderRegistry ||= parsed.version !== PROVIDER_REGISTRY_VERSION
-          const existingIds = new Set(this.bodies.map(body => body.id))
-          this.bodies.push(...parsed.bodies
+          const existingIds = new Set(this.spaces.map(body => body.id))
+          this.spaces.push(...parsed.bodies
             .filter(body => storedProviderId(body.providerId)
               && (!this.providerCatalog.has(body.providerId) || !this.isNative(body.providerId))
               && ID_PATTERN.test(body.id) && !existingIds.has(body.id))
@@ -742,7 +743,7 @@ export class MemoryBodyRegistry {
                   connection: storedProviderConnection(body.connection ?? body.openViking),
                   createdAt: body.createdAt,
                   updatedAt: body.updatedAt,
-                } satisfies StoredMemoryBody
+                } satisfies StoredMemorySpace
               }
               const placement = normalizePlacementDecision(body.placement, providerId, this.providerCatalog)
               const rawConnection = body.connection ?? (this.providerTypeId(providerId) === 'openviking' && body.openViking !== undefined
@@ -776,11 +777,11 @@ export class MemoryBodyRegistry {
         // Ignore an invalid optional provider registry; native Stores remain usable.
       }
     }
-    const retainedBodies = this.bodies.filter(body => !this.providerCatalog.has(body.providerId)
+    const retainedBodies = this.spaces.filter(body => !this.providerCatalog.has(body.providerId)
       || this.isNative(body.providerId)
       || this.providerServiceEnabled(body.providerId))
-    if (retainedBodies.length !== this.bodies.length) {
-      this.bodies = retainedBodies
+    if (retainedBodies.length !== this.spaces.length) {
+      this.spaces = retainedBodies
       migratedProviderRegistry = true
     }
     this.reconcileDiscoveredStores()
@@ -794,12 +795,12 @@ export class MemoryBodyRegistry {
     let changed = false
     for (const entry of readdirSync(this.directory, { withFileTypes: true })) {
       if (!entry.isDirectory() || !ID_PATTERN.test(entry.name) || !existsSync(join(this.directory, entry.name, 'mnemon.db'))) continue
-      if (this.bodies.some(body => body.id === entry.name)) continue
-      this.bodies.push({
+      if (this.spaces.some(body => body.id === entry.name)) continue
+      this.spaces.push({
         id: entry.name,
         name: entry.name,
         description: 'Existing Mnemon Store discovered on disk.',
-        active: this.bodies.length === 0 || entry.name === legacyActive,
+        active: this.spaces.length === 0 || entry.name === legacyActive,
         providerId: 'mnemon-native',
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -825,7 +826,7 @@ export class MemoryBodyRegistry {
     return new Date(previousTime + 1).toISOString()
   }
 
-  private view(body: StoredMemoryBody): MemoryBody {
+  private view(body: StoredMemorySpace): MemorySpace {
     const descriptor = this.providerCatalog.descriptor(body.providerId)
     const nativeProvider = this.isNative(body.providerId)
     const connection = nativeProvider ? {} : this.connectionFor(body)
@@ -836,7 +837,7 @@ export class MemoryBodyRegistry {
     const location = nativeProvider
       ? join(this.directory, body.id, 'mnemon.db')
       : providerDisplayLocation(descriptor, connection)
-    const provider: MemoryBodyProvider = {
+    const provider: MemorySpaceProvider = {
       id: descriptor.id,
       ...(descriptor.typeId === undefined || descriptor.typeId === descriptor.id ? {} : { typeId: descriptor.typeId }),
       label: descriptor.label,
@@ -859,12 +860,12 @@ export class MemoryBodyRegistry {
   private save(): void {
     if (!this.persistent) return
     mkdirSync(this.directory, { recursive: true, mode: 0o700 })
-    const nativeBodies: StoredNativeMemoryBody[] = this.bodies
+    const nativeBodies: StoredNativeMemorySpace[] = this.spaces
       .filter(body => body.providerId === 'mnemon-native' || this.providerCatalog.has(body.providerId) && this.isNative(body.providerId))
       .map(({ providerId: _providerId, connection: _connection, openViking: _openViking, ...body }) => body)
     this.writeRegistry(this.registryPath, { version: NATIVE_REGISTRY_VERSION, bodies: nativeBodies })
 
-    const providerBodies = this.bodies.filter(body => body.providerId !== 'mnemon-native' && (!this.providerCatalog.has(body.providerId) || !this.isNative(body.providerId)))
+    const providerBodies = this.spaces.filter(body => body.providerId !== 'mnemon-native' && (!this.providerCatalog.has(body.providerId) || !this.isNative(body.providerId)))
     if (providerBodies.length === 0 && Object.keys(this.services).length === 0) {
       rmSync(this.providerRegistryPath, { force: true })
       this.state.diskRevision = this.diskRevision()

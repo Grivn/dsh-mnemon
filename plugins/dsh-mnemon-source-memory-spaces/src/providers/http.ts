@@ -2,7 +2,7 @@ import type { JsonValue } from '../contracts.ts'
 import type { MemorySpaceAuthority } from './adapter.ts'
 import type {
   Insight,
-  MemoryBody,
+  MemorySpace,
   MemoryGraphSnapshot,
   MemoryListRequest,
   MemoryProviderConnection,
@@ -66,15 +66,19 @@ export abstract class HttpMemoryProvider {
   protected readonly requestFetch: typeof fetch
   protected readonly requestTimeoutMs: number
 
-  constructor(protected readonly memoryBodies: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
+  /** @deprecated Use memorySpaces. */
+  protected readonly memoryBodies: MemorySpaceAuthority
+
+  constructor(protected readonly memorySpaces: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
+    this.memoryBodies = memorySpaces
     this.label = options.label
     this.requestFetch = options.fetch ?? globalThis.fetch
     this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000
   }
 
-  abstract list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]>
+  abstract list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]>
 
-  async graph(body: MemoryBody, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
     const items = await this.list(body, { limit: 200 }, signal)
     return {
       nodes: items.map(item => ({ ...item, color: '#6574d9' })),
@@ -83,12 +87,12 @@ export abstract class HttpMemoryProvider {
     }
   }
 
-  protected connection(body: MemoryBody): MemoryProviderConnection {
+  protected connection(body: MemorySpace): MemoryProviderConnection {
     if ((body.provider.typeId ?? body.provider.id) !== this.id) throw new Error(`${this.id} cannot serve provider ${body.provider.id}`)
-    return this.memoryBodies.providerConnection(body.id, body.provider.id)
+    return this.memorySpaces.providerConnection(body.id, body.provider.id)
   }
 
-  protected async request(body: MemoryBody, path: string, options: JsonRequestOptions = {}): Promise<unknown> {
+  protected async request(body: MemorySpace, path: string, options: JsonRequestOptions = {}): Promise<unknown> {
     const connection = this.connection(body)
     return this.requestConnection(connection, path, options)
   }

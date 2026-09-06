@@ -154,9 +154,11 @@ Documents 的物理共享范围由 `storageScope` 决定：
 
 <a id="memory-spaces"></a>
 
-## 记忆体
+<a id="记忆体"></a>
 
-记忆体是第三层统一语义与路由单位，具体数据面由 Provider 决定：
+## 记忆空间
+
+记忆空间是第三层统一语义与路由单位，具体数据面由 Provider 决定：
 
 ```text
 id            Host 生成或沿用已发现的 Mnemon Store 名
@@ -170,23 +172,23 @@ location      本地 Store/CLI 作用域，或远程 endpoint + Provider 作用�
 ### 读写边界
 
 - Mnemon 原生层在初始化后至少保留一个 Store，并通过 `<storageRoot>/active` 选择一个默认 Store；普通 Mnemon Agent 仍按这套单 Store 语义工作。
-- dsh-mnemon 的激活状态是独立控制面：任意 0..N 个记忆体可以激活，全部未激活也不会改变 Mnemon 默认 Store 或远程数据。
-- 召回与浏览只使用已激活记忆体；图谱、实体、关联、链接和删除由 Provider 能力决定。
-- 指定未激活记忆体进行读取会被拒绝。
-- 写入可以选择任何支持 `remember` 的已登记记忆体；回执会反映 Provider 的精确写入或异步提炼语义。
+- dsh-mnemon 的激活状态是独立控制面：任意 0..N 个记忆空间可以激活，全部未激活也不会改变 Mnemon 默认 Store 或远程数据。
+- 召回与浏览只使用已激活记忆空间；图谱、实体、关联、链接和删除由 Provider 能力决定。
+- 指定未激活记忆空间进行读取会被拒绝。
+- 写入可以选择任何支持 `remember` 的已登记记忆空间；回执会反映 Provider 的精确写入或异步提炼语义。
 - 对未激活目标写入成功后，插件自动激活它。
 - 没有显式目标且激活数量不是 1 时，确定性服务要求调用方先选择目标。
 
 ### 创建、发现和合并
 
-- 未初始化的空根可以保持零 Store；第一次显式创建记忆体时使用 Mnemon 原生 `default` ID，名称与路由说明仍由用户决定，后续创建使用 Host 生成的 UUID。
-- 初始化后不能删除最后一个原生 Store，但可以将最后一个记忆体设为未激活。删除 Mnemon 默认 Store 时，插件会先切换到另一个现存 Store。
+- 未初始化的空根可以保持零 Store；第一次显式创建记忆空间时使用 Mnemon 原生 `default` ID，名称与路由说明仍由用户决定，后续创建使用 Host 生成的 UUID。
+- 初始化后不能删除最后一个原生 Store，但可以将最后一个记忆空间设为未激活。删除 Mnemon 默认 Store 时，插件会先切换到另一个现存 Store。
 - 既有 `<storageRoot>/data/<store>/mnemon.db` 会被发现并登记，不移动数据库。
 - 合并通过 Mnemon import 把来源内容导入目标；来源数据库保留，默认只将来源设为未激活。
 - Pack 替换不能把已初始化的 Store 集合清空；替换后若原默认 Store 已不存在，插件会选择一个现存 Store 修复原生默认指针。
 - `forget` 是按精确 ID 的软删除，不等于删除数据库文件。
-- 用户可在既有“创建记忆体”弹窗选择 Mnemon Native 或任意已登记三方引擎，也可在智能模式中显式加入已配置候选；断开只删除本地连接登记，不删除 Provider 数据。
-- 智能 placement 的允许列表、数据边界与必需能力是 Host 强制规则；软偏好与 Prompt 只用于多个合格候选之间的语义选择，不能绕过硬规则。决策回执与记忆体元数据一起保存。
+- 用户可在既有“创建记忆空间”弹窗选择 Mnemon Native 或任意已登记三方引擎，也可在智能模式中显式加入已配置候选；断开只删除本地连接登记，不删除 Provider 数据。
+- 智能 placement 的允许列表、数据边界与必需能力是 Host 强制规则；软偏好与 Prompt 只用于多个合格候选之间的语义选择，不能绕过硬规则。决策回执与记忆空间元数据一起保存。
 - 合并仍只适用于 Mnemon Native。图谱、关系、浏览、精确/异步写入以及硬/软/不支持删除都以各 Provider 声明能力为准；UI 与 Agent 不会假装补齐缺失行为。见 [Provider 能力矩阵](../guides/memory-providers.md)。
 
 ### 跨 Agent 可见性
@@ -197,7 +199,7 @@ location      本地 Store/CLI 作用域，或远程 endpoint + Provider 作用�
 
 ## 四类关系
 
-Mnemon Native 保留 `temporal`、`semantic`、`causal` 和 `entity` 关系；Hindsight 投影 Provider 图谱，Holographic 生成本地实体/语义关系。没有图谱边的 Provider 只贡献有界无边节点，适配器不会伪造关系。记忆体页会按能力隐藏不适用的关联、链接、浏览与遗忘动作。
+Mnemon Native 保留 `temporal`、`semantic`、`causal` 和 `entity` 关系；Hindsight 投影 Provider 图谱，Holographic 生成本地实体/语义关系。没有图谱边的 Provider 只贡献有界无边节点，适配器不会伪造关系。记忆空间页会按能力隐藏不适用的关联、链接、浏览与遗忘动作。
 
 ## 数据权威表
 

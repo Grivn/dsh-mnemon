@@ -458,7 +458,9 @@
 
 @media (max-width: 520px) {
   .shell .masthead { min-height: 46px; }
+  .shell .brand { flex-wrap: wrap; gap: 4px 8px; }
   .shell .brand h1 { font-size: 16px; }
+  .shell .nav button { padding-inline: 8px; font-size: 12px; }
   .shell .headerActions { max-width: none; flex: 0 0 auto; }
   .shell [class*='backButton'] > span { display: none; }
   .shell [class*='storageMode'] { padding-inline: 7px; }

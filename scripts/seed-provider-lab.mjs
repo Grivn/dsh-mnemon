@@ -94,10 +94,10 @@ if (selectedProviders.some(provider => provider.id === 'byterover')) mkdirSync(j
 
 const memories = [
   { category: 'decision', importance: 5, tags: ['architecture', 'three-tier'], entities: ['DSH', 'Mnemon'], content: 'DSH 记忆系统采用三层结构：运行时热记忆、项目档案、可替换的长期记忆 Provider。第三层允许 Mnemon Native、OpenViking、Mem0 等实现并存。' },
-  { category: 'preference', importance: 4, tags: ['routing', 'policy'], entities: ['LLM', 'Provider'], content: '自动创建记忆体时，用户可以用规则与 Prompt 描述数据边界、共享倾向和能力要求，再由 LLM 在允许的 Provider 候选中作出可解释选择。' },
+  { category: 'preference', importance: 4, tags: ['routing', 'policy'], entities: ['LLM', 'Provider'], content: '自动创建记忆空间时，用户可以用规则与 Prompt 描述数据边界、共享倾向和能力要求，再由 LLM 在允许的 Provider 候选中作出可解释选择。' },
   { category: 'fact', importance: 5, tags: ['contract', 'webui'], entities: ['WebUI', 'Provider'], content: 'WebUI 不把所有 Provider 伪装成相同数据库：概览区分真实关系图与内容投影，内容区分可枚举与仅查询，实体页只展示真实实体索引。' },
   { category: 'context', importance: 4, tags: ['privacy', 'docker'], entities: ['Docker', 'Ollama'], content: 'Provider Lab 的私有化服务全部由 Docker Compose 启动并只绑定 127.0.0.1；模型与向量计算通过本机 Ollama 完成，测试内容不需要离开机器。' },
-  { category: 'insight', importance: 4, tags: ['product', 'compatibility'], entities: ['Provider', 'DSH'], content: '多 Provider 的价值在于兼容成熟记忆实现与社区生态，但 dsh-mnemon 仍以既有记忆体心智为主，并保留 Mnemon Native 的官方优先级。' },
+  { category: 'insight', importance: 4, tags: ['product', 'compatibility'], entities: ['Provider', 'DSH'], content: '多 Provider 的价值在于兼容成熟记忆实现与社区生态，但 dsh-mnemon 仍以既有记忆空间心智为主，并保留 Mnemon Native 的官方优先级。' },
 ]
 
 async function postJson(url, body) {

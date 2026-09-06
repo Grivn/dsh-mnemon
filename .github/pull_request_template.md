@@ -19,7 +19,7 @@
 - [ ] Host 激活、Headless 或 bundle / Host activation, Headless, or bundle
 - [ ] 运行时记忆 / Runtime Memory
 - [ ] 项目档案 / Project Documents
-- [ ] 记忆体或 Provider / Memory Spaces or Providers
+- [ ] 记忆空间或 Provider / Memory Spaces or Providers
 - [ ] 子 Agent 或 Agent 工作流 / Subagent or Agent workflow
 - [ ] Web UI 或对话交互 / Web UI or conversation interaction
 - [ ] 设置、存储或安全 / Settings, storage, or security

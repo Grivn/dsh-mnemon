@@ -6,7 +6,9 @@ The default entry is Sidebar. Optional Builtin placement embeds the same pages i
 
 ## See it in use
 
-[Watch the current demonstration](../../assets/showcase/demo.mp4). Screenshots below show the real local DSH WebUI with dsh-mnemon 0.5.2 and synthetic Atlas data. The recording covers browsing and reversible enhancement switches, not model quality or live cloud-Provider conformance. [Capture details and limits](../../assets/showcase/README.md).
+Screenshots below show the memory space terminology update in the real local DSH WebUI, based on v0.5.3 and disposable Atlas data. Chinese uses **记忆空间** and English uses **memory space**. Existing data, IDs, and Provider connections are preserved. [Current capture details and limits](../../assets/memory-space-terminology/README.md).
+
+The [v0.5.2 demonstration](../../assets/showcase/demo.mp4) remains a historical recording of browsing and reversible enhancement switches; its labels predate this terminology update.
 
 Older media remain available with their original version labels in [historical evidence](../../pr-assets/README.md).
 
@@ -30,7 +32,7 @@ Primary pages remain **Status, Runtime, Documents, Memory Spaces**. Memory Space
 
 ## 1. Status: establish readiness
 
-![Current status and Native readiness](../../assets/showcase/en/status.png)
+![Current status and Native readiness](../../assets/memory-space-terminology/en/status.jpg)
 
 The top Memory Engine area shows only dsh-mnemon. Mnemon Native has its own status bar; its failure does not become a global banner. External Providers appear below with enabled, health, and connection state.
 
@@ -44,7 +46,7 @@ Expand **Subpackage versions** under dsh-mnemon to inspect Sources, Strategies, 
 
 ## Memory enhancements: expose stable behavior only
 
-![Default memory layers and three optional enhancements](../../assets/showcase/en/enhancements.png)
+![Default memory layers and three optional enhancements](../../assets/memory-space-terminology/en/enhancements.jpg)
 
 There is no standalone View page, and Status exposes no plugin catalog, dependency graph, or installation flow. The Starter ships three disabled enhancements using the same switches as other settings under **Settings → Memory System → Memory enhancements**:
 
@@ -56,7 +58,7 @@ A switch applies immediately to future turns; it never rewrites a turn that alre
 
 ## 2. Runtime: maintain every-turn context
 
-![Working-memory filter and Runtime entries](../../assets/showcase/en/runtime.png)
+![Runtime scopes and a working-memory entry](../../assets/memory-space-terminology/en/runtime.jpg)
 
 The header summarizes User Profile (`USER.md`) and Working Memory (`MEMORY.md`). A shared card style lists items below. Filter by source, text, category, and importance; clicking the current filter again never breaks the page. Long fields truncate within their own block and reveal the complete value on hover.
 
@@ -64,7 +66,7 @@ Runtime items should be compact, independent, and repeatedly useful. Working Mem
 
 ## 3. Documents: preserve complete project narratives
 
-![Atlas directory and Markdown reader](../../assets/showcase/en/documents.png)
+![Atlas directory and Markdown reader](../../assets/memory-space-terminology/en/documents.jpg)
 
 Select a DSH workspace first: Documents needs a workspace identity even with global/custom storage. A selected conversation supplies its workspace; Workspace storage also allows explicit inspection selection. This identifies the project without changing the selected storage root.
 
@@ -78,7 +80,7 @@ Title and retrieval description determine discoverability, source path preserves
 
 ### Overview and live snapshot
 
-![Two active local Memory Spaces](../../assets/showcase/en/spaces.png)
+![An active native Memory Space](../../assets/memory-space-terminology/en/spaces.jpg)
 
 Read the live snapshot in two layers from top to bottom:
 
@@ -101,6 +103,8 @@ Snapshot visibility declares the read surface each space can actually honor befo
 The UI never fabricates unsupported relationships, entities, deletion, or browse capability.
 
 ### Create a Memory Space manually
+
+![Create a named memory space with a Provider](../../assets/memory-space-terminology/en/create.jpg)
 
 Clicking Create always asks the user to choose a Provider explicitly. Only services enabled in Settings appear. Provider-specific fields use a vertical layout to avoid alignment drift. The new instance enters catalog, activation, and recall only after creation.
 
@@ -135,7 +139,7 @@ Focused questions are usually more reliable than broad keywords.
 
 ### Content and Entities
 
-![Native evidence with provenance](../../assets/showcase/en/content.png)
+![Native evidence with provenance](../../assets/memory-space-terminology/en/content.jpg)
 
 Content distinguishes enumerable, query-only, and unavailable surfaces. A Provider tag both applies a filter and clears it when clicked again. Entities aggregates only real indexes—currently Mnemon Native, Hindsight, and Holographic—rather than inferring capability from ordinary text.
 

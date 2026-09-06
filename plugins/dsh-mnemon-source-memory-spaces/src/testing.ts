@@ -1,4 +1,4 @@
-import type { MemoryBody, MemoryProviderConnection, MemoryProviderDescriptor } from './contracts.ts'
+import type { MemorySpace, MemoryProviderConnection, MemoryProviderDescriptor } from './contracts.ts'
 import { MemoryProviderCatalog } from './providers/catalog.ts'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { MemorySpaceAuthority, MemoryProviderAdapter, MemoryProviderAdapterFactoryContext } from './providers/adapter.ts'
@@ -65,7 +65,7 @@ export function createMemorySpaceProviderFixture(
   descriptor: MemoryProviderDescriptor,
   input: MemoryProviderConnection = {},
   options: { dataDir: string; instanceId?: string; memoryBodyId?: string },
-): { body: MemoryBody; authority: MemorySpaceAuthority; connection: MemoryProviderConnection } {
+): { body: MemorySpace; authority: MemorySpaceAuthority; connection: MemoryProviderConnection } {
   const instanceId = options.instanceId ?? descriptor.id
   const catalog = new MemoryProviderCatalog([{
     ...descriptor, id: instanceId,
@@ -73,7 +73,7 @@ export function createMemorySpaceProviderFixture(
   }])
   const connection = catalog.normalize(instanceId, input)
   const publicConnection = catalog.public(instanceId, connection)
-  const body: MemoryBody = {
+  const body: MemorySpace = {
     id: options.memoryBodyId ?? 'test-memory', name: 'Test memory', description: 'Provider-owned test fixture',
     active: true, dbPath: '', createdAt: '2026-08-30T00:00:00.000Z', updatedAt: '2026-08-30T00:00:00.000Z',
     provider: {

@@ -2,8 +2,8 @@
 export { CATEGORIES, SOURCES, EDGE_TYPES, INTENTS } from './contracts.ts'
 export type {
   JsonValue, Category, Source, EdgeType, Intent, Insight,
-  MemoryBody, MemoryBodyProvider, MemoryBodyStats, MemoryGraphNode, MemoryGraphEdge, MemoryGraphSnapshot,
-  MemoryListRequest, RememberRequest, SearchRequest, OpenVikingBodyConnection,
+  MemorySpace, MemorySpaceProvider, MemorySpaceStats, MemoryGraphNode, MemoryGraphEdge, MemoryGraphSnapshot,
+  MemoryListRequest, RememberRequest, SearchRequest, OpenVikingSpaceConnection,
   MemoryProviderId, MemoryProviderConnection, MemoryProviderConnectionValue,
   MemoryProviderIcon, MemoryProviderConfigField, MemoryProviderConfigOption,
   MemoryProviderCapabilities, MemoryProviderDescriptor,
@@ -17,3 +17,6 @@ export type {
 } from './providers/definitions.ts'
 export * from './providers/http.ts'
 export * from './providers/process.ts'
+
+// Compatibility exports for existing Provider declarations.
+export type { MemoryBody, MemoryBodyProvider, MemoryBodyStats, OpenVikingBodyConnection } from './contracts.ts'

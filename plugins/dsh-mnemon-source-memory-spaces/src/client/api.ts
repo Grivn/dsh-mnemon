@@ -1,9 +1,13 @@
-import type { CreateMemoryBodyRequest, EntityView, Insight, MemoryBody, MemoryBodyView, MemoryBodyMetadataMaintenanceResult, MemoryBodyCatalog, MemoryGraphSnapshot, MemoryListRequest, MemoryListView, MemoryReadSource, RememberRequest, SearchRequest, UpdateMemoryBodyRequest } from '../contracts.ts'
+import type { CreateMemorySpaceRequest, EntityView, Insight, MemorySpace, MemorySpaceView, MemorySpaceMetadataMaintenanceResult, MemorySpaceCatalog, MemoryGraphSnapshot, MemoryListRequest, MemoryListView, MemoryReadSource, RememberRequest, SearchRequest, UpdateMemorySpaceRequest } from '../contracts.ts'
 
-/** Source-owned structural page API; the default bundle may supply agent-assisted callbacks. */
+/**
+ * Source-owned structural page API; the default bundle may supply agent-assisted callbacks.
+ * body/bodies method and wire-field spellings remain compatible with existing
+ * v0.5.x page clients. All of them operate on the canonical MemorySpace model.
+ */
 export interface MemorySpacesPageClient {
-  bodies(): Promise<MemoryBodyCatalog>
-  bodyDirectory(): Promise<MemoryBodyCatalog>
+  bodies(): Promise<MemorySpaceCatalog>
+  bodyDirectory(): Promise<MemorySpaceCatalog>
   graph(memoryBodyIds?: string[]): Promise<MemoryGraphSnapshot>
   list(request?: MemoryListRequest): Promise<MemoryListView>
   entities(entity?: string, limit?: number): Promise<EntityView>
@@ -13,11 +17,11 @@ export interface MemorySpacesPageClient {
   remember(request: RememberRequest): Promise<Record<string, unknown>>
   supervise(content: string, idempotencyKey?: string): Promise<{ delegated: true; sessionId: string; runId: string; provider: string; summary: string; action: string; memoryBodyIds: string[] }>
   forget(id: string, memoryBodyId?: string): Promise<Record<string, unknown>>
-  createBody(request: CreateMemoryBodyRequest): Promise<MemoryBody>
-  updateBody(memoryBodyId: string, request: UpdateMemoryBodyRequest): Promise<MemoryBody>
-  reconnectBody(memoryBodyId: string): Promise<MemoryBodyView>
-  maintainBodyMetadata(memoryBodyIds: string[]): Promise<MemoryBodyMetadataMaintenanceResult>
-  deleteBody(memoryBodyId: string): Promise<MemoryBody>
+  createBody(request: CreateMemorySpaceRequest): Promise<MemorySpace>
+  updateBody(memoryBodyId: string, request: UpdateMemorySpaceRequest): Promise<MemorySpace>
+  reconnectBody(memoryBodyId: string): Promise<MemorySpaceView>
+  maintainBodyMetadata(memoryBodyIds: string[]): Promise<MemorySpaceMetadataMaintenanceResult>
+  deleteBody(memoryBodyId: string): Promise<MemorySpace>
 }
 
 export interface SearchResponse { results: Insight[]; sources?: MemoryReadSource[] }

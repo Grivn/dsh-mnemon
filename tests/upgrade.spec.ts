@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { RuntimeMemorySnapshot } from 'dsh-mnemon-source-runtime/contracts'
 import type { DocumentSnapshot } from 'dsh-mnemon-source-documents/contracts'
-import type { MemoryBodyCatalog } from 'dsh-mnemon-source-memory-spaces/contracts'
+import type { MemoryBodyCatalog as MemorySpaceCatalog } from 'dsh-mnemon-source-memory-spaces/contracts'
 import { compositionFixture } from './fixtures/composition.ts'
 
 const original = fileURLToPath(new URL('./fixtures/upgrade/v0.3.6/', import.meta.url))
@@ -53,7 +53,7 @@ describe('copied pre-extraction storage and user configuration', () => {
       expect(snapshot.targets.user.limit).toBe(8_192)
       const documents = await graph.source('documents').read<DocumentSnapshot>('snapshot')
       expect(documents.documents[0]).toMatchObject({ id: '7aad2578-c1ac-404d-9a4d-2c6c090cbdd8', healthy: true, revision: 1 })
-      const catalog = await graph.source('memory-spaces').read<MemoryBodyCatalog>('body-directory')
+      const catalog = await graph.source('memory-spaces').read<MemorySpaceCatalog>('body-directory')
       const body = catalog.items.find(item => item.provider.id === 'holographic')!
       expect(body).toMatchObject({ id: 'holographic-b391de2a35579f6ee0be3c92', active: true, name: 'Legacy facts' })
 

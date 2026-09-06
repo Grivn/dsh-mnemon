@@ -15,7 +15,7 @@ export const definition = defineMemorySpaceProviderDefinition({
     secrets: descriptor.fields.filter(field => field.input === 'secret').map(field => field.key),
     scoreSemantics: 'normalized-relevance',
   },
-  create: context => new HolographicProvider(context.memoryBodies),
+  create: context => new HolographicProvider(context.memorySpaces ?? context.memoryBodies),
 })
 
 export default defineMemorySpaceProvider<undefined>({

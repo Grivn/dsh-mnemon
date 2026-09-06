@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { MemoryCompositionRunner, type MemoryTestTurn } from 'dsh-mnemon/testing'
-import type { MemoryBodyView, Insight } from '../src/contracts.ts'
+import type { MemorySpaceView, Insight } from '../src/contracts.ts'
 import * as spaces from '../src/index.ts'
 import { strategy } from './fixture.ts'
 
@@ -24,7 +24,7 @@ describe.skipIf(!cliPath)('real Native Provider through Source composition', () 
       const created = await management.mutate('body-create', {
         name: 'Isolated native test', description: 'Synthetic plugin integration fixture.', providerId: 'mnemon-native', active: true,
       }, { confirmed: true })
-      const body = created.value as unknown as MemoryBodyView
+      const body = created.value as unknown as MemorySpaceView
       const turn = await runner.beginTurn()
       turns.push(turn)
       const offer = turn.view.actionOffers.find(item => item.sourceActionId === 'remember')!

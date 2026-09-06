@@ -5,7 +5,7 @@ import type { LiveMnemonRuntime } from './runtime.ts'
 import { assertParticipation } from './access.ts'
 import { isVersionComponentId, VersionUpdateManager } from './version-updates.ts'
 import type { MemoryCapability, MemoryJsonValue, MemoryOperationScope, MemorySourceManagementInstance } from '../core/contracts/index.ts'
-import type { CreateMemoryBodyRequest, Insight, MemoryBodyCatalog, PreparedMemoryPlacement, RememberRequest } from 'dsh-mnemon-source-memory-spaces/contracts'
+import type { CreateMemoryBodyRequest as CreateMemorySpaceRequest, Insight, MemoryBodyCatalog as MemorySpaceCatalog, PreparedMemoryPlacement, RememberRequest } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { RuntimeMemoryMutation } from 'dsh-mnemon-source-runtime/contracts'
 import type { DocumentMutation } from 'dsh-mnemon-source-documents/contracts'
 import { MNEMON_ACTIVATION_CHANNEL, MNEMON_PACK_CHANNEL, MNEMON_READ_CHANNEL, MNEMON_WRITE_CHANNEL } from './protocol.ts'
@@ -121,7 +121,7 @@ async function assisted(runtime: ScopedRuntime, lifecycle: MnemonLifecycle, type
       return lifecycle.superviseTask(sessionId, String(input.content ?? ''), input.idempotencyKey === undefined ? undefined : String(input.idempotencyKey), workspaceRoot, signal)
     case 'body-create': {
       requireCapability(runtime, typeId, 'write')
-      const request = input as unknown as CreateMemoryBodyRequest
+      const request = input as unknown as CreateMemorySpaceRequest
       if (request.placement === undefined) return source.mutate('body-create', request, signal)
       requireAligned(runtime)
       const prepared = await source.read<PreparedMemoryPlacement>('prepare-body-placement', request, signal)
@@ -133,7 +133,7 @@ async function assisted(runtime: ScopedRuntime, lifecycle: MnemonLifecycle, type
       if (!Array.isArray(input.memoryBodyIds) || input.memoryBodyIds.some(id => typeof id !== 'string')) throw new Error('memoryBodyIds must be a string array')
       const ids = [...new Set((input.memoryBodyIds as string[]).map(id => id.trim()).filter(Boolean))]
       if (ids.length === 0 || ids.length > 20) throw new Error('metadata maintenance requires 1 through 20 Memory Spaces')
-      const directory = await source.read<MemoryBodyCatalog>('body-directory', null, signal)
+      const directory = await source.read<MemorySpaceCatalog>('body-directory', null, signal)
       for (const id of ids) {
         const body = directory.items.find(item => item.id === id)
         if (body === undefined || !body.active || body.providerEnabled === false) throw new Error('metadata maintenance requires an active Memory Space: ' + id)

@@ -3,15 +3,15 @@ import type { JsonValue } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type {
   Insight,
-  MemoryBody,
+  MemoryBody as MemorySpace,
   MemoryGraphSnapshot,
   MemoryListRequest,
   MemoryProviderConnection,
-  OpenVikingBodyConnection,
+  OpenVikingBodyConnection as OpenVikingSpaceConnection,
   RememberRequest,
   SearchRequest,
 } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 interface OpenVikingEnvelope {
   status?: string
@@ -70,7 +70,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
   private readonly settlementTimeoutMs: number
   private readonly pollIntervalMs: number
 
-  constructor(private readonly memoryBodies: MemorySpaceAuthority, options: OpenVikingProviderOptions = {}) {
+  constructor(private readonly memorySpaces: MemorySpaceAuthority, options: OpenVikingProviderOptions = {}) {
     this.requestFetch = options.fetch ?? globalThis.fetch
     this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000
     this.settlementTimeoutMs = options.settlementTimeoutMs ?? 120_000
@@ -104,7 +104,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     })
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       await this.request(body, '/health', {}, { signal, timeoutMs: 5_000 })
       return { healthy: true }
@@ -113,7 +113,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const connection = this.connection(body)
     const result = await this.request(body, '/api/v1/search/find', {
       method: 'POST',
@@ -144,7 +144,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }
   }
 
-  async graph(body: MemoryBody, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
     // Remote providers are projected as a bounded, disconnected browse view;
     // they do not pretend to expose Mnemon's typed graph relationships.
     const items = await this.list(body, { limit: 200 }, signal)
@@ -155,7 +155,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     const connection = this.connection(body)
     const query = new URLSearchParams({ uri: connection.targetUri, recursive: 'true', output: 'original' })
     const result = await this.request(body, `/api/v1/fs/ls?${query}`, {}, { signal })
@@ -187,7 +187,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }))
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     const sessionId = `dsh-mnemon-${Date.now()}-${randomUUID()}`
     await this.request(body, '/api/v1/sessions', {
       method: 'POST',
@@ -238,7 +238,7 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }
   }
 
-  async forget(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue> {
+  async forget(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     const uri = id.trim()
     const root = connection.targetUri.replace(/\/+$/u, '')
@@ -256,13 +256,13 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     }
   }
 
-  private connection(body: MemoryBody): OpenVikingBodyConnection {
+  private connection(body: MemorySpace): OpenVikingSpaceConnection {
     if ((body.provider.typeId ?? body.provider.id) !== this.id) throw new Error(`OpenViking cannot serve provider ${body.provider.id}`)
-    const connection = this.memoryBodies.providerConnection(body.id, body.provider.id)
+    const connection = this.memorySpaces.providerConnection(body.id, body.provider.id)
     return { endpoint: String(connection.endpoint ?? ''), targetUri: String(connection.targetUri ?? ''), apiKey: String(connection.apiKey ?? ''), account: String(connection.account ?? ''), user: String(connection.user ?? ''), actorPeerId: String(connection.actorPeerId ?? '') }
   }
 
-  private async settleTask(body: MemoryBody, taskId: string, signal?: AbortSignal): Promise<Record<string, unknown> | undefined> {
+  private async settleTask(body: MemorySpace, taskId: string, signal?: AbortSignal): Promise<Record<string, unknown> | undefined> {
     const deadline = Date.now() + this.settlementTimeoutMs
     while (Date.now() < deadline) {
       const task = object(await this.request(body, `/api/v1/tasks/${encodeURIComponent(taskId)}`, {}, { signal, timeoutMs: 10_000 })) ?? {}
@@ -274,12 +274,12 @@ export class OpenVikingProvider implements MemoryProviderAdapter {
     return undefined
   }
 
-  private async request(body: MemoryBody, path: string, init: RequestInit = {}, options: OpenVikingRequestOptions = {}): Promise<unknown> {
+  private async request(body: MemorySpace, path: string, init: RequestInit = {}, options: OpenVikingRequestOptions = {}): Promise<unknown> {
     const connection = this.connection(body)
     return this.requestConnection(connection, path, init, options)
   }
 
-  private async requestConnection(connection: MemoryProviderConnection | OpenVikingBodyConnection, path: string, init: RequestInit = {}, options: OpenVikingRequestOptions = {}): Promise<unknown> {
+  private async requestConnection(connection: MemoryProviderConnection | OpenVikingSpaceConnection, path: string, init: RequestInit = {}, options: OpenVikingRequestOptions = {}): Promise<unknown> {
     options.signal?.throwIfAborted()
     const controller = new AbortController()
     const relay = () => controller.abort(options.signal?.reason)

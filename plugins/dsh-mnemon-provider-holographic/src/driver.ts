@@ -5,15 +5,15 @@ import type { JsonValue } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type {
   Insight,
-  MemoryBody,
-  MemoryBodyStats,
+  MemoryBody as MemorySpace,
+  MemoryBodyStats as MemorySpaceStats,
   MemoryGraphSnapshot,
   MemoryListRequest,
   MemoryProviderConnection,
   RememberRequest,
   SearchRequest,
 } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 interface HolographicFact {
   id: string
@@ -82,15 +82,15 @@ export class HolographicProvider implements MemoryProviderAdapter {
   readonly id = 'holographic' as const
   readonly scoreSemantics = NORMALIZED_RELEVANCE_SCORE
 
-  constructor(private readonly memoryBodies: MemorySpaceAuthority) {}
+  constructor(private readonly memorySpaces: MemorySpaceAuthority) {}
 
   async discover(connection: MemoryProviderConnection): Promise<ProviderMemorySpace[]> {
     const configured = String(connection.dataPath ?? '').trim()
     const path = configured === ''
-      ? join(this.memoryBodies.runner.effectiveDataDir(), 'state', 'holographic', 'store.json')
+      ? join(this.memorySpaces.runner.effectiveDataDir(), 'state', 'holographic', 'store.json')
       : isAbsolute(configured)
         ? configured
-        : resolve(this.memoryBodies.runner.effectiveDataDir(), configured)
+        : resolve(this.memorySpaces.runner.effectiveDataDir(), configured)
     const label = basename(path).replace(/\.json$/iu, '') || 'Holographic'
     return [{
       externalId: path,
@@ -100,7 +100,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     }]
   }
 
-  async status(body: MemoryBody): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace): Promise<ProviderSpaceStatus> {
     try {
       const store = this.load(body)
       return { healthy: true, stats: this.stats(store) }
@@ -109,7 +109,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest): Promise<ProviderSearchResult> {
     const store = this.load(body)
     const connection = this.connection(body)
     const minTrust = clampTrust(Number(connection.minTrust ?? 0.3))
@@ -127,7 +127,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     return { results: results.map(result => insight(result.fact, result.score)) }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest): Promise<Insight[]> {
     if (request.query !== undefined && request.query.trim() !== '') {
       return (await this.search(body, {
         query: request.query,
@@ -144,7 +144,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
       .map(fact => insight(fact))
   }
 
-  async graph(body: MemoryBody): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace): Promise<MemoryGraphSnapshot> {
     const facts = (await this.list(body, { limit: 500 }))
     const entities = [...new Set(facts.flatMap(fact => fact.entities ?? []))]
     return {
@@ -163,7 +163,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     }
   }
 
-  async related(body: MemoryBody, id: string, _depth: number): Promise<Insight[]> {
+  async related(body: MemorySpace, id: string, _depth: number): Promise<Insight[]> {
     const store = this.load(body)
     const source = store.facts.find(fact => fact.id === id)
     if (source === undefined) return []
@@ -177,7 +177,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     }).sort((left, right) => right.score - left.score).slice(0, 20).map(result => insight(result.fact, result.score))
   }
 
-  async remember(body: MemoryBody, request: RememberRequest): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest): Promise<JsonValue> {
     const store = this.load(body)
     const existing = store.facts.find(fact => fact.content === request.content.trim())
     if (existing !== undefined) return { action: 'skipped', provider: this.id, id: existing.id, summary: 'Holographic already contains this fact.' }
@@ -198,7 +198,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     return { action: 'stored', provider: this.id, id: fact.id, summary: 'Holographic stored the structured fact.' }
   }
 
-  async forget(body: MemoryBody, id: string): Promise<JsonValue> {
+  async forget(body: MemorySpace, id: string): Promise<JsonValue> {
     const store = this.load(body)
     const before = store.facts.length
     store.facts = store.facts.filter(fact => fact.id !== id)
@@ -207,18 +207,18 @@ export class HolographicProvider implements MemoryProviderAdapter {
     return { action: 'deleted', provider: this.id, id }
   }
 
-  private connection(body: MemoryBody): Record<string, string | number | boolean> {
+  private connection(body: MemorySpace): Record<string, string | number | boolean> {
     if ((body.provider.typeId ?? body.provider.id) !== this.id) throw new Error(`Holographic cannot serve provider ${body.provider.id}`)
-    return this.memoryBodies.providerConnection(body.id, body.provider.id)
+    return this.memorySpaces.providerConnection(body.id, body.provider.id)
   }
 
-  private path(body: MemoryBody): string {
+  private path(body: MemorySpace): string {
     const configured = String(this.connection(body).dataPath ?? '').trim()
-    if (configured === '') return join(this.memoryBodies.runner.effectiveDataDir(), 'state', 'holographic', 'store.json')
-    return isAbsolute(configured) ? configured : resolve(this.memoryBodies.runner.effectiveDataDir(), configured)
+    if (configured === '') return join(this.memorySpaces.runner.effectiveDataDir(), 'state', 'holographic', 'store.json')
+    return isAbsolute(configured) ? configured : resolve(this.memorySpaces.runner.effectiveDataDir(), configured)
   }
 
-  private load(body: MemoryBody): HolographicStore {
+  private load(body: MemorySpace): HolographicStore {
     const path = this.path(body)
     if (!existsSync(path)) return { version: 1, facts: [] }
     const value = JSON.parse(readFileSync(path, 'utf8')) as Partial<HolographicStore>
@@ -226,7 +226,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     return { version: 1, facts: value.facts }
   }
 
-  private save(body: MemoryBody, store: HolographicStore): void {
+  private save(body: MemorySpace, store: HolographicStore): void {
     const path = this.path(body)
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
     const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
@@ -235,7 +235,7 @@ export class HolographicProvider implements MemoryProviderAdapter {
     chmodSync(path, 0o600)
   }
 
-  private stats(store: HolographicStore): MemoryBodyStats {
+  private stats(store: HolographicStore): MemorySpaceStats {
     const byCategory: Record<string, number> = {}
     const entityCounts = new Map<string, number>()
     for (const fact of store.facts) {

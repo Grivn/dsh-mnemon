@@ -217,12 +217,12 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 | Headless Agent 没有 Mnemon 工具 | 插件按 profile 独立安装；运行 `dsh plugin --profile headless add dsh-mnemon`，Web profile 的安装不会自动带入 |
 | 找不到“记忆系统”入口 | 检查 `tabEnabled=true`；`displayMode=sidebar` 使用侧边栏，`displayMode=builtin` 使用已打开会话的标签页。本地 link 先 `pnpm run build` 再重启 profile |
 | 保留的 `buildin` 偏好在升级后打开了会话标签页 | v0.4.2 恢复该偏好并保存为 `builtin`；如果希望继续使用独立入口，请选择 Sidebar。记忆范围与已存数据不变 |
-| 状态正常但召回为空 | 检查 active 记忆体、存储范围、查看目录、会话实际目录和查询是否足够聚焦 |
+| 状态正常但召回为空 | 检查 active 记忆空间、存储范围、查看目录、会话实际目录和查询是否足够聚焦 |
 | 顶部提示目录未对齐 | 工作台正在查看另一个工作区；确认是否为预期范围。工作台任务在查看工作区执行，对话工具仍使用所属会话范围 |
 | 设置保存后无变化 | 查看保存错误；成功保存应实时切换并自动重新读取，不需要刷新 |
 | 自定义目录被拒绝 | 使用绝对路径、`~` 或 `~/...` |
 | `memoryBodyId is required...` | active 数量不是恰好 1；显式选择目标 |
-| `memory body is not active for reading` | 在概览激活目标；写入 inactive 可以，读取不行 |
+| `memory space is not active for reading` | 在概览激活目标；写入 inactive 可以，读取不行 |
 | Provider 错误 | 普通语义任务需要完整隔离能力；后台审查另需 `fork + inheritsParentContext` |
 | Runtime replace 超容量 | 缩短 replacement 或先显式整理；自动维护只处理 add 溢出 |
 | Document source path 被拒绝 | 路径必须在会话工作区内，且不能引用受管 Documents 目录 |
@@ -233,7 +233,7 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 | ZIP 导出提示 WAL busy | 等待 Memory Space 写入完成并重试；不要绕过未 checkpoint WAL 检查 |
 | ZIP 导入 checksum / schema 失败 | 备份损坏或格式不兼容；保留当前根，不要手工解压覆盖 |
 | 更新按钮不出现 | 当前已是最新、远程检查失败，或安装来源是 link / 手工模式；按面板提示沿原方式更新 |
-| rc.2 远程页面能切换记忆体，但不能执行其他写操作 | 默认安全设计；仅在入口已有可靠认证时，本地设置 `remoteAccess: trusted-host`、配置 DSH `trustedHosts` 并重启 Host |
+| rc.2 远程页面能切换记忆空间，但不能执行其他写操作 | 默认安全设计；仅在入口已有可靠认证时，本地设置 `remoteAccess: trusted-host`、配置 DSH `trustedHosts` 并重启 Host |
 | alpha 中 DSH 重启或 authority 改变后 Mnemon RPC 返回 401 | 打开 `dsh web` 输出的启动 URL，让一次性 token 建立新的、与 authority 绑定的浏览器 Cookie |
 
 ## 已知限制

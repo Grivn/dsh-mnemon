@@ -46,7 +46,7 @@
   <g aria-label="维护与归档">
     <rect class="lane maintLane" x="32" y="632" width="1536" height="170" rx="20"/>
     <text class="num" x="58" y="660">04</text><text class="laneTitle" x="92" y="660">维护与归档 · 按对象隔离，不共享失败</text>
-    <rect class="card" x="58" y="680" width="300" height="94" rx="14"/><text class="h" x="78" y="711">AI 元信息 / 归档</text><text class="copy" x="78" y="737">多选记忆体，或确认一个档案</text><text class="small" x="78" y="758">不依赖当前主 session</text>
+    <rect class="card" x="58" y="680" width="300" height="94" rx="14"/><text class="h" x="78" y="711">AI 元信息 / 归档</text><text class="copy" x="78" y="737">多选记忆空间，或确认一个档案</text><text class="small" x="78" y="758">不依赖当前主 session</text>
     <rect class="card agent" x="446" y="680" width="300" height="94" rx="14"/><text class="h" x="466" y="711">每个对象独立任务</text><text class="copy" x="466" y="737">最快采样，或先生成冷引用</text><text class="small" x="466" y="758">异步执行，互不覆盖状态</text>
     <rect class="card" x="834" y="680" width="300" height="94" rx="14"/><text class="h" x="854" y="711">Host 验证结果</text><text class="copy" x="854" y="737">元信息只写本地目录</text><text class="small" x="854" y="758">归档需通过 revision fence</text>
     <rect class="card result" x="1222" y="680" width="300" height="94" rx="14"/><text class="h" x="1242" y="711">卡片原位更新</text><text class="copy" x="1242" y="737">动画、成功或局部错误</text><text class="small" x="1242" y="758">失败不关闭窗口、不挤动布局</text>

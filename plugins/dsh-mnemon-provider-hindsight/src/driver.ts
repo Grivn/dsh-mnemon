@@ -5,7 +5,7 @@ import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provi
 import type {
   EdgeType,
   Insight,
-  MemoryBody,
+  MemoryBody as MemorySpace,
   MemoryGraphEdge,
   MemoryGraphNode,
   MemoryGraphSnapshot,
@@ -14,7 +14,7 @@ import type {
   SearchRequest,
 } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import { HttpMemoryProvider, firstArray, jsonArray, jsonNumber, jsonObject, jsonString, type HttpProviderOptions } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 function insight(value: unknown): Insight | undefined {
   const item = jsonObject(value)
@@ -51,8 +51,8 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
   readonly id = 'hindsight' as const
   readonly scoreSemantics = NORMALIZED_RELEVANCE_SCORE
 
-  constructor(memoryBodies: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
-    super(memoryBodies, { label: descriptor.label, ...options })
+  constructor(memorySpaces: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
+    super(memorySpaces, { label: descriptor.label, ...options })
   }
 
   async discover(connection: Record<string, string | number | boolean>, signal?: AbortSignal): Promise<ProviderMemorySpace[]> {
@@ -73,7 +73,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     })
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       const connection = this.connection(body)
       await this.request(body, '/health/live', { headers: this.headers(connection), signal })
@@ -117,7 +117,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const connection = this.connection(body)
     const payload = await this.request(body, `${this.bankPath(connection)}/memories/recall`, {
       headers: this.headers(connection),
@@ -133,7 +133,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     return { results: firstArray(payload, 'results', 'items').map(insight).filter((item): item is Insight => item !== undefined).slice(0, request.limit ?? 10) }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     const connection = this.connection(body)
     const params = new URLSearchParams({ limit: String(Math.min(Math.max(request.limit ?? 200, 1), 1000)), offset: '0', state: 'valid' })
     if (request.query !== undefined && request.query.trim() !== '') params.set('q', request.query.trim())
@@ -142,7 +142,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
       .filter(item => request.category === undefined || item.category === request.category)
   }
 
-  async graph(body: MemoryBody, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
+  async graph(body: MemorySpace, signal?: AbortSignal): Promise<MemoryGraphSnapshot> {
     const connection = this.connection(body)
     const payload = jsonObject(await this.request(body, `${this.bankPath(connection)}/graph?limit=1000`, { headers: this.headers(connection), signal })) ?? {}
     const nodes: MemoryGraphNode[] = jsonArray(payload.nodes).flatMap(value => {
@@ -170,7 +170,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     return { nodes, edges, generatedAt: new Date().toISOString() }
   }
 
-  async related(body: MemoryBody, id: string, depth: number, _edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]> {
+  async related(body: MemorySpace, id: string, depth: number, _edge?: EdgeType, signal?: AbortSignal): Promise<Insight[]> {
     const graph = await this.graph(body, signal)
     let frontier = new Set([id])
     const visited = new Set([id])
@@ -186,7 +186,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     return graph.nodes.filter(node => node.id !== id && visited.has(node.id)).map(({ color: _color, ...node }) => node)
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     const operationId = randomUUID()
     const payload = jsonObject(await this.request(body, `${this.bankPath(connection)}/memories`, {
@@ -213,7 +213,7 @@ export class HindsightProvider extends HttpMemoryProvider implements MemoryProvi
     }
   }
 
-  async forget(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue> {
+  async forget(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     await this.request(body, `${this.bankPath(connection)}/memories/${encodeURIComponent(id)}`, {
       method: 'PATCH',

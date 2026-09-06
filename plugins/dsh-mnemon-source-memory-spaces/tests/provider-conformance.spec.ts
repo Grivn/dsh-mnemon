@@ -31,7 +31,7 @@ import type { ProcessRunner } from '../src/providers/process.ts'
 import { createRunner } from '../src/runner.ts'
 import { MemorySpacesService } from '../src/service.ts'
 import { MemoryProviderCatalog } from '../src/providers/catalog.ts'
-import type { MemoryBody, MemoryProviderCapabilities, SearchRequest } from "../src/contracts.ts"
+import type { MemorySpace, MemoryProviderCapabilities, SearchRequest } from "../src/contracts.ts"
 
 const CAPABILITIES: MemoryProviderCapabilities = {
   search: true,

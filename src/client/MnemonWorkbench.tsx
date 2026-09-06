@@ -253,8 +253,8 @@ function StatusPage(props: { client: MnemonClient; status: StatusView | null; lo
   const status = props.status
   const documents = status?.documents
   const catalogKnown = status?.memoryBodies !== undefined
-  const memoryBodies = useMemo(() => (status?.memoryBodies ?? []), [status])
-  const activeBodies = memoryBodies.filter(body => body.active).length
+  const memorySpaces = useMemo(() => (status?.memoryBodies ?? []), [status])
+  const activeSpaces = memorySpaces.filter(body => body.active).length
   const storage = status?.storage
   const selectedScopeKind = storage?.activeKind ?? 'global'
   const selectedScope = storage?.scopes.find(scope => scope.kind === selectedScopeKind)
@@ -268,7 +268,7 @@ function StatusPage(props: { client: MnemonClient; status: StatusView | null; lo
       <section className={css.healthStrip} aria-label={t('status.aria')}>
         <article><span className={`${css.healthIndicator} ${status === null ? css.healthMuted : css.healthGood}`} /><div><small>{t('status.engine')}</small><strong>{status?.dshMnemonVersion === undefined ? 'dsh-mnemon' : `dsh-mnemon ${status.dshMnemonVersion}`}</strong><p>{status === null ? t('status.pluginChecking') : t('status.pluginReady')}</p></div></article>
         <article><span className={`${css.healthIndicator} ${runtimeArea === undefined ? css.healthMuted : runtimeArea.status === 'invalid' ? css.healthBad : css.healthGood}`} /><div><small>{t('status.runtime')}</small><strong>{runtimeArea === undefined ? t('status.runtimeWaiting') : t('status.runtimeRatio', { user: runtimeUserEntries, memory: runtimeMemoryEntries })}</strong><p>{runtimeArea === undefined ? t('status.runtimeWaitingDetail') : t('status.runtimeBytes', { bytes: humanBytes(runtimeArea.bytes) })}</p></div></article>
-        <article><span className={`${css.healthIndicator} ${activeBodies > 0 ? css.healthGood : css.healthMuted}`} /><div><small>{t('status.spaces')}</small><strong>{catalogKnown ? t('status.activeRatio', { active: activeBodies, total: memoryBodies.length }) : t('status.directoryUnsynced')}</strong><p>{t('status.activeMemories', { count: status?.stats?.totalInsights ?? 0 })}</p></div></article>
+        <article><span className={`${css.healthIndicator} ${activeSpaces > 0 ? css.healthGood : css.healthMuted}`} /><div><small>{t('status.spaces')}</small><strong>{catalogKnown ? t('status.activeRatio', { active: activeSpaces, total: memorySpaces.length }) : t('status.directoryUnsynced')}</strong><p>{t('status.activeMemories', { count: status?.stats?.totalInsights ?? 0 })}</p></div></article>
         <article><span className={`${css.healthIndicator} ${documents === undefined ? css.healthMuted : css.healthGood}`} /><div><small>{t('status.documents')}</small><strong>{documents === undefined ? t('status.documentsWaiting') : t('status.documentRatio', { active: documents.activeCount, archived: documents.archivedCount })}</strong><p>{documents === undefined ? t('status.documentsSession') : t('status.documentUsage', { used: humanBytes(documents.activeBytes), limit: humanBytes(documents.limitBytes) })}</p></div></article>
       </section>
 
@@ -337,12 +337,12 @@ function configuredStorageScope(config: Config | undefined): StorageScopeKind {
 }
 
 function storageAreaLabel(t: MnemonTranslate, kind: StorageAreaInventory['kind']): string {
-  return t(kind === 'runtime' ? 'status.storageRuntime' : kind === 'memory-bodies' ? 'status.storageBodies' : kind === 'documents' ? 'status.storageDocuments' : 'status.storageState')
+  return t(kind === 'runtime' ? 'status.storageRuntime' : kind === 'memory-bodies' ? 'status.storageSpaces' : kind === 'documents' ? 'status.storageDocuments' : 'status.storageState')
 }
 
 function storageAreaDetails(t: MnemonTranslate, area: StorageAreaInventory): string {
   if (area.kind === 'runtime') return t('status.storageRuntimeDetail', { user: area.details.userEntries ?? 0, memory: area.details.memoryEntries ?? 0 })
-  if (area.kind === 'memory-bodies') return t('status.storageBodiesDetail', { active: area.details.activeBodies ?? 0, databases: area.details.databases ?? 0 })
+  if (area.kind === 'memory-bodies') return t('status.storageSpacesDetail', { active: area.details.activeBodies ?? 0, databases: area.details.databases ?? 0 })
   if (area.kind === 'documents') return t('status.storageDocumentsDetail', { active: area.details.activeDocuments ?? 0, archived: area.details.archivedDocuments ?? 0 })
   return area.details.reviewLedger === true ? t('status.storageStateReady') : t('status.storageStateVolatile')
 }
@@ -514,8 +514,8 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
   const activationEnabled = status?.writeEnabled === true
   const writeEnabled = activationEnabled && settingsSnapshot.status === 'ready' && settingsSnapshot.writable
   const catalogKnown = status?.memoryBodies !== undefined
-  const memoryBodies = useMemo(() => (status?.memoryBodies ?? []), [status])
-  const activeBodies = memoryBodies.filter(body => body.active).length
+  const memorySpaces = useMemo(() => (status?.memoryBodies ?? []), [status])
+  const activeSpaces = memorySpaces.filter(body => body.active).length
   const workspaceContext = status?.workspaceContext
   const storageMode = workspaceContext?.mode ?? status?.storage?.activeKind ?? configuredStorageScope(settingsSnapshot.value)
   const storageModeText = storageScopeLabel(t, storageMode)

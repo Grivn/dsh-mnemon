@@ -6,15 +6,15 @@ import type { JsonValue } from './contracts.ts'
 import type { MemoryMutationCompletion } from 'dsh-mnemon/contracts'
 import type { ResolvedMemorySpacesConfig as ResolvedConfig } from './config.ts'
 import {
-  MemoryBodyRegistry,
-  type CreateMemoryBodyRequest,
-  type MemoryBody,
-  type UpdateMemoryBodyRequest,
-} from './memory-bodies.ts'
+  MemorySpaceRegistry,
+  type CreateMemorySpaceRequest,
+  type MemorySpace,
+  type UpdateMemorySpaceRequest,
+} from './memory-spaces.ts'
 import type { MnemonRunner } from './runner.ts'
 import { finalizeLlmPlacement, prepareMemoryPlacement, rulesOnlyPlacement, type LlmMemoryPlacementSelection, type PreparedMemoryPlacement } from './provider-placement.ts'
 import { EMPTY_MEMORY_PROVIDER_CATALOG, MemoryProviderCatalog } from './providers/catalog.ts'
-import { type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderSearchResult } from './providers/adapter.ts'
+import { type MemoryProviderAdapter, type ProviderSpaceStatus, type ProviderSearchResult } from './providers/adapter.ts'
 import { MemoryProviderAdapterRegistry } from './providers/registry.ts'
 import { lexicalRequiredMatchCount, lexicalSearchTokens, lexicalTokenMatchCount } from './search-tokens.ts'
 import {
@@ -37,10 +37,10 @@ import {
   type EntityView,
   type Insight,
   type Intent,
-  type MemoryBodyCatalog,
-  type MemoryBodyStats,
-  type MemoryBodyMetadataUpdate,
-  type MemoryBodyView,
+  type MemorySpaceCatalog,
+  type MemorySpaceStats,
+  type MemorySpaceMetadataUpdate,
+  type MemorySpaceView,
   type MemoryGraphEdge,
   type MemoryGraphNode,
   type MemoryGraphSnapshot,
@@ -66,9 +66,9 @@ export type {
   EntityView,
   Insight,
   Intent,
-  MemoryBodyCatalog,
-  MemoryBodyStats,
-  MemoryBodyView,
+  MemorySpaceCatalog,
+  MemorySpaceStats,
+  MemorySpaceView,
   MemoryGraphEdge,
   MemoryGraphNode,
   MemoryGraphSnapshot,
@@ -83,11 +83,11 @@ export type {
   MemorySpacesStatus as StatusView,
 } from './contracts.ts'
 
-import type { MemoryBodyMetadataSample } from './contracts.ts'
-export type { MemoryBodyMetadataSample } from './contracts.ts'
+import type { MemorySpaceMetadataSample } from './contracts.ts'
+export type { MemorySpaceMetadataSample } from './contracts.ts'
 
 interface PreparedRemember {
-  body: MemoryBody
+  body: MemorySpace
   request: RememberRequest
 }
 
@@ -96,7 +96,7 @@ interface PreparedRemember {
  * projection fans out to multiple resources or collections. Prefer search for
  * metadata sampling so AI maintenance never pays for a detailed projection.
  */
-const METADATA_SEARCH_FIRST_PROVIDERS = new Set<MemoryBody['provider']['id']>([
+const METADATA_SEARCH_FIRST_PROVIDERS = new Set<MemorySpace['provider']['id']>([
   'openviking',
   'supermemory',
   'byterover',
@@ -122,7 +122,7 @@ function stringArray(value: JsonValue | undefined): string[] | undefined {
 }
 
 function readSource(
-  body: MemoryBody,
+  body: MemorySpace,
   mode: MemoryReadMode,
   status: MemoryReadStatus,
   itemCount: number,
@@ -318,10 +318,12 @@ export function mutationResultCommitted(result: unknown): boolean {
 }
 
 export class MemorySpacesService {
-  readonly memoryBodies: MemoryBodyRegistry
-  private readonly providers: Map<MemoryBody['provider']['id'], MemoryProviderAdapter>
+  readonly memorySpaces: MemorySpaceRegistry
+  /** @deprecated Use memorySpaces. Both names share the same registry authority. */
+  readonly memoryBodies: MemorySpaceRegistry
+  private readonly providers: Map<MemorySpace['provider']['id'], MemoryProviderAdapter>
   private readonly recallQualityPolicy: RecallQualityPolicy
-  private bodiesInFlight: Promise<MemoryBodyCatalog> | undefined
+  private spacesInFlight: Promise<MemorySpaceCatalog> | undefined
   private providersDisposed = false
 
   private providerTypeId(providerId: string): string {
@@ -335,23 +337,24 @@ export class MemorySpacesService {
     return this.providerTypeId(providerId) === 'mnemon-native'
   }
 
-  private isNativeBody(body: MemoryBody): boolean {
+  private isNativeSpace(body: MemorySpace): boolean {
     return (body.provider.typeId ?? body.provider.id) === 'mnemon-native'
   }
 
   constructor(
     readonly runner: MnemonRunner,
     readonly config: ResolvedConfig,
-    memoryBodies?: MemoryBodyRegistry,
+    memorySpaces?: MemorySpaceRegistry,
     private readonly recallQualityPolicyRegistry: RecallQualityPolicyRegistry = recallQualityPolicies,
     providerAdapterRegistry: MemoryProviderAdapterRegistry = new MemoryProviderAdapterRegistry(),
     private readonly providerCatalog: MemoryProviderCatalog = EMPTY_MEMORY_PROVIDER_CATALOG,
   ) {
-    this.memoryBodies = memoryBodies === undefined
-      ? new MemoryBodyRegistry(runner, true, () => new Date(), providerCatalog)
-      : providerCatalog === EMPTY_MEMORY_PROVIDER_CATALOG ? memoryBodies : memoryBodies.withProviderCatalog(providerCatalog)
+    this.memorySpaces = memorySpaces === undefined
+      ? new MemorySpaceRegistry(runner, true, () => new Date(), providerCatalog)
+      : providerCatalog === EMPTY_MEMORY_PROVIDER_CATALOG ? memorySpaces : memorySpaces.withProviderCatalog(providerCatalog)
+    this.memoryBodies = this.memorySpaces
     this.recallQualityPolicy = recallQualityPolicyRegistry.resolve(config.recallQuality.policy)
-    this.providers = providerAdapterRegistry.create({ memoryBodies: this.memoryBodies, config: this.config, nativeRunner: this.runner })
+    this.providers = providerAdapterRegistry.create({ memorySpaces: this.memorySpaces, memoryBodies: this.memorySpaces, config: this.config, nativeRunner: this.runner })
   }
 
   /** Release clients owned by one composable Memory Spaces generation. */
@@ -370,23 +373,23 @@ export class MemorySpacesService {
     if (failures.length > 0) throw new AggregateError(failures, 'Memory Space Provider disposal failed')
   }
 
-  async bodies(signal?: AbortSignal): Promise<MemoryBodyCatalog> {
-    if (signal !== undefined) return this.collectBodies(signal)
-    if (this.bodiesInFlight !== undefined) return this.bodiesInFlight
-    const pending = this.collectBodies()
-    this.bodiesInFlight = pending
+  async spaces(signal?: AbortSignal): Promise<MemorySpaceCatalog> {
+    if (signal !== undefined) return this.collectSpaces(signal)
+    if (this.spacesInFlight !== undefined) return this.spacesInFlight
+    const pending = this.collectSpaces()
+    this.spacesInFlight = pending
     try {
       return await pending
     } finally {
-      if (this.bodiesInFlight === pending) this.bodiesInFlight = undefined
+      if (this.spacesInFlight === pending) this.spacesInFlight = undefined
     }
   }
 
   /** Coalesce simultaneous Status/Memory-page probes without caching mutations. */
-  private async collectBodies(signal?: AbortSignal): Promise<MemoryBodyCatalog> {
-    const directory = this.bodyDirectory()
-    const items: MemoryBodyView[] = await Promise.all(directory.items.map(async body => {
-      let status: ProviderBodyStatus
+  private async collectSpaces(signal?: AbortSignal): Promise<MemorySpaceCatalog> {
+    const directory = this.spaceDirectory()
+    const items: MemorySpaceView[] = await Promise.all(directory.items.map(async body => {
+      let status: ProviderSpaceStatus
       const providerEnabled = body.providerEnabled !== false
       if (!providerEnabled) status = { healthy: false, error: `${body.provider.label} is disabled in Settings` }
       else try { status = await this.providerFor(body).status(body, signal) } catch (error) {
@@ -404,12 +407,12 @@ export class MemorySpacesService {
   }
 
   /** Return the control-plane directory without waiting for provider I/O. */
-  bodyDirectory(): MemoryBodyCatalog {
+  spaceDirectory(): MemorySpaceCatalog {
     const mnemonDefaultStore = this.runner.persistedStore()
-    const all = this.memoryBodies.list()
-    const enabled = new Set(this.memoryBodies.providerServices().items.filter(service => service.enabled).map(service => service.providerId))
-    const items: MemoryBodyView[] = all.map(body => {
-      const nativeProvider = this.isNativeBody(body)
+    const all = this.memorySpaces.list()
+    const enabled = new Set(this.memorySpaces.providerServices().items.filter(service => service.enabled).map(service => service.providerId))
+    const items: MemorySpaceView[] = all.map(body => {
+      const nativeProvider = this.isNativeSpace(body)
       const providerEnabled = nativeProvider || enabled.has(body.provider.id)
       return { ...body, providerEnabled, mnemonDefault: nativeProvider && body.id === mnemonDefaultStore, healthy: false, statusLoading: true }
     })
@@ -427,7 +430,7 @@ export class MemorySpacesService {
       },
       total: items.length,
       activeCount: items.filter(body => body.active && body.providerEnabled !== false).length,
-      directory: this.memoryBodies.directory,
+      directory: this.memorySpaces.directory,
       generatedAt: new Date().toISOString(),
     }
   }
@@ -438,13 +441,13 @@ export class MemorySpacesService {
   }
 
   /** One local metadata observation supplies membership and its revision. */
-  memoryState(): { all: MemoryBody[]; active: MemoryBody[]; revision: string } {
-    const all = this.memoryBodies.list()
-    const serviceItems = this.memoryBodies.providerServices().items
+  memoryState(): { all: MemorySpace[]; active: MemorySpace[]; revision: string } {
+    const all = this.memorySpaces.list()
+    const serviceItems = this.memorySpaces.providerServices().items
     const enabled = new Set(serviceItems.filter(service => service.enabled).map(service => service.providerId))
-    const active = all.filter(body => body.active && (this.isNativeBody(body) || enabled.has(body.provider.id)))
+    const active = all.filter(body => body.active && (this.isNativeSpace(body) || enabled.has(body.provider.id)))
       .sort((left, right) => left.id.localeCompare(right.id))
-    const bodies = [...all]
+    const spaces = [...all]
       .sort((left, right) => left.id.localeCompare(right.id))
       .map(body => ({
         id: body.id,
@@ -458,18 +461,18 @@ export class MemorySpacesService {
     const services = serviceItems
       .map(service => ({ providerId: service.providerId, enabled: service.enabled, configured: service.configured }))
       .sort((left, right) => left.providerId.localeCompare(right.providerId))
-    return { all, active, revision: createHash('sha256').update(JSON.stringify({ bodies, services })).digest('hex') }
+    return { all, active, revision: createHash('sha256').update(JSON.stringify({ bodies: spaces, services })).digest('hex') }
   }
 
   /** Return a usable system snapshot without waiting for any Provider I/O. */
   statusSummary(): StatusView {
-    const catalog = this.bodyDirectory()
+    const catalog = this.spaceDirectory()
     const active = catalog.items.filter(body => body.active && body.providerEnabled !== false)
     const dshActiveStores = active.map(body => body.id)
-    const providerServices = this.memoryBodies.providerServices().items.map(service => {
+    const providerServices = this.memorySpaces.providerServices().items.map(service => {
       const descriptor = this.providerCatalog.descriptor(service.providerId)
-      const bodies = catalog.items.filter(body => body.provider.id === service.providerId)
-      const activeBodies = bodies.filter(body => body.active && body.providerEnabled !== false)
+      const spaces = catalog.items.filter(body => body.provider.id === service.providerId)
+      const activeSpaces = spaces.filter(body => body.active && body.providerEnabled !== false)
       return {
         providerId: service.providerId,
         label: descriptor.label,
@@ -477,8 +480,8 @@ export class MemorySpacesService {
         enabled: service.enabled,
         configured: service.configured,
         status: !service.enabled ? 'disabled' as const : 'idle' as const,
-        memoryBodyCount: bodies.length,
-        activeMemoryBodyCount: activeBodies.length,
+        memoryBodyCount: spaces.length,
+        activeMemoryBodyCount: activeSpaces.length,
       }
     })
     return {
@@ -530,11 +533,11 @@ export class MemorySpacesService {
   }
 
   async status(signal?: AbortSignal): Promise<StatusView> {
-    const hasNativeBody = this.memoryBodies.list().some(body => this.isNativeBody(body))
+    const hasNativeSpace = this.memorySpaces.list().some(body => this.isNativeSpace(body))
     let versionError: unknown
     const [catalog, rawVersion] = await Promise.all([
-      this.bodies(signal),
-      hasNativeBody
+      this.spaces(signal),
+      hasNativeSpace
         ? this.runner.runText(['--version'], signal === undefined ? { globalFlags: false } : { signal, globalFlags: false }).catch(error => {
             versionError = error
             return undefined
@@ -543,14 +546,14 @@ export class MemorySpacesService {
     ])
     const active = catalog.items.filter(body => body.active && body.providerEnabled !== false)
     const dshActiveStores = active.map(body => body.id)
-    const providerServices = this.memoryBodies.providerServices().items.map(service => {
+    const providerServices = this.memorySpaces.providerServices().items.map(service => {
       const descriptor = this.providerCatalog.descriptor(service.providerId)
-      const bodies = catalog.items.filter(body => body.provider.id === service.providerId)
-      const activeBodies = bodies.filter(body => body.active && body.providerEnabled !== false)
-      const failed = activeBodies.filter(body => !body.healthy)
+      const spaces = catalog.items.filter(body => body.provider.id === service.providerId)
+      const activeSpaces = spaces.filter(body => body.active && body.providerEnabled !== false)
+      const failed = activeSpaces.filter(body => !body.healthy)
       const status = !service.enabled
         ? 'disabled' as const
-        : activeBodies.length === 0
+        : activeSpaces.length === 0
           ? 'idle' as const
           : failed.length === 0
             ? 'healthy' as const
@@ -562,8 +565,8 @@ export class MemorySpacesService {
         enabled: service.enabled,
         configured: service.configured,
         status,
-        memoryBodyCount: bodies.length,
-        activeMemoryBodyCount: activeBodies.length,
+        memoryBodyCount: spaces.length,
+        activeMemoryBodyCount: activeSpaces.length,
         ...(failed.length === 0 ? {} : { error: failed.map(body => `${body.name}: ${body.error ?? 'unavailable'}`).join('; ') }),
       }
     })
@@ -584,19 +587,19 @@ export class MemorySpacesService {
     }
     try {
       if (versionError !== undefined) throw versionError
-      const healthyBodies = active.filter(body => body.healthy && body.stats !== undefined)
+      const healthySpaces = active.filter(body => body.healthy && body.stats !== undefined)
       const topEntities = new Map<string, number>()
       const byCategory: Record<string, number> = {}
-      for (const body of healthyBodies) {
+      for (const body of healthySpaces) {
         for (const [category, count] of Object.entries(body.stats!.byCategory)) byCategory[category] = (byCategory[category] ?? 0) + count
         for (const entity of body.stats!.topEntities) topEntities.set(entity.entity, (topEntities.get(entity.entity) ?? 0) + entity.count)
       }
       const stats: StatusView['stats'] = {
-        totalInsights: healthyBodies.reduce((total, body) => total + body.stats!.totalInsights, 0),
-        deletedInsights: healthyBodies.reduce((total, body) => total + body.stats!.deletedInsights, 0),
-        edgeCount: healthyBodies.reduce((total, body) => total + body.stats!.edgeCount, 0),
-        oplogCount: healthyBodies.reduce((total, body) => total + body.stats!.oplogCount, 0),
-        dbSizeBytes: healthyBodies.reduce((total, body) => total + body.stats!.dbSizeBytes, 0),
+        totalInsights: healthySpaces.reduce((total, body) => total + body.stats!.totalInsights, 0),
+        deletedInsights: healthySpaces.reduce((total, body) => total + body.stats!.deletedInsights, 0),
+        edgeCount: healthySpaces.reduce((total, body) => total + body.stats!.edgeCount, 0),
+        oplogCount: healthySpaces.reduce((total, body) => total + body.stats!.oplogCount, 0),
+        dbSizeBytes: healthySpaces.reduce((total, body) => total + body.stats!.dbSizeBytes, 0),
         byCategory,
         topEntities: [...topEntities].map(([entity, count]) => ({ entity, count })).sort((left, right) => right.count - left.count),
         ...(active.length === 1 ? { dbPath: active[0]!.dbPath } : {}),
@@ -614,11 +617,11 @@ export class MemorySpacesService {
     }
   }
 
-  async reconnectBody(id: string, signal?: AbortSignal): Promise<MemoryBodyView> {
-    const body = this.memoryBodies.list().find(candidate => candidate.id === id)
-    if (body === undefined) throw new Error(`unknown memory body: ${id}`)
-    if (!this.isNativeBody(body)) {
-      if (!this.memoryBodies.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
+  async reconnectSpace(id: string, signal?: AbortSignal): Promise<MemorySpaceView> {
+    const body = this.memorySpaces.list().find(candidate => candidate.id === id)
+    if (body === undefined) throw new Error(`unknown memory space: ${id}`)
+    if (!this.isNativeSpace(body)) {
+      if (!this.memorySpaces.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
     }
     // Card-level reconnect is deliberately scoped to this projected namespace.
     // Whole-service discovery only runs when its service is enabled or saved.
@@ -628,7 +631,7 @@ export class MemorySpacesService {
     return {
       ...body,
       providerEnabled: true,
-      mnemonDefault: this.isNativeBody(body) && body.id === this.runner.persistedStore(),
+      mnemonDefault: this.isNativeSpace(body) && body.id === this.runner.persistedStore(),
       ...status,
     }
   }
@@ -642,7 +645,7 @@ export class MemorySpacesService {
     const category = allowed(request.category, CATEGORIES, 'category')
     const source = allowed(request.source, SOURCES, 'source')
     const intent = allowed(request.intent, INTENTS, 'intent')
-    const bodies = this.readBodies(request.memoryBodyIds)
+    const spaces = this.readSpaces(request.memoryBodyIds)
     const normalizedRequest: SearchRequest = {
       query,
       mode,
@@ -651,7 +654,7 @@ export class MemorySpacesService {
       ...(source === undefined ? {} : { source }),
       ...(intent === undefined ? {} : { intent }),
     }
-    let batches = await Promise.all(bodies.map(async body => {
+    let batches = await Promise.all(spaces.map(async body => {
       if (!body.provider.capabilities.search) {
         return {
           body,
@@ -693,7 +696,7 @@ export class MemorySpacesService {
         })))
         if (result.hint !== undefined) hints.push(`${body.name}: ${result.hint}`)
       }
-      const heterogeneous = new Set(bodies.map(body => body.provider.id)).size > 1
+      const heterogeneous = new Set(spaces.map(body => body.provider.id)).size > 1
       if (heterogeneous) for (const candidate of candidates) candidate.insight.federatedScore = 1 / (60 + candidate.providerRank)
       candidates.sort((left, right) => heterogeneous
         ? (right.insight.federatedScore ?? 0) - (left.insight.federatedScore ?? 0) || left.bodyOrder - right.bodyOrder
@@ -706,7 +709,7 @@ export class MemorySpacesService {
     ))
     if (recoveryPlan !== undefined && !hasRecoveryEvidence) {
       batches = await Promise.all(batches.map(async batch => {
-        if (!this.isNativeBody(batch.body) || batch.source.status === 'unsupported' || batch.source.status === 'unavailable') return batch
+        if (!this.isNativeSpace(batch.body) || batch.source.status === 'unsupported' || batch.source.status === 'unavailable') return batch
         try {
           const provider = this.providerFor(batch.body)
           const recovered = await provider.search(batch.body, {
@@ -773,13 +776,13 @@ export class MemorySpacesService {
    * exposed by the owning Provider. This avoids federated ranking, graph
    * expansion, and large browse projections before an LLM metadata pass.
    */
-  async metadataSample(memoryBodyId: string, signal?: AbortSignal): Promise<MemoryBodyMetadataSample> {
-    const body = this.readBodies([memoryBodyId])[0]!
+  async metadataSample(memoryBodyId: string, signal?: AbortSignal): Promise<MemorySpaceMetadataSample> {
+    const body = this.readSpaces([memoryBodyId])[0]!
     const provider = this.providerFor(body)
     const limit = 6
-    let method: MemoryBodyMetadataSample['method']
+    let method: MemorySpaceMetadataSample['method']
     let items: Insight[]
-    if (this.isNativeBody(body)) {
+    if (this.isNativeSpace(body)) {
       method = 'native-basic'
       items = provider.metadataSample === undefined
         ? await provider.list(body, { limit }, signal)
@@ -808,11 +811,11 @@ export class MemorySpacesService {
   }
 
   async graph(signal?: AbortSignal, memoryBodyIds?: string[]): Promise<MemoryGraphSnapshot> {
-    const bodies = this.readBodies(memoryBodyIds)
+    const spaces = this.readSpaces(memoryBodyIds)
     const nodes: MemoryGraphNode[] = []
     const edges: MemoryGraphEdge[] = []
     const sources: MemoryReadSource[] = []
-    const snapshots = await Promise.all(bodies.map(async body => {
+    const snapshots = await Promise.all(spaces.map(async body => {
       const mode: MemoryReadMode = body.provider.capabilities.graph
         ? 'graph'
         : body.provider.capabilities.browse
@@ -852,7 +855,7 @@ export class MemorySpacesService {
       nodes,
       edges,
       generatedAt: new Date().toISOString(),
-      memoryBodies: bodies.map(({ id, name, active }) => ({ id, name, active })),
+      memoryBodies: spaces.map(({ id, name, active }) => ({ id, name, active })),
       sources,
     }
   }
@@ -863,8 +866,8 @@ export class MemorySpacesService {
     if (rawQuery.length > 500) throw new Error('query is too long (max 500 characters)')
     const category = allowed(request.category, CATEGORIES, 'category')
     const limit = boundedInteger(request.limit, 200, 1, 1000)
-    const bodies = this.readBodies(request.memoryBodyIds)
-    const batches = await Promise.all(bodies.map(async body => {
+    const spaces = this.readSpaces(request.memoryBodyIds)
+    const batches = await Promise.all(spaces.map(async body => {
       const mode: MemoryReadMode = body.provider.capabilities.browse
         ? 'enumerable'
         : body.provider.capabilities.search
@@ -908,7 +911,7 @@ export class MemorySpacesService {
   }
 
   async entities(entity?: string, limit?: number, signal?: AbortSignal): Promise<EntityView> {
-    const catalog = await this.bodies(signal)
+    const catalog = await this.spaces(signal)
     const active = catalog.items.filter(body => body.active)
     const capable = active.filter(body => body.provider.capabilities.entities)
     const entityCounts = new Map<string, number>()
@@ -961,7 +964,7 @@ export class MemorySpacesService {
       const batchWriter = provider.rememberMany
       const batch = batchWriter === undefined
         ? []
-        : group.filter(entry => !this.isNativeBody(body) || entry.request.content.length <= 8_000)
+        : group.filter(entry => !this.isNativeSpace(body) || entry.request.content.length <= 8_000)
       if (batchWriter !== undefined && batch.length > 0) {
         const written = await batchWriter.call(provider, body, batch.map(entry => entry.request), signal)
         if (written.length !== batch.length) throw new Error(`batch remember did not return one receipt per request for Memory Space ${body.id}`)
@@ -984,7 +987,7 @@ export class MemorySpacesService {
   }
 
   async related(id: string, depth = 2, edge?: EdgeType, signal?: AbortSignal, memoryBodyId?: string): Promise<Insight[]> {
-    const body = this.readBody(memoryBodyId)
+    const body = this.readSpace(memoryBodyId)
     const selectedEdge = allowed(edge, EDGE_TYPES, 'edge')
     const provider = this.providerFor(body)
     if (provider.related === undefined || !body.provider.capabilities.related) throw new Error(`${body.provider.label} does not support related-memory traversal`)
@@ -994,7 +997,7 @@ export class MemorySpacesService {
 
   async link(sourceId: string, targetId: string, type: EdgeType = 'semantic', weight = 0.5, reason?: string, signal?: AbortSignal, memoryBodyId?: string): Promise<JsonValue> {
     this.assertWritable()
-    const body = this.writeBody(memoryBodyId)
+    const body = this.writeSpace(memoryBodyId)
     if (!Number.isFinite(weight) || weight < 0 || weight > 1) throw new Error('weight must be within 0..1')
     const selectedType = allowed(type, EDGE_TYPES, 'type') ?? 'semantic'
     const provider = this.providerFor(body)
@@ -1014,7 +1017,7 @@ export class MemorySpacesService {
 
   async forget(id: string, signal?: AbortSignal, memoryBodyId?: string): Promise<JsonValue> {
     this.assertWritable()
-    const body = this.writeBody(memoryBodyId)
+    const body = this.writeSpace(memoryBodyId)
     const provider = this.providerFor(body)
     if (provider.forget === undefined || !body.provider.capabilities.forget) throw new Error(`${body.provider.label} does not expose safe forget semantics in this integration`)
     const result = await provider.forget(body, required(id, 'id', 2000), signal)
@@ -1022,15 +1025,15 @@ export class MemorySpacesService {
     return this.annotateResult(result, body)
   }
 
-  prepareBodyPlacement(request: CreateMemoryBodyRequest): PreparedMemoryPlacement {
+  prepareSpacePlacement(request: CreateMemorySpaceRequest): PreparedMemoryPlacement {
     if (request.placement === undefined) throw new Error('automatic provider placement request is required')
     if (request.providerId !== undefined) throw new Error('automatic provider placement cannot include a fixed providerId')
-    return prepareMemoryPlacement(request.placement, this.memoryBodies.placementCandidates(request))
+    return prepareMemoryPlacement(request.placement, this.memorySpaces.placementCandidates(request))
   }
 
-  async createBody(request: CreateMemoryBodyRequest, signal?: AbortSignal, placement?: MemoryPlacementDecision): Promise<MemoryBody> {
+  async createSpace(request: CreateMemorySpaceRequest, signal?: AbortSignal, placement?: MemoryPlacementDecision): Promise<MemorySpace> {
     this.assertWritable()
-    const body = await this.memoryBodies.create(request, signal, placement)
+    const body = await this.memorySpaces.create(request, signal, placement)
 
     return body
   }
@@ -1040,23 +1043,23 @@ export class MemorySpacesService {
    * may choose only among candidates already filtered by the host; manual mode
    * ignores model preference and always uses the configured fixed provider.
    */
-  async createBodyForPersistence(
+  async createSpaceForPersistence(
     body: { name: string; description: string },
     selection: LlmMemoryPlacementSelection | undefined,
     signal?: AbortSignal,
     delegation: { runId: string; provider: string } = { runId: 'memory-write', provider: 'task-agent' },
-  ): Promise<MemoryBody> {
+  ): Promise<MemorySpace> {
     const strategy = this.config.persistenceStrategy
     if (strategy.mode === 'manual') {
       const connection = strategy.providerConnections[strategy.providerId]
-      return this.createBody({
+      return this.createSpace({
         ...body,
         providerId: strategy.providerId,
         ...(this.isNativeProvider(strategy.providerId) || connection === undefined ? {} : { connection }),
       }, signal)
     }
 
-    const request: CreateMemoryBodyRequest = {
+    const request: CreateMemorySpaceRequest = {
       ...body,
       placement: {
         mode: 'automatic',
@@ -1065,59 +1068,59 @@ export class MemorySpacesService {
       },
       ...(Object.keys(strategy.providerConnections).length === 0 ? {} : { providerConnections: strategy.providerConnections }),
     }
-    const prepared = this.prepareBodyPlacement(request)
+    const prepared = this.prepareSpacePlacement(request)
     const decision = rulesOnlyPlacement(prepared)
       ?? finalizeLlmPlacement(prepared, selection ?? { providerId: '', reason: '', confidence: '' }, delegation)
-    return this.createBody(request, signal, decision)
+    return this.createSpace(request, signal, decision)
   }
 
-  async updateProviderService(providerId: MemoryBody['provider']['id'], settings: Record<string, string | number | boolean>, clearSecrets: readonly string[] = [], enabled = true, signal?: AbortSignal) {
+  async updateProviderService(providerId: MemorySpace['provider']['id'], settings: Record<string, string | number | boolean>, clearSecrets: readonly string[] = [], enabled = true, signal?: AbortSignal) {
     this.assertWritable()
     if (this.isNativeProvider(providerId)) throw new Error('Mnemon Native service settings are managed by the native configuration')
     if (!enabled) {
-      const service = this.memoryBodies.updateProviderService(providerId, settings, clearSecrets, false)
+      const service = this.memorySpaces.updateProviderService(providerId, settings, clearSecrets, false)
 
       return service
     }
-    const connection = this.memoryBodies.resolveProviderService(providerId, settings, clearSecrets)
+    const connection = this.memorySpaces.resolveProviderService(providerId, settings, clearSecrets)
     const provider = this.providers.get(providerId)
     if (provider?.discover === undefined) throw new Error(`${this.providerCatalog.descriptor(providerId).label} does not support Memory Space discovery`)
     const discovered = await provider.discover(connection, signal)
-    const service = this.memoryBodies.syncProviderService(providerId, connection, discovered)
+    const service = this.memorySpaces.syncProviderService(providerId, connection, discovered)
 
     return service
   }
 
-  updateBody(id: string, request: UpdateMemoryBodyRequest): MemoryBody {
+  updateSpace(id: string, request: UpdateMemorySpaceRequest): MemorySpace {
     this.assertWritable()
-    const body = this.memoryBodies.update(id, request)
+    const body = this.memorySpaces.update(id, request)
 
     return body
   }
 
-  updateBodyMetadata(updates: readonly MemoryBodyMetadataUpdate[]): MemoryBody[] {
+  updateSpaceMetadata(updates: readonly MemorySpaceMetadataUpdate[]): MemorySpace[] {
     this.assertWritable()
-    const bodies = this.memoryBodies.updateMetadata(updates)
+    const spaces = this.memorySpaces.updateMetadata(updates)
 
-    return bodies
+    return spaces
   }
 
-  async deleteBody(id: string, signal?: AbortSignal): Promise<MemoryBody> {
+  async deleteSpace(id: string, signal?: AbortSignal): Promise<MemorySpace> {
     this.assertWritable()
-    const body = await this.memoryBodies.remove(id, signal)
+    const body = await this.memorySpaces.remove(id, signal)
 
     return body
   }
 
-  async mergeBodies(targetBodyId: string, sourceBodyIds: string[], deactivateSources = true, signal?: AbortSignal): Promise<JsonValue> {
+  async mergeSpaces(targetSpaceId: string, sourceSpaceIds: string[], deactivateSources = true, signal?: AbortSignal): Promise<JsonValue> {
     this.assertWritable()
-    const target = this.memoryBodies.get(targetBodyId)
-    if (!this.isNativeBody(target)) throw new Error('memory-body merge currently requires a Mnemon Native target')
-    const sourceIds = [...new Set(sourceBodyIds.map(id => id.trim()).filter(id => id !== ''))]
-    if (sourceIds.length === 0) throw new Error('sourceMemoryBodyIds requires at least one memory body')
-    if (sourceIds.includes(target.id)) throw new Error('target memory body cannot also be a merge source')
-    const sources = sourceIds.map(id => this.memoryBodies.get(id))
-    if (sources.some(source => !this.isNativeBody(source))) throw new Error('memory-body merge currently supports Mnemon Native sources only')
+    const target = this.memorySpaces.get(targetSpaceId)
+    if (!this.isNativeSpace(target)) throw new Error('memory-space merge currently requires a Mnemon Native target')
+    const sourceIds = [...new Set(sourceSpaceIds.map(id => id.trim()).filter(id => id !== ''))]
+    if (sourceIds.length === 0) throw new Error('sourceMemoryBodyIds requires at least one memory space')
+    if (sourceIds.includes(target.id)) throw new Error('target memory space cannot also be a merge source')
+    const sources = sourceIds.map(id => this.memorySpaces.get(id))
+    if (sources.some(source => !this.isNativeSpace(source))) throw new Error('memory-space merge currently supports Mnemon Native sources only')
     const insights: Array<Record<string, JsonValue>> = []
     const edges: Array<Record<string, JsonValue>> = []
     for (const source of sources) {
@@ -1147,7 +1150,7 @@ export class MemorySpacesService {
       if (deactivateSources) {
         for (const source of sources) {
           if (!source.active) continue
-          this.memoryBodies.setActive(source.id, false)
+          this.memorySpaces.setActive(source.id, false)
         }
       }
 
@@ -1167,7 +1170,7 @@ export class MemorySpacesService {
       if (deactivateSources && complete) {
         for (const source of sources) {
           if (!source.active) continue
-          this.memoryBodies.setActive(source.id, false)
+          this.memorySpaces.setActive(source.id, false)
         }
       }
 
@@ -1178,49 +1181,49 @@ export class MemorySpacesService {
     }
   }
 
-  private providerFor(body: MemoryBody): MemoryProviderAdapter {
+  private providerFor(body: MemorySpace): MemoryProviderAdapter {
     const provider = this.providers.get(body.provider.id)
     if (provider === undefined) throw new Error(`unsupported memory provider: ${body.provider.id}`)
     return provider
   }
 
-  private readBodies(ids?: string[]): MemoryBody[] {
-    const active = this.memoryBodies.active()
+  private readSpaces(ids?: string[]): MemorySpace[] {
+    const active = this.memorySpaces.active()
     if (ids === undefined || ids.length === 0) return active
     const requested = [...new Set(ids.map(id => id.trim()).filter(id => id !== ''))]
     return requested.map(id => {
-      const body = this.memoryBodies.get(id)
-      if (!body.active) throw new Error(`memory body is not active for reading: ${id}`)
-      if (!this.isNativeBody(body) && !this.memoryBodies.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
+      const body = this.memorySpaces.get(id)
+      if (!body.active) throw new Error(`memory space is not active for reading: ${id}`)
+      if (!this.isNativeSpace(body) && !this.memorySpaces.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
       return body
     })
   }
 
-  private readBody(id?: string): MemoryBody {
+  private readSpace(id?: string): MemorySpace {
     if (id !== undefined && id.trim() !== '') {
-      const body = this.memoryBodies.get(id)
-      if (!body.active) throw new Error(`memory body is not active for reading: ${body.id}`)
-      if (!this.isNativeBody(body) && !this.memoryBodies.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
+      const body = this.memorySpaces.get(id)
+      if (!body.active) throw new Error(`memory space is not active for reading: ${body.id}`)
+      if (!this.isNativeSpace(body) && !this.memorySpaces.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
       return body
     }
-    const active = this.memoryBodies.active()
-    if (active.length !== 1) throw new Error('memoryBodyId is required when the number of active memory bodies is not exactly one')
+    const active = this.memorySpaces.active()
+    if (active.length !== 1) throw new Error('memoryBodyId is required when the number of active memory spaces is not exactly one')
     return active[0]!
   }
 
-  private writeBody(id?: string): MemoryBody {
+  private writeSpace(id?: string): MemorySpace {
     if (id !== undefined && id.trim() !== '') {
-      const body = this.memoryBodies.get(id)
-      if (!this.isNativeBody(body) && !this.memoryBodies.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
+      const body = this.memorySpaces.get(id)
+      if (!this.isNativeSpace(body) && !this.memorySpaces.providerServiceEnabled(body.provider.id)) throw new Error(`${body.provider.label} is disabled in Settings`)
       return body
     }
-    const active = this.memoryBodies.active()
-    if (active.length !== 1) throw new Error('memoryBodyId is required when the number of active memory bodies is not exactly one')
+    const active = this.memorySpaces.active()
+    if (active.length !== 1) throw new Error('memoryBodyId is required when the number of active memory spaces is not exactly one')
     return active[0]!
   }
 
   private prepareRemember(request: RememberRequest): PreparedRemember {
-    const body = this.writeBody(request.memoryBodyId)
+    const body = this.writeSpace(request.memoryBodyId)
     // Runtime entries are capped at 8 KiB. Keep the service boundary large
     // enough for the Host to archive any valid hot-memory entry byte-for-byte;
     // the UI remains at its existing 8,000-character limit.
@@ -1244,7 +1247,7 @@ export class MemorySpacesService {
     }
   }
 
-  private annotate<T extends Insight>(insight: T, body: MemoryBody): T {
+  private annotate<T extends Insight>(insight: T, body: MemorySpace): T {
     return {
       ...insight,
       memoryBodyId: body.id,
@@ -1255,7 +1258,7 @@ export class MemorySpacesService {
     }
   }
 
-  private annotateResult(result: JsonValue, body: MemoryBody): JsonValue {
+  private annotateResult(result: JsonValue, body: MemorySpace): JsonValue {
     const value = record(result)
     return value === undefined ? result : {
       ...value,
@@ -1266,13 +1269,63 @@ export class MemorySpacesService {
     }
   }
 
-  private activateAfterWrite(body: MemoryBody, providerChanged: boolean): void {
+  private activateAfterWrite(body: MemorySpace, providerChanged: boolean): void {
     if (!providerChanged) return
-    if (!body.active) this.memoryBodies.setActive(body.id, true)
-    else this.memoryBodies.touch(body.id)
+    if (!body.active) this.memorySpaces.setActive(body.id, true)
+    else this.memorySpaces.touch(body.id)
   }
 
   private assertWritable(): void {
     if (!this.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only (writeEnabled: false)')
   }
+  /** @deprecated Use spaces. */
+  bodies(...args: Parameters<MemorySpacesService['spaces']>): ReturnType<MemorySpacesService['spaces']> {
+    return this.spaces(...args)
+  }
+
+  /** @deprecated Use spaceDirectory. */
+  bodyDirectory(...args: Parameters<MemorySpacesService['spaceDirectory']>): ReturnType<MemorySpacesService['spaceDirectory']> {
+    return this.spaceDirectory(...args)
+  }
+
+  /** @deprecated Use reconnectSpace. */
+  reconnectBody(...args: Parameters<MemorySpacesService['reconnectSpace']>): ReturnType<MemorySpacesService['reconnectSpace']> {
+    return this.reconnectSpace(...args)
+  }
+
+  /** @deprecated Use prepareSpacePlacement. */
+  prepareBodyPlacement(...args: Parameters<MemorySpacesService['prepareSpacePlacement']>): ReturnType<MemorySpacesService['prepareSpacePlacement']> {
+    return this.prepareSpacePlacement(...args)
+  }
+
+  /** @deprecated Use createSpace. */
+  createBody(...args: Parameters<MemorySpacesService['createSpace']>): ReturnType<MemorySpacesService['createSpace']> {
+    return this.createSpace(...args)
+  }
+
+  /** @deprecated Use createSpaceForPersistence. */
+  createBodyForPersistence(...args: Parameters<MemorySpacesService['createSpaceForPersistence']>): ReturnType<MemorySpacesService['createSpaceForPersistence']> {
+    return this.createSpaceForPersistence(...args)
+  }
+
+  /** @deprecated Use updateSpace. */
+  updateBody(...args: Parameters<MemorySpacesService['updateSpace']>): ReturnType<MemorySpacesService['updateSpace']> {
+    return this.updateSpace(...args)
+  }
+
+  /** @deprecated Use updateSpaceMetadata. */
+  updateBodyMetadata(...args: Parameters<MemorySpacesService['updateSpaceMetadata']>): ReturnType<MemorySpacesService['updateSpaceMetadata']> {
+    return this.updateSpaceMetadata(...args)
+  }
+
+  /** @deprecated Use deleteSpace. */
+  deleteBody(...args: Parameters<MemorySpacesService['deleteSpace']>): ReturnType<MemorySpacesService['deleteSpace']> {
+    return this.deleteSpace(...args)
+  }
+
+  /** @deprecated Use mergeSpaces. */
+  mergeBodies(...args: Parameters<MemorySpacesService['mergeSpaces']>): ReturnType<MemorySpacesService['mergeSpaces']> {
+    return this.mergeSpaces(...args)
+  }
+
 }

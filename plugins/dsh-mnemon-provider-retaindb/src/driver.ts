@@ -1,9 +1,9 @@
 import { descriptor } from './descriptor.ts'
 import type { JsonValue } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import type { MemorySpaceAuthority } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import type { Insight, MemoryBody, MemoryListRequest, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import type { Insight, MemoryBody as MemorySpace, MemoryListRequest, RememberRequest, SearchRequest } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import { HttpMemoryProvider, firstArray, jsonNumber, jsonObject, jsonString, type HttpProviderOptions } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
-import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
+import { NORMALIZED_RELEVANCE_SCORE, type MemoryProviderAdapter, type ProviderBodyStatus as ProviderSpaceStatus, type ProviderMemorySpace, type ProviderSearchResult } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 
 function insight(value: unknown): Insight | undefined {
   const item = jsonObject(value)
@@ -26,8 +26,8 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
   readonly id = 'retaindb' as const
   readonly scoreSemantics = NORMALIZED_RELEVANCE_SCORE
 
-  constructor(memoryBodies: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
-    super(memoryBodies, { label: descriptor.label, ...options })
+  constructor(memorySpaces: MemorySpaceAuthority, options: HttpProviderOptions = {}) {
+    super(memorySpaces, { label: descriptor.label, ...options })
   }
 
   async discover(connection: Record<string, string | number | boolean>, signal?: AbortSignal): Promise<ProviderMemorySpace[]> {
@@ -45,7 +45,7 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
     })
   }
 
-  async status(body: MemoryBody, signal?: AbortSignal): Promise<ProviderBodyStatus> {
+  async status(body: MemorySpace, signal?: AbortSignal): Promise<ProviderSpaceStatus> {
     try {
       await this.list(body, { limit: 1 }, signal)
       return { healthy: true }
@@ -54,7 +54,7 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
     }
   }
 
-  async search(body: MemoryBody, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
+  async search(body: MemorySpace, request: SearchRequest, signal?: AbortSignal): Promise<ProviderSearchResult> {
     const connection = this.connection(body)
     const payload = await this.request(body, '/v1/memory/search', {
       headers: this.headers(connection, '/v1/memory/search'),
@@ -71,7 +71,7 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
     return { results: firstArray(payload, 'results', 'memories').map(insight).filter((item): item is Insight => item !== undefined) }
   }
 
-  async list(body: MemoryBody, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
+  async list(body: MemorySpace, request: MemoryListRequest, signal?: AbortSignal): Promise<Insight[]> {
     const connection = this.connection(body)
     const params = new URLSearchParams({ project: String(connection.project), include_pending: 'true' })
     let payload: unknown
@@ -91,7 +91,7 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
       .slice(0, Math.min(Math.max(request.limit ?? 200, 1), 200))
   }
 
-  async remember(body: MemoryBody, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
+  async remember(body: MemorySpace, request: RememberRequest, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     const json = {
       project: String(connection.project),
@@ -118,7 +118,7 @@ export class RetainDbProvider extends HttpMemoryProvider implements MemoryProvid
     }
   }
 
-  async forget(body: MemoryBody, id: string, signal?: AbortSignal): Promise<JsonValue> {
+  async forget(body: MemorySpace, id: string, signal?: AbortSignal): Promise<JsonValue> {
     const connection = this.connection(body)
     try {
       await this.request(body, `/v1/memory/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.headers(connection, '/v1/memory'), signal })

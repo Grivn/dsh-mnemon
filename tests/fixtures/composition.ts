@@ -8,7 +8,7 @@ import * as strategyPlugin from 'dsh-mnemon-strategy-default-three-tier'
 import native from 'dsh-mnemon-provider-mnemon-native'
 import holographic from 'dsh-mnemon-provider-holographic'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
-import type { MemoryBodyView, MemoryBodyCatalog } from 'dsh-mnemon-source-memory-spaces/contracts'
+import type { MemoryBodyView as MemorySpaceView, MemoryBodyCatalog as MemorySpaceCatalog } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { MemorySpaceProviderEntry } from 'dsh-mnemon-source-memory-spaces/provider-sdk'
 import { resolveConfig, type Config } from '../../src/host/config.ts'
 import { createRuntimeGraph, LiveMnemonRuntime } from '../../src/host/runtime.ts'
@@ -65,7 +65,7 @@ export async function compositionFixture(options: Config = {}, host: {
     await source.mutate('provider-service-update', {
       providerId: 'holographic', settings: { dataPath: join(config.dataDir ?? dataDir, 'fixture-facts.json') }, enabled: true,
     })
-    const catalog = await source.read<MemoryBodyCatalog>('body-directory')
+    const catalog = await source.read<MemorySpaceCatalog>('body-directory')
     const body = catalog.items.find(item => item.provider.id === 'holographic')
     if (body === undefined) throw new Error('Fixture Provider did not discover its namespace')
     return body
