@@ -1,3 +1,4 @@
+import { Context } from '@deepseek-ai/cordis'
 import { Config, InteractionConfig, resolveConfig, resolveInteractionConfig, type Config as MnemonConfig } from './config.ts'
 import { registerCommands } from './commands.ts'
 import type { HostContextShape, HostWorkspaceRegistry } from './dsh.ts'
@@ -13,6 +14,7 @@ import { provideMemoryRuntime } from '../core/runtime.ts'
 import { MemoryPluginManagement } from './plugin-management.ts'
 import { registerViewRpc } from './view-rpc.ts'
 import { MemoryPluginInstallation } from './plugin-installation.ts'
+import { MnemonRemoteService } from './remote-rpc.ts'
 
 export const name = 'dsh-mnemon'
 export const provide = ['mnemonMemory']
@@ -121,8 +123,17 @@ export function apply(rawContext: unknown, config: MnemonConfig = {}): void {
     // rc.2 enforces this legacy channel authority, while 0.1.2-alpha.1 ignores
     // the extra JavaScript argument and authenticates every Host API uniformly.
     const managementAuthority = resolved.remoteAccess === 'trusted-host' ? 'trusted-host' : 'loopback'
-    registerRpc(webContext.connection, runtime, lifecycle, undefined, managementAuthority)
-    registerSettingsRpc(webContext.connection, ctx.settings, managementAuthority)
-    registerViewRpc(webContext.connection, runtime, extensions, memoryPlugins, lifecycle, managementAuthority, pluginInstallation)
+    const rpc = registerRpc(webContext.connection, runtime, lifecycle, undefined, managementAuthority)
+    const settings = registerSettingsRpc(webContext.connection, ctx.settings, managementAuthority)
+    const view = registerViewRpc(webContext.connection, runtime, extensions, memoryPlugins, lifecycle, managementAuthority, pluginInstallation)
+    if (Context.is(webContext)) {
+      new MnemonRemoteService(webContext, {
+        ...rpc,
+        settings,
+        view: view.read,
+        viewWrite: view.write,
+        management: managementAuthority === 'trusted-host',
+      })
+    }
   })
 }

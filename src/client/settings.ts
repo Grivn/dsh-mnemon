@@ -6,6 +6,7 @@ import {
   type ClientSettingsSnapshot,
   type SettingsOperation,
 } from "../host/protocol.ts"
+import { callMnemonRpc } from './remote-rpc.ts'
 
 export class MnemonSettingsScope<T extends object> implements ClientSettingsScope<T> {
   private snapshot: ClientSettingsSnapshot<T> = { status: 'loading', writable: false, mode: 'host' }
@@ -83,7 +84,7 @@ export class MnemonSettingsScope<T extends object> implements ClientSettingsScop
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), Math.max(1, this.requestTimeoutMs))
     try {
-      return await this.connection.rpc.call(MNEMON_SETTINGS_CHANNEL, endpoint, payload, controller.signal)
+      return await callMnemonRpc(this.connection, MNEMON_SETTINGS_CHANNEL, endpoint, payload, controller.signal)
     } catch (error) {
       if (controller.signal.aborted) throw new Error('Mnemon settings request timed out')
       throw error

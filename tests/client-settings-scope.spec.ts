@@ -17,8 +17,42 @@ describe('MnemonSettingsScope', () => {
 
     expect(laterListener).toHaveBeenCalledOnce()
     expect(call).toHaveBeenCalledOnce()
+    expect(call).toHaveBeenCalledWith('/dsh-mnemon-settings', 'get', { namespace: 'mnemon-ui' }, expect.any(AbortSignal))
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('keeping the published Host snapshot'), expect.any(Error))
     warn.mockRestore()
+  })
+
+  it('uses the shared API carrier for a writable paired remote client', async () => {
+    const call = vi.fn(async (_channel: string, _endpoint: string, args: unknown) => {
+      const endpoint = (args as { args: { endpoint: string } }).args.endpoint
+      return {
+        ok: true as const,
+        value: {
+          ok: true as const,
+          value: {
+            status: 'ready' as const,
+            value: { turnBar: endpoint === 'mutate' },
+            revision: endpoint === 'mutate' ? 2 : 1,
+            writable: true,
+            mode: 'host' as const,
+          },
+        },
+      }
+    })
+    const connection = { isLoopback: false, rpc: { call } } as ClientConnectionHandle
+    const scope = new MnemonSettingsScope<InteractionConfig>(connection, 'mnemon-ui')
+    await vi.waitFor(() => expect(scope.getSnapshot().revision).toBe(1))
+    await scope.set('turnBar', true)
+
+    expect(call).toHaveBeenNthCalledWith(1, '/api', 'dshMnemon/settings', {
+      args: { endpoint: 'get', payload: { namespace: 'mnemon-ui' } },
+    }, expect.any(AbortSignal))
+    expect(call).toHaveBeenNthCalledWith(2, '/api', 'dshMnemon/settings', {
+      args: {
+        endpoint: 'mutate',
+        payload: { namespace: 'mnemon-ui', expectedRevision: 1, ops: [{ op: 'set', path: ['turnBar'], value: true }] },
+      },
+    }, expect.any(AbortSignal))
   })
 
   it('commits a multi-field edit through one namespaced revision fence', async () => {

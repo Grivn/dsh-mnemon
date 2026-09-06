@@ -28,6 +28,7 @@ import {
   type VersionStatus,
   type VersionUpdateResult,
 } from "../host/protocol.ts"
+import { callMnemonRpc } from './remote-rpc.ts'
 
 interface TurnActivityCacheEntry {
   cursor: number
@@ -55,7 +56,7 @@ async function loadTurnActivities(connection: ClientConnectionHandle, sessionId:
     return snapshot.cursor >= requiredCursor ? snapshot : loadTurnActivities(connection, sessionId, requiredCursor)
   }
 
-  const request = connection.rpc.call(MNEMON_READ_CHANNEL, 'turn-activities', sessionId === undefined ? {} : { sessionId })
+  const request = callMnemonRpc(connection, MNEMON_READ_CHANNEL, 'turn-activities', sessionId === undefined ? {} : { sessionId })
     .then(response => {
       if (!response.ok) throw new Error(response.error.message)
       const snapshot = response.value as TurnMemoryActivitySnapshot
@@ -72,7 +73,7 @@ export class MnemonClient {
   constructor(private readonly connection: ClientConnectionHandle, private readonly sessionId?: string, private readonly workspaceId?: string) {}
 
   private async call<T>(channel: string, endpoint: string, payload: unknown): Promise<T> {
-    const response = await this.connection.rpc.call(channel, endpoint, payload)
+    const response = await callMnemonRpc(this.connection, channel, endpoint, payload)
     if (!response.ok) throw new Error(response.error.message)
     return response.value as T
   }

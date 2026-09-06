@@ -52,9 +52,14 @@ export const sourceCatalog: MemorySourceManagementCatalog = {
 
 /** Domain fixtures remain independent of the Source transport envelope. */
 export function sourceTransport(domain: (channel: string, endpoint: string, payload?: Record<string, unknown>) => Promise<any>) {
-  return async (channel: string, endpoint: string, payload?: Record<string, unknown>) => {
-    if (endpoint === 'source-management-catalog') return { ok: true, value: sourceCatalog }
-    if (!['source-management-read', 'source-management-mutate', 'source-assistance'].includes(endpoint)) return domain(channel, endpoint, payload)
+  return async (channel: string, transportEndpoint: string, transportPayload?: Record<string, unknown>) => {
+    const gateway = channel === '/api' && transportEndpoint.startsWith('dshMnemon/')
+    const gatewayArgs = gateway ? transportPayload?.args as Record<string, unknown> | undefined : undefined
+    const endpoint = gateway ? String(gatewayArgs?.endpoint) : transportEndpoint
+    const payload = gateway ? gatewayArgs?.payload as Record<string, unknown> | undefined : transportPayload
+    const wrap = (response: unknown): unknown => gateway ? { ok: true, value: response } : response
+    if (endpoint === 'source-management-catalog') return wrap({ ok: true, value: sourceCatalog })
+    if (!['source-management-read', 'source-management-mutate', 'source-assistance'].includes(endpoint)) return wrap(await domain(channel, endpoint, payload))
     const key = String(payload?.sourceInstanceKey)
     if (!sourceCatalog.sources.some(source => source.sourceInstanceKey === key)) throw new Error('Unregistered test Source: ' + key)
     const type = key.slice('source:mnemon-source-'.length)
@@ -72,6 +77,6 @@ export function sourceTransport(domain: (channel: string, endpoint: string, payl
     if (operation === 'activation') logical = 'body'
     if (input.oldText !== undefined) { input.old_text = input.oldText; delete input.oldText }
     const response = await domain(channel, logical, input)
-    return !response.ok ? response : { ok: true, value: { revision: 'r1', value: response.value } }
+    return wrap(!response.ok ? response : { ok: true, value: { revision: 'r1', value: response.value } })
   }
 }

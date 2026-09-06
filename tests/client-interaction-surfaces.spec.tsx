@@ -48,6 +48,18 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
+function remoteRpc(domain: (endpoint: string, payload: Record<string, unknown>) => unknown | Promise<unknown>) {
+  return vi.fn(async (channel: string, remoteEndpoint: string, rawArgs: unknown) => {
+    if (channel !== '/api' || !remoteEndpoint.startsWith('dshMnemon/')) throw new Error(`unexpected remote endpoint: ${channel} ${remoteEndpoint}`)
+    const args = (rawArgs as { args: { endpoint: string; payload: Record<string, unknown> } }).args
+    return { ok: true as const, value: await domain(args.endpoint, args.payload) }
+  })
+}
+
+function calledRemote(call: ReturnType<typeof remoteRpc>, endpoint: string): boolean {
+  return call.mock.calls.some(([, , rawArgs]) => (rawArgs as { args?: { endpoint?: string } }).args?.endpoint === endpoint)
+}
+
 describe('conversation interaction surfaces', () => {
   it('consumes a delivered anchor instead of replaying it after remount', () => {
     const received: string[] = []
@@ -146,7 +158,7 @@ describe('conversation interaction surfaces', () => {
   })
 
   it('keeps supervised message writes read-only when Host settings are not writable', async () => {
-    const rpcCall = vi.fn(async (_channel: string, endpoint: string) => {
+    const rpcCall = remoteRpc(async (endpoint: string) => {
       if (endpoint === 'status') return { ok: true as const, value: { writeEnabled: true } }
       if (endpoint === 'assistant-message') return { ok: true as const, value: { messageId: 'message-1', text: 'A durable project decision.' } }
       throw new Error(`unexpected endpoint: ${endpoint}`)
@@ -160,11 +172,11 @@ describe('conversation interaction surfaces', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe('saveAction.readOnly'))
     expect(submit.disabled).toBe(true)
     fireEvent.click(submit)
-    expect(rpcCall.mock.calls.some(([, endpoint]) => endpoint === 'supervise')).toBe(false)
+    expect(calledRemote(rpcCall, 'supervise')).toBe(false)
   })
 
   it('allows supervised message writes when authenticated Host settings are writable', async () => {
-    const rpcCall = vi.fn(async (_channel: string, endpoint: string) => {
+    const rpcCall = remoteRpc(async (endpoint: string) => {
       if (endpoint === 'status') return { ok: true as const, value: { writeEnabled: true } }
       if (endpoint === 'assistant-message') return { ok: true as const, value: { messageId: 'message-1', text: 'A durable project decision.' } }
       if (endpoint === 'supervise') return { ok: true as const, value: { summary: 'stored', action: 'remember' } }
@@ -178,7 +190,7 @@ describe('conversation interaction surfaces', () => {
     const submit = await screen.findByRole('button', { name: 'saveAction.submit' }) as HTMLButtonElement
     await waitFor(() => expect(submit.disabled).toBe(false))
     fireEvent.click(submit)
-    await waitFor(() => expect(rpcCall.mock.calls.some(([, endpoint]) => endpoint === 'supervise')).toBe(true))
+    await waitFor(() => expect(calledRemote(rpcCall, 'supervise')).toBe(true))
   })
 
   it('updates the save action on locale changes without remounting an edited candidate', async () => {

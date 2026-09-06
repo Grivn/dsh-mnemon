@@ -74,7 +74,13 @@ export function createViewHandler(runtime: LiveMnemonRuntime, engine: MemoryRunt
   }
 }
 
-export function registerViewRpc(connection: HostConnectionHandle, runtime: LiveMnemonRuntime, engine: MemoryRuntime, management: MemoryPluginManagement, lifecycle: MnemonLifecycle, authority: HostRpcAuthority, installation?: MemoryPluginInstallation): void {
-  connection.rpc.handle(MNEMON_VIEW_CHANNEL, createViewHandler(runtime, engine, management, 'read', lifecycle, installation), { authority: 'trusted-host' })
-  connection.rpc.handle(MNEMON_VIEW_WRITE_CHANNEL, createViewHandler(runtime, engine, management, 'write', lifecycle, installation), { authority })
+export function registerViewRpc(connection: HostConnectionHandle, runtime: LiveMnemonRuntime, engine: MemoryRuntime, management: MemoryPluginManagement, lifecycle: MnemonLifecycle, authority: HostRpcAuthority, installation?: MemoryPluginInstallation): {
+  read: HostRpcHandler
+  write: HostRpcHandler
+} {
+  const readHandler = createViewHandler(runtime, engine, management, 'read', lifecycle, installation)
+  const writeHandler = createViewHandler(runtime, engine, management, 'write', lifecycle, installation)
+  connection.rpc.handle(MNEMON_VIEW_CHANNEL, readHandler, { authority: 'trusted-host' })
+  connection.rpc.handle(MNEMON_VIEW_WRITE_CHANNEL, writeHandler, { authority })
+  return { read: readHandler, write: writeHandler }
 }

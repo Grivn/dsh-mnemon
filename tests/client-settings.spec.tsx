@@ -234,29 +234,32 @@ describe('MnemonSettingsCard', () => {
       subscribe() { return () => {} },
       set: vi.fn(async () => {}), unset: vi.fn(async () => {}), setPath: vi.fn(async () => {}), unsetPath: vi.fn(async () => {}), mutate: vi.fn(async () => {}),
     } satisfies ClientSettingsScope<Config> & { snapshot: typeof snapshot }
-    const call = vi.fn(async (channel: string, endpoint: string) => {
-      if (channel === '/dsh-mnemon-read' && endpoint === 'task-agent-models') return {
+    const call = vi.fn(async (channel: string, remoteEndpoint: string, rawArgs: unknown) => {
+      const endpoint = (rawArgs as { args: { endpoint: string } }).args.endpoint
+      if (channel === '/api' && remoteEndpoint === 'dshMnemon/read' && endpoint === 'task-agent-models') return {
         ok: true as const,
-        value: { effective: { provider: 'deepseek', model: 'deepseek-chat', source: 'dsh-default' as const }, groups: [], failures: [] },
+        value: { ok: true as const, value: { effective: { provider: 'deepseek', model: 'deepseek-chat', source: 'dsh-default' as const }, groups: [], failures: [] } },
       }
-      if (channel === '/dsh-mnemon-read' && endpoint === 'provider-services') return {
-        ok: true as const, value: { providers: [], items: [], generatedAt: '' },
+      if (channel === '/api' && remoteEndpoint === 'dshMnemon/read' && endpoint === 'provider-services') return {
+        ok: true as const, value: { ok: true as const, value: { providers: [], items: [], generatedAt: '' } },
       }
-      if (channel === '/dsh-mnemon-pack' && endpoint === 'target') return {
-        ok: true as const, value: { root: '/root/.mnemon', scope: 'global' as const },
+      if (channel === '/api' && remoteEndpoint === 'dshMnemon/pack' && endpoint === 'target') return {
+        ok: true as const, value: { ok: true as const, value: { root: '/root/.mnemon', scope: 'global' as const } },
       }
-      throw new Error(`unexpected ${channel} ${endpoint}`)
+      throw new Error(`unexpected ${channel} ${remoteEndpoint}/${endpoint}`)
     })
     const connection = { rpc: { call }, isLoopback: false } as ClientConnectionHandle
 
     render(<MnemonSettingsCard scope={scope} connection={connection} />)
 
-    await waitFor(() => expect(call).toHaveBeenCalledWith('/dsh-mnemon-read', 'task-agent-models', { includeCatalog: false }))
+    await waitFor(() => expect(call).toHaveBeenCalledWith('/api', 'dshMnemon/read', {
+      args: { endpoint: 'task-agent-models', payload: { includeCatalog: false } },
+    }))
     expect((screen.getByRole('radio', { name: '工作区' }) as HTMLInputElement).disabled).toBe(false)
     expect((screen.getByRole('radio', { name: '跟随主链路' }) as HTMLInputElement).disabled).toBe(false)
     expect(screen.queryByText('当前部署的插件设置为只读。')).toBeNull()
-    await waitFor(() => expect(call.mock.calls.some(([, endpoint]) => endpoint === 'provider-services')).toBe(true))
-    expect(call.mock.calls.some(([, endpoint]) => endpoint === 'target')).toBe(true)
+    await waitFor(() => expect(call.mock.calls.some(([, remoteEndpoint, args]) => remoteEndpoint === 'dshMnemon/read' && (args as { args: { endpoint: string } }).args.endpoint === 'provider-services')).toBe(true))
+    expect(call.mock.calls.some(([, remoteEndpoint, args]) => remoteEndpoint === 'dshMnemon/pack' && (args as { args: { endpoint: string } }).args.endpoint === 'target')).toBe(true)
   })
 
   it('shows an actionable error instead of a blank settings page when both scopes are unavailable', () => {
