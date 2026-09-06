@@ -244,7 +244,7 @@ config.cliPath
            /usr/bin/mnemon
 ```
 
-An explicit `cliPath` accepts either a path or a command name on PATH (for example, `mnemon`). Status checks and execution share the discovery rules and recognize CLI installation/removal on recheck without restarting DSH. If the explicitly configured command is unavailable, calls report a launch error rather than silently selecting another CLI. Automatically discovered Windows commands must be regular `.exe` files. `.cmd` and `.bat` wrappers are intentionally excluded because process execution does not use a shell.
+An explicit `cliPath` accepts either a path or a command name on PATH (for example, `mnemon`). Status checks and execution share the discovery rules and recognize CLI installation/removal on recheck without restarting DSH. If the explicitly configured command is unavailable, calls report a launch error rather than silently selecting another CLI. Windows discovery accepts regular `.exe` files and the verified official npm `mnemon.cmd` launcher. npm launchers are invoked through Node without a shell; arbitrary `.cmd` and `.bat` wrappers remain excluded. After migrating to npm, update any explicit CLI override to the npm launcher and verify the executable path in **Status → Check versions**.
 
 ## Compatibility Store Hint Precedence
 

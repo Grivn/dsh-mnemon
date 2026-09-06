@@ -1,4 +1,4 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -297,5 +297,139 @@ describe('VersionUpdateManager', () => {
 
     await expect(manager.update('mnemon')).resolves.toMatchObject({ previousVersion: '0.2.0', currentVersion: '0.3.0', updated: true })
     expect(run).toHaveBeenCalledWith(expect.stringMatching(/brew$/), ['upgrade', '--cask', 'mnemon'], expect.objectContaining({ timeoutMs: 600_000 }))
+  })
+
+  function cliNpmFixture() {
+    const root = directory('npm-cli')
+    const globalRoot = join(root, 'lib/node_modules')
+    const packageRoot = join(globalRoot, '@mnemon-dev/mnemon')
+    const launcher = join(packageRoot, 'bin/mnemon.js')
+    mkdirSync(join(packageRoot, 'bin'), { recursive: true })
+    json(join(packageRoot, 'package.json'), { name: '@mnemon-dev/mnemon', version: '0.2.8', bin: { mnemon: 'bin/mnemon.js' } })
+    writeFileSync(launcher, '#!/usr/bin/env node\n')
+    chmodSync(launcher, 0o755)
+    const command = join(root, 'mnemon')
+    symlinkSync(launcher, command)
+    const state = { current: '0.2.8', globalRoot, npm: true, broken: false, installed: '0.2.9' }
+    const run = vi.fn<ProcessRunner>(async (_command, args) => {
+      if (args.includes('--version')) return { stdout: state.broken ? '' : `mnemon version ${state.current}`, stderr: state.broken ? 'missing native binary' : '', exitCode: state.broken ? 1 : 0 }
+      if (args[0] === 'root') return { stdout: state.globalRoot, stderr: '', exitCode: 0 }
+      if (args.includes('update')) { state.current = state.installed; return { stdout: 'updated', stderr: '', exitCode: 0 } }
+      throw new Error('Unexpected process call')
+    })
+    const options = {
+      packageManifestPath: join(root, 'package.json'), dshHome: root, mnemonCliPath: () => command,
+      resolveExecutable: (value: string) => value === command ? command : value === 'npm' && state.npm ? '/fake/npm' : undefined,
+      processRunner: run, fetchNpmLatest: async (name: string) => name === '@mnemon-dev/mnemon' ? '0.2.9' : undefined,
+    }
+    return { root, command, launcher, state, run, options, manager: new VersionUpdateManager(options) }
+  }
+
+  it('detects the official npm launcher and updates through the CLI that DSH actually uses', async () => {
+    const f = cliNpmFixture()
+    expect((await f.manager.check()).components[0]).toMatchObject({ installMode: 'npm', updateSupported: true, updateHint: 'npm', current: '0.2.8', latest: '0.2.9', executablePath: f.command })
+    expect(f.run.mock.calls.some(([, args]) => args.includes('update'))).toBe(false)
+    await expect(f.manager.update('mnemon')).resolves.toMatchObject({ currentVersion: '0.2.9', updated: true, restartRequired: false })
+    expect(f.run).toHaveBeenCalledWith(process.execPath, [realpathSync(f.launcher), 'update'], expect.objectContaining({ timeoutMs: 600_000 }))
+  })
+
+  it('does not update a different Node/npm installation', async () => {
+    const f = cliNpmFixture()
+    f.state.globalRoot = directory('other-npm')
+    expect((await f.manager.check()).components[0]).toMatchObject({ installMode: 'npm', updateSupported: false, updateHint: 'npm-unmanaged' })
+    await expect(f.manager.update('mnemon')).rejects.toThrow('cannot be updated automatically')
+    expect(f.run.mock.calls.some(([, args]) => args.includes('update'))).toBe(false)
+  })
+
+  it('retains npm provenance when npm or the native binary is unavailable', async () => {
+    const f = cliNpmFixture()
+    f.state.npm = false
+    expect((await f.manager.check()).components[0]).toMatchObject({ installMode: 'npm', updateSupported: false, updateHint: 'npm-missing' })
+    f.state.broken = true
+    const status = (await f.manager.check()).components[0]!
+    expect(status).toMatchObject({ installMode: 'npm', updateSupported: false, updateHint: 'cli-unreadable' })
+    expect(status.current).toBeUndefined()
+  })
+
+  it('invokes the verified npm JavaScript launcher behind a Windows command shim without a shell', async () => {
+    const f = cliNpmFixture()
+    const shim = join(f.root, 'lib', 'mnemon.cmd')
+    writeFileSync(shim, '@"%dp0%\\node_modules\\@mnemon-dev\\mnemon\\bin\\mnemon.js" %*')
+    const manager = new VersionUpdateManager({ ...f.options, mnemonCliPath: () => shim, resolveExecutable: name => name === shim ? shim : name === 'npm' ? '/fake/npm' : undefined })
+    await expect(manager.update('mnemon')).resolves.toMatchObject({ updated: true })
+    expect(f.run).toHaveBeenCalledWith(process.execPath, [f.launcher, 'update'], expect.any(Object))
+  })
+
+  it('rejects an npm update that leaves the active CLI at the old version', async () => {
+    const f = cliNpmFixture()
+    f.state.installed = '0.2.8'
+    await expect(f.manager.update('mnemon')).rejects.toThrow('did not activate version')
+  })
+
+  function subpackageFixture() {
+    const f = npmFixture('0.5.2', { latest: '0.5.3' })
+    const bundled = 'dsh-mnemon-source-runtime' as const
+    const direct = 'dsh-mnemon-provider-mnemon-native' as const
+    json(join(f.packageRoot, 'package.json'), { name: 'dsh-mnemon', version: '0.5.2', dependencies: { [bundled]: '0.5.1', [direct]: '0.5.1', unrelated: '1.0.0' } })
+    json(join(f.profile, 'package.json'), { name: 'dsh-profile-web', dependencies: { 'dsh-mnemon': '0.5.2', [direct]: '0.5.2' } })
+    const bundledRoot = join(f.packageRoot, 'node_modules', bundled)
+    const directRoot = join(f.profile, 'node_modules', direct)
+    for (const path of [bundledRoot, directRoot]) mkdirSync(path, { recursive: true })
+    json(join(bundledRoot, 'package.json'), { name: bundled, version: '0.5.1' })
+    json(join(directRoot, 'package.json'), { name: direct, version: '0.5.2' })
+    return { ...f, bundled, direct, bundledRoot, directRoot }
+  }
+
+  it('shows actual subpackage versions and separates Starter pins from direct Profile dependencies', async () => {
+    const f = subpackageFixture()
+    const packages = (await f.manager.check()).components[1]!.packages!
+    expect(packages).toHaveLength(2)
+    expect(packages.find(item => item.id === f.bundled)).toMatchObject({ kind: 'source', current: '0.5.1', expectedVersion: '0.5.1', latest: '0.5.3', managedBy: 'starter', updateSupported: false })
+    expect(packages.find(item => item.id === f.direct)).toMatchObject({ kind: 'provider', current: '0.5.2', expectedVersion: '0.5.1', managedBy: 'profile', updateSupported: true })
+    expect(f.run).not.toHaveBeenCalled()
+  })
+
+  it('updates only an independently managed subpackage and retains the restart reminder on recheck', async () => {
+    const f = subpackageFixture()
+    f.run.mockImplementation(async () => { json(join(f.directRoot, 'package.json'), { name: f.direct, version: '0.5.3' }); return { stdout: 'updated', stderr: '', exitCode: 0 } })
+    await expect(f.manager.update(f.direct)).resolves.toMatchObject({ component: f.direct, previousVersion: '0.5.2', currentVersion: '0.5.3', restartRequired: true })
+    expect(f.run).toHaveBeenCalledWith('/fake/pnpm', ['add', `${f.direct}@0.5.3`, '--save-exact'], expect.objectContaining({ cwd: f.profile }))
+    expect(f.manager.currentDshMnemonVersion).toBe('0.5.2')
+    const main = (await f.manager.check()).components[1]!
+    expect(main.restartRequired).toBe(true)
+    expect(main.packages!.find(item => item.id === f.direct)).toMatchObject({ current: '0.5.3', outdated: false, restartRequired: true })
+    expect(main.packages!.find(item => item.id === f.bundled)).toMatchObject({ current: '0.5.1', restartRequired: false })
+  })
+
+  it('rejects Starter dependencies, uninstalled package names, and source links as independent update targets', async () => {
+    const f = subpackageFixture()
+    await expect(f.manager.update(f.bundled)).rejects.toThrow('through its Starter')
+    await expect(f.manager.update('dsh-mnemon-source-uninstalled')).rejects.toThrow('Unknown version component')
+    json(join(f.profile, 'package.json'), { name: 'dsh-profile-web', dependencies: { 'dsh-mnemon': '0.5.2', [f.direct]: `link:${f.directRoot}` } })
+    expect((await f.manager.check()).components[1]!.packages!.find(item => item.id === f.direct)).toMatchObject({ installMode: 'link', updateSupported: false })
+    await expect(f.manager.update(f.direct)).rejects.toThrow('original installation method')
+    expect(f.run).not.toHaveBeenCalled()
+  })
+
+  it('keeps other package versions available if one package registry request fails', async () => {
+    const f = subpackageFixture()
+    f.fetch.mockImplementation(async name => { if (name === f.direct) throw new Error('offline'); return '0.5.3' })
+    const main = (await f.manager.check()).components[1]!
+    expect(main.latest).toBe('0.5.3')
+    expect(main.packages!.find(item => item.id === f.direct)).toMatchObject({ current: '0.5.2', checkError: 'latest-unavailable' })
+    expect(main.packages!.find(item => item.id === f.bundled)).toMatchObject({ latest: '0.5.3', outdated: true })
+  })
+
+  it('prevents overlapping package-manager writes and releases the lock after failure', async () => {
+    const f = npmFixture('0.5.2', { latest: '0.5.3' })
+    let finish!: () => void
+    f.run.mockImplementation(async () => { await new Promise<void>(resolve => { finish = resolve }); return { stdout: '', stderr: 'failed', exitCode: 1 } })
+    const first = f.manager.update('dsh-mnemon')
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    await expect(f.manager.update('dsh-mnemon')).rejects.toThrow('already in progress')
+    finish()
+    await expect(first).rejects.toThrow('failed')
+    f.run.mockResolvedValue({ stdout: '', stderr: 'retry reached installer', exitCode: 1 })
+    await expect(f.manager.update('dsh-mnemon')).rejects.toThrow('retry reached installer')
   })
 })

@@ -38,7 +38,9 @@ The page loads concurrently and progressively. Only one region-level spinner rem
 
 ### Check versions
 
-Checking is read-only. Update actions appear only for supported installation sources with a newer release. Restart `dsh web` after updating dsh-mnemon.
+Checking is read-only. Mnemon CLI distinguishes missing, unreadable, current, and update-available installations, with npm install, migration, or update commands that can be copied. Registry failures leave local installation guidance visible. Commands run on the DSH Host; verify the executable path after installing or changing PATH.
+
+Expand **Subpackage versions** under dsh-mnemon to inspect Sources, Strategies, and Providers. Each row shows installed and published versions, the Starter pin where applicable, and its maintenance method. Starter dependencies update with the Starter's tested combination; packages installed independently in the current Profile can update individually. Source links show local build instructions. Page updates require management access and `writeEnabled`; version checks and command copying remain available in read-only mode. Restart `dsh web` after package updates; the restart reminder remains on subsequent checks.
 
 ## Memory enhancements: expose stable behavior only
 

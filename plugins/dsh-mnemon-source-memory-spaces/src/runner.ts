@@ -1,112 +1,17 @@
-import { accessSync, constants, existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, posix, resolve, win32 } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { JsonValue } from './contracts.ts'
 import type { ResolvedMemorySpacesConfig as ResolvedConfig } from './config.ts'
 import { runProcess, type ProcessOptions, type ProcessRunner } from './providers/process.ts'
 import { withMemoryStorageLock } from 'dsh-mnemon/extension-sdk'
+import { findMnemonCommand, isMnemonExecutable, mnemonNpmLauncher } from './native-cli.ts'
 
-const UNIX_COMMON_CLI_PATHS = [
-  '~/.local/bin/mnemon',
-  '/opt/homebrew/bin/mnemon',
-  '/usr/local/bin/mnemon',
-  '/usr/bin/mnemon',
-] as const
+export { findMnemonCommand } from './native-cli.ts'
+export type { CommandDiscoveryOptions } from './native-cli.ts'
 
-export interface CommandDiscoveryOptions {
-  platform?: NodeJS.Platform
-  env?: NodeJS.ProcessEnv
-  home?: string
-  isExecutable?: (path: string) => boolean
-}
-
-function pathApi(platform: NodeJS.Platform): typeof posix | typeof win32 {
-  return platform === 'win32' ? win32 : posix
-}
-
-function expandHome(path: string, home = homedir(), platform = process.platform): string {
-  if (path === '~') return home
-  return path.startsWith('~/') || path.startsWith('~\\') ? pathApi(platform).join(home, path.slice(2)) : path
-}
-
-function envValue(env: NodeJS.ProcessEnv, name: string, platform: NodeJS.Platform): string | undefined {
-  if (platform !== 'win32') return env[name]
-  const key = Object.keys(env).find(candidate => candidate.toLowerCase() === name.toLowerCase())
-  return key === undefined ? undefined : env[key]
-}
-
-function executable(path: string, platform = process.platform): boolean {
-  if (platform === 'win32' && win32.extname(path).toLowerCase() !== '.exe') return false
-  try {
-    accessSync(path, platform === 'win32' ? constants.F_OK : constants.X_OK)
-    return statSync(path).isFile()
-  } catch {
-    return false
-  }
-}
-
-function windowsCommonCliPaths(env: NodeJS.ProcessEnv, home: string): string[] {
-  const candidates: string[] = []
-  const goBin = envValue(env, 'GOBIN', 'win32')?.trim()
-  if (goBin !== undefined && win32.isAbsolute(goBin)) candidates.push(win32.join(goBin, 'mnemon.exe'))
-
-  const goPath = envValue(env, 'GOPATH', 'win32')?.trim()
-  const goPathRoot = goPath?.split(win32.delimiter).map(candidate => candidate.trim())
-    .find(candidate => candidate !== '' && win32.isAbsolute(candidate))
-  const goInstallRoot = goPathRoot ?? win32.join(home, 'go')
-  candidates.push(win32.join(goInstallRoot, 'bin', 'mnemon.exe'))
-
-  const localAppData = envValue(env, 'LOCALAPPDATA', 'win32')?.trim()
-  if (localAppData !== undefined && win32.isAbsolute(localAppData)) {
-    candidates.push(win32.join(localAppData, 'Programs', 'mnemon', 'mnemon.exe'))
-  }
-  const programFiles = envValue(env, 'ProgramFiles', 'win32')?.trim()
-  if (programFiles !== undefined && win32.isAbsolute(programFiles)) {
-    candidates.push(win32.join(programFiles, 'mnemon', 'mnemon.exe'))
-  }
-  return [...new Set(candidates)]
-}
-
-function commonCliPaths(platform: NodeJS.Platform, env: NodeJS.ProcessEnv, home: string): string[] {
-  if (platform === 'win32') return windowsCommonCliPaths(env, home)
-  return UNIX_COMMON_CLI_PATHS.map(candidate => expandHome(candidate, home, platform))
-}
-
-/** Locate the local Mnemon binary without invoking a shell. */
-export function findMnemonCommand(
-  config: Pick<ResolvedConfig, 'cliPath'>,
-  options: CommandDiscoveryOptions = {},
-): string | undefined {
-  const platform = options.platform ?? process.platform
-  const env = options.env ?? process.env
-  const home = options.home ?? homedir()
-  const isExecutable = options.isExecutable ?? (path => executable(path, platform))
-  const paths = pathApi(platform)
-  const resolveCommand = (command: string): string | undefined => {
-    const expanded = expandHome(command, home, platform)
-    // Explicit paths remain authoritative even when missing, so execution
-    // reports the configured path instead of silently choosing another CLI.
-    if (expanded.includes('/') || expanded.includes('\\')) return expanded
-    const name = platform === 'win32' && paths.extname(expanded) === '' ? `${expanded}.exe` : expanded
-    for (const directory of (envValue(env, 'PATH', platform) ?? '').split(paths.delimiter)) {
-      if (directory === '') continue
-      const path = paths.join(directory, name)
-      if (isExecutable(path)) return path
-    }
-    return undefined
-  }
-  if (config.cliPath !== undefined) return resolveCommand(config.cliPath)
-  const envPath = envValue(env, 'MNEMON_CLI_PATH', platform)?.trim()
-  if (envPath !== undefined && envPath !== '') {
-    const path = resolveCommand(envPath)
-    if (path !== undefined && isExecutable(path)) return path
-  }
-  const fromPath = resolveCommand('mnemon')
-  if (fromPath !== undefined) return fromPath
-  for (const path of commonCliPaths(platform, env, home)) {
-    if (isExecutable(path)) return path
-  }
-  return undefined
+function expandHome(path: string): string {
+  return path === '~' ? homedir() : path.startsWith('~/') || path.startsWith('~\\') ? join(homedir(), path.slice(2)) : path
 }
 
 export class MnemonCliError extends Error {
@@ -210,7 +115,9 @@ export function createRunner(config: ResolvedConfig, processRunner: ProcessRunne
     }
     let result
     try {
-      result = await processRunner(currentCommand(), argv, processOptions)
+      const command = currentCommand()
+      const launcher = mnemonNpmLauncher(command)
+      result = await processRunner(launcher === undefined ? command : process.execPath, launcher === undefined ? argv : [launcher, ...argv], processOptions)
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
       const hint = process.platform === 'win32'
@@ -238,7 +145,7 @@ export function createRunner(config: ResolvedConfig, processRunner: ProcessRunne
     get command() { return currentCommand() },
     get commandFound() {
       const found = findMnemonCommand(config)
-      return found !== undefined && executable(found)
+      return found !== undefined && isMnemonExecutable(found)
     },
     config,
     async runJson(args, options) {

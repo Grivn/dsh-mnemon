@@ -29,7 +29,16 @@ npm view @deepseek-ai/dsh dist-tags
 
 ## 2. Install Mnemon
 
-Homebrew Cask is recommended on macOS:
+npm is recommended on macOS, Linux, and Windows (Node.js 22+). Run these commands on the machine running DSH:
+
+```sh
+npm install --global @mnemon-dev/mnemon@latest
+mnemon --version
+```
+
+For later npm updates, run `mnemon update`, or use **Status → Check versions** when the page recognizes the owning npm installation. If migrating from Homebrew, Go, or a downloaded binary, put npm's global bin directory before the old command on PATH and update any `MNEMON_CLI_PATH` / `mnemon.cliPath` override. Restart DSH after changing its environment, then recheck the executable path on Status.
+
+Homebrew Cask remains an alternative on macOS:
 
 ```sh
 brew install --cask mnemon-dev/tap/mnemon
@@ -47,7 +56,7 @@ Verify the binary:
 mnemon --version
 ```
 
-On Windows, the official release provides ZIP archives for AMD64 and ARM64. The following PowerShell installs v0.2.3 under the auto-discovered per-user Programs directory and verifies it against the published checksum:
+For a manual installation on Windows, the official release provides ZIP archives for AMD64 and ARM64. The following PowerShell installs v0.2.3 under the auto-discovered per-user Programs directory and verifies it against the published checksum:
 
 ```powershell
 $version = '0.2.3'
@@ -82,7 +91,7 @@ $mnemon = Join-Path $mnemonBin 'mnemon.exe'
 & $mnemon --version
 ```
 
-On Windows, dsh-mnemon discovers native `mnemon.exe` from `PATH`, an exported `GOBIN` or `GOPATH`, the default `%USERPROFILE%\go\bin`, `%LOCALAPPDATA%\Programs\mnemon`, and Program Files. `.cmd` and `.bat` wrappers are not accepted because CLI calls deliberately run without a shell.
+On Windows, dsh-mnemon discovers native `mnemon.exe` from `PATH`, an exported `GOBIN` or `GOPATH`, the default `%USERPROFILE%\go\bin`, `%LOCALAPPDATA%\Programs\mnemon`, and Program Files. The official npm `mnemon.cmd` launcher is also supported: dsh-mnemon validates its package and invokes its JavaScript entry with Node, without a shell. Other `.cmd` and `.bat` wrappers remain unsupported.
 
 If DSH still cannot find the binary, set `MNEMON_CLI_PATH` or add an absolute path to the user settings file instead of replacing the plugin's profile patch:
 

@@ -523,7 +523,8 @@ export interface MnemonPackImportResult {
   summary: MnemonPackComponentSummary[]
 }
 
-export type VersionComponentId = 'mnemon' | 'dsh-mnemon'
+export type VersionPackageId = `dsh-mnemon-${'source' | 'strategy' | 'provider'}-${string}`
+export type VersionComponentId = 'mnemon' | 'dsh-mnemon' | VersionPackageId
 export type VersionInstallMode = 'homebrew' | 'go' | 'npm' | 'link' | 'manual' | 'missing'
 
 export interface VersionComponentStatus {
@@ -539,6 +540,15 @@ export interface VersionComponentStatus {
   updateSupported: boolean
   updateHint: string
   checkError?: string
+  restartRequired?: boolean
+  packages?: VersionPackageStatus[]
+}
+
+export interface VersionPackageStatus extends VersionComponentStatus {
+  id: VersionPackageId
+  kind: 'source' | 'strategy' | 'provider'
+  managedBy: 'starter' | 'profile'
+  expectedVersion?: string
 }
 
 export interface VersionStatus {

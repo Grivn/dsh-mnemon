@@ -31,7 +31,11 @@
     },
     "./presentation/locales.json": "./presentation/locales.json",
     "./presentation/page.module.css": "./presentation/page.module.css",
-    "./presentation/sidebar.module.css": "./presentation/sidebar.module.css"
+    "./presentation/sidebar.module.css": "./presentation/sidebar.module.css",
+    "./native-cli": {
+      "types": "./lib/native-cli.d.ts",
+      "default": "./lib/native-cli.js"
+    }
   },
   "files": [
     "lib",
