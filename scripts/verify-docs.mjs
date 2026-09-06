@@ -15,11 +15,20 @@ export function withoutFences(markdown) {
   }).join('\n')
 }
 
+function htmlEntities(text) {
+  const named = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' }
+  return text.replace(/&(#x[\da-f]+|#\d+|amp|quot|apos|lt|gt);/giu, (match, entity) => {
+    if (!entity.startsWith('#')) return named[entity.toLowerCase()]
+    const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1))
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match
+  })
+}
+
 export function headingIds(markdown) {
   const text = withoutFences(markdown)
   const ids = new Set()
-  for (const match of text.matchAll(/^ {0,3}#{1,6}\s+(.+)$/gmu)) {
-    const base = match[1].replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1').replace(/<[^>]*>/gu, '')
+  for (const match of text.matchAll(/^ {0,3}#{1,6}\s+(.+)$|<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gimu)) {
+    const base = htmlEntities((match[1] ?? match[2]).replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1').replace(/<[^>]*>/gu, ''))
       .replace(/\s+#+\s*$/u, '').trim().toLowerCase()
       .replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '').replace(/ /gu, '-')
     let id = base
@@ -38,9 +47,10 @@ export function documentLinks(markdown) {
     /\]\(\s*(?:<([^>]+)>|([^\s)]+))/gu,
     /^ {0,3}\[[^\]]+\]:\s*(?:<([^>]+)>|([^\s]+))/gmu,
     /\b(?:href|src)=["']([^"']+)["']/gu,
+    /<(https?:\/\/[^\s<>]+)>/gu,
   ]
   for (const pattern of patterns) for (const match of text.matchAll(pattern)) {
-    links.push({ url: match[1] ?? match[2], line: text.slice(0, match.index).split('\n').length })
+    links.push({ url: htmlEntities(match[1] ?? match[2]), line: text.slice(0, match.index).split('\n').length })
   }
   return links
 }
@@ -56,7 +66,8 @@ export function checkDocuments(root, files) {
       // README links also work on npm; verify current-repository URLs locally.
       const repositoryPath = url.match(/^https:\/\/github\.com\/omdsh-dev\/dsh-mnemon\/(?:blob|tree)\/main\/(.+)$/u)?.[1]
       if (!repositoryPath && /^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(url)) continue
-      const [rawPath, rawAnchor] = (repositoryPath ?? url).split('#')
+      const [pathAndQuery, rawAnchor] = (repositoryPath ?? url).split('#')
+      const rawPath = pathAndQuery.split('?')[0]
       let target, anchor
       try {
         target = rawPath ? resolve(root, repositoryPath ? '.' : dirname(file), decodeURIComponent(rawPath)) : join(root, file)
