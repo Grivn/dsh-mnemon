@@ -6,6 +6,7 @@ For an existing installation, start with [Compatibility and upgrades](../referen
 
 ## v0.5
 
+- [v0.5.3: Actionable Version Maintenance](./v0.5.3.md)
 
 
 ## v0.4
