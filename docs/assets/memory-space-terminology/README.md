@@ -1,6 +1,6 @@
 # Memory space terminology UI evidence
 
-Captured on 2026-09-07 from the real local DSH WebUI, using the `codex/memory-space-terminology` working tree based on v0.5.3 (`7e6216094a9361e9abb091a5edb2b83cb7ed05df`). The version badge identifies the base package version; these captures include the unpublished terminology update.
+Captured on 2026-09-07 from the real local DSH WebUI, using the `codex/memory-space-terminology` working tree based on v0.5.3 (`7e6216094a9361e9abb091a5edb2b83cb7ed05df`). The version badge identifies the base package version. These captures were made before versioning and include the terminology update released in v0.5.4.
 
 ## Environment and scope
 
@@ -31,7 +31,7 @@ The longer labels exposed a directory header that exceeded its available width. 
 
 ## 中文说明
 
-本组截图来自真实 DSH WebUI 与临时测试数据，展示基于 v0.5.3 的用语更新；界面统一使用“记忆空间 / memory space”。截图中的包版本号仍是基础版本，并不表示这些改动已经发布。
+本组截图来自真实 DSH WebUI 与临时测试数据，展示基于 v0.5.3 的用语更新；界面统一使用“记忆空间 / memory space”。截图在版本化前采集，包版本号仍是基础版本；所展示的用语与布局改动纳入 v0.5.4。
 
 桌面与窄屏分别按 1365 × 1000、390 × 844 检查。实测覆盖创建、编辑、激活、浏览、语言切换和取消表单；没有调用模型、云端 Provider 或生产记忆。窄屏目录按钮、Provider 状态标签和顶部存储标识可以换行，创建表单的底部按钮保持可见。截图保留浏览器原始 JPEG 数据，哈希与布局测量见上方记录。
 
