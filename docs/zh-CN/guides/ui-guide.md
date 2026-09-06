@@ -6,9 +6,9 @@
 
 ## 先看实际操作
 
-下方截图来自基于 v0.5.3 的记忆空间用语更新、真实本地 DSH WebUI 和临时 Atlas 数据。中文统一使用 **记忆空间**，英文使用 **memory space**；既有数据、ID 和 Provider 连接继续保留。[当前截图环境与边界](../../assets/memory-space-terminology/README.md)。
+下方截图来自已发布的 **v0.5.4** 真实本地 DSH WebUI，统一使用**浅色模式**，先将 Mnemon Pack 导入临时隔离环境再采集。导入数据包含 20 条运行时记忆、12 份档案和四个记忆空间，其中两个已激活。界面使用 **记忆空间 / memory space**；原始中文记录在两种语言界面中均保留中文。[截图环境与边界](../../assets/webui-v0.5.4/README.md)。
 
-[v0.5.2 演示](../../assets/showcase/demo.mp4)保留为浏览与可逆增强开关的历史录制，其中的标签早于本次用语更新。
+[观看约 42 秒浅色演示](../../assets/webui-v0.5.4/zh-CN/demo.mp4)：浏览导入的空间、打开并取消草稿、检索证据、查看图谱，以及检查 npm 引导和子包版本。[完整双语图集](../../assets/webui-v0.5.4/README.md)还覆盖设置、备份导入与窄屏布局。
 
 旧媒体保留原版本标记，可从[历史证据](../../pr-assets/README.md)查阅。
 
@@ -32,7 +32,7 @@
 
 ## 1. 状态：先判断系统是否可用
 
-![当前状态与 Native 就绪情况](../../assets/memory-space-terminology/zh-CN/status.jpg)
+![当前状态与 Native 就绪情况](../../assets/webui-v0.5.4/zh-CN/status.jpg)
 
 最上方“记忆引擎”只展示 dsh-mnemon。Mnemon Native 的异常进入独立状态栏，三方 Provider 在下面逐项显示启用、健康和连接信息，不会把局部异常提升成整个系统故障。
 
@@ -40,13 +40,15 @@
 
 ### 检查版本
 
+![按 CLI 当前安装状态提供 npm 引导](../../assets/webui-v0.5.4/zh-CN/versions.jpg)
+
 版本检查只读，不会自动安装。Mnemon CLI 区分未安装、版本不可读、已是最新和可更新，并提供可复制的 npm 安装、迁移或更新命令。远程检查失败时仍保留本地安装指引。命令应在 DSH 宿主终端执行；安装或修改 PATH 后，核对界面显示的可执行文件路径。
 
 展开 dsh-mnemon 下的“子包版本”，按 Source、Strategy、Provider 查看已安装版本、已发布版本、主包指定版本和维护方式。默认依赖随主包升级到经过验证的组合；在当前 Profile 中独立安装的子包可单独更新；源码链接提供本地构建说明。页面更新需要管理权限且开启 `writeEnabled`，只读模式仍可检查版本和复制命令。更新插件包后重启 `dsh web`；后续重新检查仍保留待重启提示。
 
 ## 记忆增强：只呈现稳定行为
 
-![默认记忆层与三个可选增强](../../assets/memory-space-terminology/zh-CN/enhancements.jpg)
+![默认记忆层与三个可选增强](../../assets/webui-v0.5.4/zh-CN/enhancements.jpg)
 
 系统不提供独立的“视图”页面，也不在状态页暴露插件清单、依赖图或安装流程。Starter 随附三个默认关闭的增强，在**设置 → 记忆系统 → 记忆增强**中使用与其他设置相同的开关：
 
@@ -58,7 +60,7 @@
 
 ## 2. 运行时：维护每轮都需要的热记忆
 
-![运行时范围与工作记忆条目](../../assets/memory-space-terminology/zh-CN/runtime.jpg)
+![运行时总量与两条导入的用户画像](../../assets/webui-v0.5.4/zh-CN/runtime.jpg)
 
 顶部汇总用户档案（`USER.md`）和工作记忆（`MEMORY.md`），下方用统一卡片展示具体条目。可以按来源、文本、分类和重要性筛选；再次点击已选筛选不会破坏页面。超长字段在自己的块内省略，悬停显示全文。
 
@@ -68,7 +70,7 @@
 
 ## 3. 档案：保留完整项目叙事
 
-![Atlas 档案目录与 Markdown 阅读器](../../assets/memory-space-terminology/zh-CN/documents.jpg)
+![导入的项目档案目录与 Markdown 阅读器](../../assets/webui-v0.5.4/zh-CN/documents.jpg)
 
 先选择 DSH 工作区：全局或自定义存储下，Documents 也需要工作区身份。选中的会话提供所属工作区；工作区存储还允许显式选择查看对象。这用于确定项目，不会改变已选存储根。
 
@@ -84,7 +86,7 @@
 
 ### 概览与实时快照
 
-![已激活的原生记忆空间](../../assets/memory-space-terminology/zh-CN/spaces.jpg)
+![四个导入的记忆空间，其中两个已激活](../../assets/webui-v0.5.4/zh-CN/spaces.jpg)
 
 实时快照从上到下分两层阅读：
 
@@ -92,6 +94,8 @@
 - **多记忆空间实时快照**把这些可读取结果合并到同一张关系图。边的颜色表示空间归属、时间、语义、因果或实体关联，Provider 与记忆空间标签则保留来源；
 - 图谱左下角汇总空间、记忆和实体总数，右下角显示当前渲染的元素与连接。类似 `60 / 129` 表示为保持交互流畅而展示的视窗，不表示其余数据丢失；
 - 点击记忆空间、实体或记忆节点后，右侧检查器展示该元素的精确上下文。自然铺开、拖拽和均匀重置只改变布局，不改写 Provider 数据。
+
+![两个已激活原生空间的实时图谱](../../assets/webui-v0.5.4/zh-CN/graph.jpg)
 
 每张卡片对应一个真实记忆空间。Provider 标签只用颜色区分，不在标签内重复放图标；`Mnemon Native` 在目录统一展示为 `mnemon`。卡片点击区域用于按需重连当前 Provider + ID，状态灯在重连期间原位变成同尺寸转圈，不触发全量同步。
 
@@ -110,7 +114,7 @@
 
 ### 手动创建记忆空间
 
-![为记忆空间填写名称并选择 Provider](../../assets/memory-space-terminology/zh-CN/create.jpg)
+![为记忆空间填写名称并选择 Provider](../../assets/webui-v0.5.4/zh-CN/space-create.jpg)
 
 手动点击“创建记忆空间”时始终由用户明确选择 Provider。只列出设置中已经启用的服务；Provider 特有字段按分行结构展示，避免横向对齐误差。创建完成后，该实例才进入目录、激活和检索工作流。
 
@@ -135,6 +139,8 @@
 
 ### 检索与 Agent 查询
 
+![通过关键词检索导入的记录](../../assets/webui-v0.5.4/zh-CN/recall.jpg)
+
 - **直接检索**返回原始证据，不启动 Agent；
 - **Agent 查询**使用相同证据，再启动 evidence-only 顶层任务 Agent 组织答案；
 - 各 Provider 并发返回，单个连接失败不隐藏其他来源；
@@ -145,9 +151,15 @@
 
 ### 内容与实体
 
-![保留来源的 Native 证据](../../assets/memory-space-terminology/zh-CN/content.jpg)
+![保留来源的 Native 证据](../../assets/webui-v0.5.4/zh-CN/content.jpg)
 
 内容页区分可枚举、仅查询和不可浏览；Provider 标签既可点击筛选，也可再次点击取消。实体页只聚合真实实体索引，目前包括 Mnemon Native、Hindsight 与 Holographic；普通文本不会被伪装成实体能力。
+
+[实体页](../../assets/webui-v0.5.4/zh-CN/entities.jpg)通过原生 APPSO 实体索引展示同一批导入证据的关联。
+
+### 窄屏布局
+
+390 × 844 的截图覆盖[目录导航](../../assets/webui-v0.5.4/zh-CN/spaces-mobile.jpg)、[长名称卡片](../../assets/webui-v0.5.4/zh-CN/space-directory-mobile.jpg)、[创建表单](../../assets/webui-v0.5.4/zh-CN/space-create-mobile.jpg)和[版本维护](../../assets/webui-v0.5.4/zh-CN/versions-mobile.jpg)。此宽度下长名称和部分指标会截断；这些浏览器截图不代表完整手机或所有 Host 设置页兼容，参见[已知限制](../reference/compatibility.md)。
 
 <a id="5-设置服务配置与记忆体实例分开"></a>
 

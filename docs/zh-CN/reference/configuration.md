@@ -112,9 +112,11 @@ mnemon:
 
 默认值保持已发布版本的 10240 / 4096 / 8192 行为。保存后会构建新的运行图，后续 Runtime 读取、写入、容量维护与 Mnemon Pack 校验统一使用这组上限。已有条目与 `memories.json` 格式不变。若把字节上限降低到当前用量以下，不会删除数据；Runtime 视图会显示超容状态，后续写入需要先压缩或重新提高上限。回滚只需删除该配置块或恢复默认值。
 
-下方隔离 DSH Web 对比图先展示默认 USER 4.0 KB / MEMORY 10.0 KB，再展示已生效的 USER 10.0 KB / MEMORY 20.0 KB 配置。两张截图均使用空的临时根，不含私有记忆。
+下方两张独立浅色截图来自 v0.5.4，保留同一批 20 条导入的运行时记忆。第一张使用默认 USER 4 KB / MEMORY 10 KB，第二张展示已保存的 USER 10 KB / MEMORY 20 KB 配置；列表均筛选为两条用户画像。采集后已将临时环境恢复为默认容量。
 
-[![Runtime Memory 默认容量与配置后容量对比](../../assets/screenshots/runtime-memory-capacity-configuration.png)](../../assets/screenshots/runtime-memory-capacity-configuration.png)
+![默认 USER 4 KB 与 MEMORY 10 KB 容量](../../assets/webui-v0.5.4/zh-CN/runtime.jpg)
+
+![配置为 USER 10 KB 与 MEMORY 20 KB，导入数据不变](../../assets/webui-v0.5.4/zh-CN/runtime-configured.jpg)
 
 ### Mnemon Native 嵌入
 
@@ -148,11 +150,11 @@ Endpoint 必须是不含凭据、查询参数或片段的 HTTP(S) 绝对 URL。M
 
 每层只有一个总开关。`enabled=true` 表示允许默认策略在需要时使用该层，并不强制每回合召回或写入；`enabled=false` 会同时停止该层的上下文注入、模型调用、后台处理和数据面 Web/RPC 操作。
 
-[![隔离安装的 v0.3 中文设置页：三个默认记忆层各有一个总开关](../../assets/screenshots/settings-memory-layers-zh-CN.jpg)](../../assets/screenshots/settings-memory-layers-zh-CN.jpg)
+[![v0.5.4 浅色中文设置页：三个默认记忆层各有一个总开关](../../assets/webui-v0.5.4/zh-CN/settings-layers.jpg)](../../assets/webui-v0.5.4/zh-CN/settings-layers.jpg)
 
 关闭是可逆的路由状态，不是删除操作。Sidebar 中对应 Tab 会保留并标记“已关闭”，页面不会读取数据面；状态、Catalog 和管理目录仍可观察。重新开启后使用原目录和原数据。
 
-[![关闭项目档案后的实际中文 Sidebar：Tab 保留，数据不被读取或删除](../../assets/screenshots/sidebar-layer-disabled-zh-CN.jpg)](../../assets/screenshots/sidebar-layer-disabled-zh-CN.jpg)
+[![关闭项目档案后的实际中文 Sidebar：Tab 保留，数据不被读取或删除](../../assets/webui-v0.5.4/zh-CN/documents-disabled.jpg)](../../assets/webui-v0.5.4/zh-CN/documents-disabled.jpg)
 
 WebUI 从实时管理目录读取 Source 实例，新增 Source 无须修改前端枚举。沿用的 `memoryTopology.layers` 是配置输入，不代表另有 Source 运行时。Source type id 匹配配置，Strategy 选择精确实例 key。设置更新有修订栅栏，候选组合验证成功后才替换；Core/Source 再检查能力、范围与当前权限。
 

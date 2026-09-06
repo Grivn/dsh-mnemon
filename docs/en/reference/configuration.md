@@ -110,9 +110,11 @@ mnemon:
 
 The defaults preserve the released 10240 / 4096 / 8192 behavior. Saving the block builds a new runtime generation, so subsequent Runtime reads, writes, capacity maintenance, and Mnemon Pack validation use the same limits. Existing entries and the `memories.json` format are unchanged. Lowering a byte limit below current usage does not delete data; the Runtime view reports the over-capacity state and further writes require compaction or a higher limit. Rollback only requires removing the block or restoring the defaults.
 
-The isolated DSH Web comparison below shows the default USER 4.0 KB / MEMORY 10.0 KB limits first, followed by the active USER 10.0 KB / MEMORY 20.0 KB configuration. Both captures use an empty temporary root and contain no private memory.
+These separate Light captures show the same 20 imported Runtime entries under v0.5.4. The first uses default USER 4 KB / MEMORY 10 KB limits; the second shows the saved USER 10 KB / MEMORY 20 KB configuration. Both filter the list to the two User Profile entries. The disposable environment was restored to its defaults after capture.
 
-[![Runtime Memory default and configured capacity comparison](../../assets/screenshots/runtime-memory-capacity-configuration.png)](../../assets/screenshots/runtime-memory-capacity-configuration.png)
+![Default USER 4 KB and MEMORY 10 KB limits](../../assets/webui-v0.5.4/en/runtime.jpg)
+
+![Configured USER 10 KB and MEMORY 20 KB limits with unchanged imported data](../../assets/webui-v0.5.4/en/runtime-configured.jpg)
 
 ### Mnemon Native embeddings
 
@@ -146,11 +148,11 @@ The endpoint must be an absolute HTTP(S) URL without credentials, query paramete
 
 Each Source has one master switch. `enabled=true` permits the default strategy to use the Source when needed; it does not force recall or writes on every turn. `enabled=false` stops that Source's context injection, model calls, background processing, and data-plane Web/RPC operations together.
 
-[![The isolated English v0.3 settings page gives each default Memory Source one master switch](../../assets/screenshots/settings-memory-layers-en.jpg)](../../assets/screenshots/settings-memory-layers-en.jpg)
+[![The v0.5.4 Light settings page gives each default Memory Source one master switch](../../assets/webui-v0.5.4/en/settings-layers.jpg)](../../assets/webui-v0.5.4/en/settings-layers.jpg)
 
 Disabling is reversible routing state, not deletion. The corresponding Sidebar tab remains visible with an Off badge and does not read the data plane; Status, Catalog, and management directories remain observable. Re-enabling uses the original directories and data.
 
-[![The actual English Sidebar after disabling Documents: its tab remains while data is neither read nor deleted](../../assets/screenshots/sidebar-layer-disabled-en.jpg)](../../assets/screenshots/sidebar-layer-disabled-en.jpg)
+[![The actual English Sidebar after disabling Documents: its tab remains while data is neither read nor deleted](../../assets/webui-v0.5.4/en/documents-disabled.jpg)](../../assets/webui-v0.5.4/en/documents-disabled.jpg)
 
 The WebUI reads Source instances from the live management catalog; no frontend enum is required for a new Source. The existing `memoryTopology.layers` keys remain configuration input, not a second Source runtime. Source type ids select configuration; a Strategy selects exact instance keys. Settings update under a revision fence, and candidate compilation must succeed before replacement. Core and Source boundaries recheck capability, scope and current authority.
 

@@ -17,7 +17,7 @@
 
 普通语义任务优先使用名为 `spawn` 的 Provider，并要求 `toolFilter`、`persona` 与 `depthLimit`。Mnemon 会为每次运行提供一个经过 schema 校验的一次性结果工具，不依赖 Provider 的 `outputSchema` 路径。可选的评分后台审查还要求名为 `fork`、且 `inheritsParentContext=true` 的 Provider。缺少 `fork` 不影响确定性页面读取和普通手动操作。
 
-Composable v0.5.2 精确固定经过验证的十六个官方插件组合。请阅读[补丁说明](../releases/v0.5.2.md)和[兼容性矩阵](../reference/compatibility.md)。DSH 基线为 0.1.2-rc.1，完整 profile 需要 Node `^22.19.0 || >=24.0.0`；Mnemon 的 Node 20 公开入口检查不代表完整 Host 兼容。当前界面示例使用隔离的 0.5.2 数据，旧发布记录保留原版本身份。
+Composable v0.5.4 精确固定经过验证的十六个官方插件组合。请阅读[补丁说明](../releases/v0.5.4.md)和[兼容性矩阵](../reference/compatibility.md)。DSH 基线为 0.1.2-rc.1，完整 profile 需要 Node `^22.19.0 || >=24.0.0`；Mnemon 的 Node 20 公开入口检查不代表完整 Host 兼容。当前界面示例来自 v0.5.4 浅色模式，先将备份导入隔离存储再采集；旧发布记录保留原版本身份。
 
 安装并核对已验证的 DSH 版本：
 
@@ -174,7 +174,7 @@ dsh --profile headless "回答前先检查持久化的项目上下文。"
 
 点击左侧栏“记忆系统”，先查看“状态”：
 
-![当前状态、Native 就绪情况与记忆数量](../../assets/showcase/zh-CN/status.png)
+![当前状态、Native 就绪情况与记忆数量](../../assets/webui-v0.5.4/zh-CN/status.jpg)
 
 确认：
 

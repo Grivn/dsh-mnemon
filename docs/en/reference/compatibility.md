@@ -15,7 +15,7 @@ The Starter pins a tested combination of official plugins. The table records ver
 
 See [Host compatibility evidence](../../pr-assets/dsh-rc1-compat/README.md), [upgrade evidence](../../pr-assets/main-rebase-20260904/README.md), and [current development checks](../development/README.md). A passing mechanism test is not an LLM quality benchmark. OS-specific and real-CLI checks may be skipped unless their environment is explicitly available.
 
-Current documentation capture passed desktop browsing and enhancement persistence in both languages, but found unusable settings layout at 390px. See [the explicit narrow-screen limitation](../../pr-assets/documentation-refresh/README.md); earlier responsive-dialog evidence is not a blanket guarantee for every current Host surface.
+The historical v0.5.2 capture found unusable settings layout at 390px; [that failure evidence](../../pr-assets/documentation-refresh/README.md) remains versioned. The [v0.5.4 Light capture](../../assets/webui-v0.5.4/README.md) covers bilingual desktop browsing plus Memory Space navigation, creation and version maintenance at 390 × 844. Long card names and some metrics truncate. It does not retest every Host settings surface or physical phones, so the earlier settings limitation is not declared resolved.
 
 ## Upgrade the default installation
 

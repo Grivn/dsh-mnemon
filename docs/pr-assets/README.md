@@ -8,7 +8,7 @@ These are dated engineering records, not a gallery of current product features. 
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
-| [Documentation refresh](./documentation-refresh/README.md) | Current bilingual media and an explicitly failed 390px resize check |
+| [Documentation refresh](./documentation-refresh/README.md) | Historical v0.5.2 bilingual media and an explicitly failed 390px resize check |
 | [Architecture cleanup](./architecture-cleanup/README.md) | Public package boundaries, UI and independent artifact verification |
 | [DSH rc.1 compatibility](./dsh-rc1-compat/README.md) | Published Host, Sidebar and Builtin |
 | [Main rebase — 2026-09-04](./main-rebase-20260904/README.md) | v0.4.7 upgrade, v0.5 composition and Registry evidence |
@@ -23,6 +23,6 @@ These are dated engineering records, not a gallery of current product features. 
 | [Sidebar icon](./sidebar-icon/README.md) | Entry icon alignment |
 | [npm Sidebar / CLI — 2026-08-30](./npm-sidebar-cli/README.md) | Historical npm control and fault-injection results |
 
-Image-only files also have references from GitHub PR bodies. A missing repository-local link is not sufficient evidence to delete them. Current product media belongs in [showcase](../assets/showcase/README.md); keep historical paths stable for external readers.
+Image-only files also have references from GitHub PR bodies. A missing repository-local link is not sufficient evidence to delete them. Current Light product media is indexed in [the asset directory](../assets/README.md); keep historical paths stable for external readers.
 
-部分独立图片由 GitHub PR 正文引用，不能仅凭仓库内无引用就删除。当前产品素材放在 [showcase](../assets/showcase/README.md)，历史资源路径保留供外部引用。
+部分独立图片由 GitHub PR 正文引用，不能仅凭仓库内无引用就删除。当前浅色产品素材见[素材目录](../assets/README.md)，历史资源路径保留供外部引用。

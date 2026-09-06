@@ -17,13 +17,13 @@
 
 <p align="center">
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/guides/ui-guide.md">
-    <img src="https://raw.githubusercontent.com/omdsh-dev/dsh-mnemon/main/docs/assets/memory-space-terminology/en/spaces.jpg" alt="Memory Spaces in the real DSH Sidebar with synthetic Atlas data" width="1180" />
+    <img src="https://raw.githubusercontent.com/omdsh-dev/dsh-mnemon/main/docs/assets/webui-v0.5.4/en/spaces.jpg" alt="Memory Spaces in the Light DSH Sidebar after importing a Mnemon Pack" width="1180" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/guides/getting-started.md"><strong>Get started</strong></a> ·
-  <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/e1b58f917289325ee430106385da2d4ff2c67153/docs/assets/showcase/demo.mp4">Watch the v0.5.2 demo</a> ·
+  <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/en/demo.mp4">Watch the v0.5.4 Light demo</a> ·
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/extensions.md">Build a plugin</a> ·
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/README.md">Documentation</a>
 </p>
@@ -119,4 +119,4 @@ pnpm verify
 pnpm verify:plugins
 ```
 
-Use Node.js `^22.19.0 || >=24.0.0` and pnpm 10.13.1. Package-level checks run independently; WebUI captures use disposable data and a real DSH Host. Tests of mechanics are not claims of LLM accuracy or live cloud-Provider conformance. [Development](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/README.md) · [Media provenance](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/memory-space-terminology/README.md).
+Use Node.js `^22.19.0 || >=24.0.0` and pnpm 10.13.1. Package-level checks run independently; WebUI captures use disposable data and a real DSH Host. Tests of mechanics are not claims of LLM accuracy or live cloud-Provider conformance. [Development](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/README.md) · [Media provenance](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/README.md).
