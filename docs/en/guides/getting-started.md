@@ -17,7 +17,7 @@ You need:
 
 Regular semantic work prefers a provider named `spawn` with `toolFilter`, `persona`, and `depthLimit`. Mnemon supplies a schema-validated, one-run result tool instead of depending on the Provider's `outputSchema` path. Optional score-based background review additionally requires a provider named `fork` with `inheritsParentContext=true`. Missing `fork` does not block deterministic pages or regular manual actions.
 
-The composable v0.5.2 distribution pins a verified combination of sixteen official plugins. Read the [patch notes](../releases/v0.5.2.md) and [compatibility matrix](../reference/compatibility.md). The DSH baseline is 0.1.2-rc.1; its complete profile requires Node `^22.19.0 || >=24.0.0`. Mnemon's Node 20 public-entry checks do not establish full Host compatibility. Current UI examples use isolated 0.5.2 data; old release records retain their original versions.
+The composable v0.5.4 distribution pins a verified combination of sixteen official plugins. Read the [patch notes](../releases/v0.5.4.md) and [compatibility matrix](../reference/compatibility.md). The DSH baseline is 0.1.2-rc.1; its complete profile requires Node `^22.19.0 || >=24.0.0`. Mnemon's Node 20 public-entry checks do not establish full Host compatibility. Current UI examples show v0.5.4 in Light appearance after a backup import into isolated storage; old release records retain their original versions.
 
 Install and verify the tested DSH release with:
 
@@ -174,7 +174,7 @@ In Workspace mode, conversation Agents, tools, and lifecycle hooks use the curre
 
 Click **Memory System** in the sidebar, then start on **Status**:
 
-![Current status with Native readiness and memory counts](../../assets/showcase/en/status.png)
+![Current status with Native readiness and memory counts](../../assets/webui-v0.5.4/en/status.jpg)
 
 Confirm that:
 

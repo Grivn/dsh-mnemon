@@ -22,7 +22,7 @@ Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"
 /mnemon status
 ```
 
-[![状态页：组件版本、三层数据与实际存储目录](../../assets/screenshots/status-overview.png)](../../assets/screenshots/status-overview.png)
+[![状态页：组件版本、三层数据与实际存储目录](../../assets/webui-v0.5.4/zh-CN/status.jpg)](../../assets/webui-v0.5.4/zh-CN/status.jpg)
 
 状态页显示 Mnemon / dsh-mnemon 版本、Runtime、Memory Spaces、Documents 和当前实际目录。`mnemon status` 会打开有效 Store，上游 CLI 可能初始化数据或执行迁移，因此不是完全无副作用的只读探测。
 
@@ -30,7 +30,7 @@ Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"
 
 状态页的“检查版本”打开“检查与更新版本”面板：
 
-[![检查与更新 Mnemon CLI 和 dsh-mnemon](../../assets/screenshots/version-check.png)](../../assets/screenshots/version-check.png)
+[![检查与更新 Mnemon CLI 和 dsh-mnemon](../../assets/webui-v0.5.4/zh-CN/versions.jpg)](../../assets/webui-v0.5.4/zh-CN/versions.jpg)
 
 - **Mnemon CLI**：本地版本来自 `mnemon --version`，最新版本来自官方 `@mnemon-dev/mnemon` npm 包。
 - **dsh-mnemon**：运行版本来自当前插件包，更新查询 npm `latest`；已安装的 beta/alpha/rc 同时查询自身通道，也可升级到更高的正式版。稳定版用户不会自动进入预发布通道。
@@ -40,6 +40,8 @@ Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"
 npm 更新要求当前启动器属于现有 npm 所报告的全局安装目录；不同 Node/npm 环境或启动器故障会显示修复指引。首次安装或迁移使用 `npm install --global @mnemon-dev/mnemon@latest`，后续使用 `mnemon update`。命令在 DSH 宿主运行，需要 Node.js 22+。修改 PATH 或 CLI 配置后，重新检查并核对面板中的可执行文件路径。
 
 展开 dsh-mnemon 子包列表，可按 Source、Strategy、Provider 查看版本。主包固定的依赖随主包更新，仅当前所属 Profile 中独立安装的包支持单独更新；源码链接保持原维护方式。包更新串行执行，重新检查或重开面板仍保留待重启提示。只读连接可检查版本与复制命令；页面更新需要管理权限且开启 `writeEnabled`。
+
+![展开子包，查看当前版本、主包固定版本与本地源码维护方式](../../assets/webui-v0.5.4/zh-CN/versions-expanded.jpg)
 
 Go 更新还要求当前执行文件确实位于本机 Go 的安装输出位置（`GOBIN`，或 `GOPATH` 第一项的 `bin` 目录），且未配置交叉编译目标。不能仅因下载的二进制包含 Go 构建信息就认定它由 Go 管理。CLI 更新后还会核验当前执行文件已达到所检查的版本，才报告成功。
 
@@ -67,6 +69,8 @@ DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然�
 - 相同 Memory Space ID + 相同数据库跳过，内容不同则生成新 ID。
 
 导入受 `writeEnabled` 控制，只读部署会拒绝。ZIP 包含私有记忆，应加密、限制访问并验证恢复。Provider 凭据保存在 `state/memory-providers.json`（`0600`），不会进入 ZIP。已保存的凭据值也不会经管理通道返回；若要备份连接，需要按下述离线快照保护整个 `state/`。
+
+![安全导入临时目录前的 Mnemon Pack 预览](../../assets/webui-v0.5.4/zh-CN/backup-preview.jpg)
 
 ### 恢复演练
 

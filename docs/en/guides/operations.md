@@ -22,7 +22,7 @@ Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"
 /mnemon status
 ```
 
-[![Status with component versions, three-tier data, and effective directories](../../assets/screenshots/status-overview.png)](../../assets/screenshots/status-overview.png)
+[![Status with component versions, three-tier data, and effective directories](../../assets/webui-v0.5.4/en/status.jpg)](../../assets/webui-v0.5.4/en/status.jpg)
 
 Status shows Mnemon / dsh-mnemon versions, Runtime, Memory Spaces, Documents, and effective directories. `mnemon status` opens the effective Store and may initialize data or run upstream migrations, so it is not a completely side-effect-free probe.
 
@@ -30,7 +30,7 @@ Status shows Mnemon / dsh-mnemon versions, Runtime, Memory Spaces, Documents, an
 
 **Check versions** on Status opens the version panel:
 
-[![Check and update Mnemon CLI and dsh-mnemon](../../assets/screenshots/version-check.png)](../../assets/screenshots/version-check.png)
+[![Check and update Mnemon CLI and dsh-mnemon](../../assets/webui-v0.5.4/en/versions.jpg)](../../assets/webui-v0.5.4/en/versions.jpg)
 
 - **Mnemon CLI**: installed from `mnemon --version`; latest from the official `@mnemon-dev/mnemon` npm package.
 - **dsh-mnemon**: installed from the running package; updates from npm `latest`. An installed beta/alpha/rc also checks its own channel and can graduate to a newer stable version. Stable users never opt into prereleases automatically.
@@ -40,6 +40,8 @@ Checking is read-only and never installs automatically. Update appears only when
 npm updates require the active launcher to belong to the global root reported by the current npm. A different Node/npm installation or a broken launcher shows repair guidance instead. Use `npm install --global @mnemon-dev/mnemon@latest` to install or migrate, then `mnemon update` for later updates. The commands run on the DSH Host and need Node.js 22+. After changing PATH or a CLI override, recheck the executable path shown in the dialog.
 
 Expand dsh-mnemon's subpackage list to inspect Sources, Strategies, and Providers. Starter pins update with the Starter. Only independently installed packages in the owning Profile can update individually; source links are preserved. Package writes are serialized, and restart reminders survive subsequent checks and reopening the dialog. Read-only connections retain checks and command copying; page updates require management authority and `writeEnabled`.
+
+![Expanded subpackages with installed versions, Starter pins and local-source maintenance](../../assets/webui-v0.5.4/en/versions-expanded.jpg)
 
 Go updates additionally require the active executable to resolve to the current Go installation output (`GOBIN`, or the first `GOPATH` entry's `bin` directory), with no cross-compilation target. A downloaded binary is not a Go-managed installation merely because it contains Go build metadata. CLI updates must verify that the active executable actually reaches the checked release before reporting success.
 
@@ -67,6 +69,8 @@ The UI offers safe merge, not “overwrite everything”:
 - Identical Memory Space ID + database is skipped; conflicting content receives a new ID.
 
 Import is governed by `writeEnabled` and is rejected in read-only deployments. A ZIP contains private memory—encrypt it, restrict access, and rehearse recovery. Provider credentials live in `state/memory-providers.json` with mode `0600`; they are excluded from ZIP. Saved credential values are not returned through management responses either. Protect the entire `state/` directory in the offline snapshot below if connections must be backed up.
+
+![Mnemon Pack preview before safe import into the disposable root](../../assets/webui-v0.5.4/en/backup-preview.jpg)
 
 ### Recovery rehearsal
 

@@ -17,13 +17,13 @@
 
 <p align="center">
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/guides/ui-guide.md">
-    <img src="https://raw.githubusercontent.com/omdsh-dev/dsh-mnemon/main/docs/assets/memory-space-terminology/zh-CN/spaces.jpg" alt="真实 DSH 侧栏中的记忆空间与合成 Atlas 数据" width="1180" />
+    <img src="https://raw.githubusercontent.com/omdsh-dev/dsh-mnemon/main/docs/assets/webui-v0.5.4/zh-CN/spaces.jpg" alt="导入 Mnemon Pack 后的浅色 DSH 记忆空间界面" width="1180" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/guides/getting-started.md"><strong>快速开始</strong></a> ·
-  <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/e1b58f917289325ee430106385da2d4ff2c67153/docs/assets/showcase/demo.mp4">观看 v0.5.2 演示（英文界面）</a> ·
+  <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/zh-CN/demo.mp4">观看 v0.5.4 浅色演示（中文界面）</a> ·
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/extensions.md">制作插件</a> ·
   <a href="https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/README.md">文档中心</a>
 </p>
@@ -119,4 +119,4 @@ pnpm verify
 pnpm verify:plugins
 ```
 
-使用 Node.js `^22.19.0 || >=24.0.0` 与 pnpm 10.13.1。各包可以独立验证；WebUI 素材来自临时数据和真实 DSH Host。机制测试不等于 LLM 准确度或真实云 Provider 一致性验证。[开发指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/README.md) · [素材来源](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/memory-space-terminology/README.md)。
+使用 Node.js `^22.19.0 || >=24.0.0` 与 pnpm 10.13.1。各包可以独立验证；WebUI 素材来自临时数据和真实 DSH Host。机制测试不等于 LLM 准确度或真实云 Provider 一致性验证。[开发指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/README.md) · [素材来源](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/README.md)。

@@ -6,9 +6,9 @@ The default entry is Sidebar. Optional Builtin placement embeds the same pages i
 
 ## See it in use
 
-Screenshots below show the memory space terminology update in the real local DSH WebUI, based on v0.5.3 and disposable Atlas data. Chinese uses **记忆空间** and English uses **memory space**. Existing data, IDs, and Provider connections are preserved. [Current capture details and limits](../../assets/memory-space-terminology/README.md).
+Screenshots below show the released **v0.5.4** interface in **Light** appearance, after importing a Mnemon Pack into a disposable local DSH environment. The imported data includes 20 Runtime entries, 12 Documents and four Memory Spaces, two active. Interface labels use **memory space / 记忆空间**; the original Chinese record content remains Chinese in both locales. [Capture details and limits](../../assets/webui-v0.5.4/README.md).
 
-The [v0.5.2 demonstration](../../assets/showcase/demo.mp4) remains a historical recording of browsing and reversible enhancement switches; its labels predate this terminology update.
+[Watch the 42-second Light demonstration](../../assets/webui-v0.5.4/en/demo.mp4): browse imported spaces, open and cancel drafts, retrieve evidence, inspect the graph, and check npm guidance and subpackage versions. The [full bilingual gallery](../../assets/webui-v0.5.4/README.md) also covers settings, backup import and narrow layouts.
 
 Older media remain available with their original version labels in [historical evidence](../../pr-assets/README.md).
 
@@ -32,7 +32,7 @@ Primary pages remain **Status, Runtime, Documents, Memory Spaces**. Memory Space
 
 ## 1. Status: establish readiness
 
-![Current status and Native readiness](../../assets/memory-space-terminology/en/status.jpg)
+![Current status and Native readiness](../../assets/webui-v0.5.4/en/status.jpg)
 
 The top Memory Engine area shows only dsh-mnemon. Mnemon Native has its own status bar; its failure does not become a global banner. External Providers appear below with enabled, health, and connection state.
 
@@ -40,13 +40,15 @@ The page loads concurrently and progressively. Only one region-level spinner rem
 
 ### Check versions
 
+![npm guidance for the detected CLI installation](../../assets/webui-v0.5.4/en/versions.jpg)
+
 Checking is read-only. Mnemon CLI distinguishes missing, unreadable, current, and update-available installations, with npm install, migration, or update commands that can be copied. Registry failures leave local installation guidance visible. Commands run on the DSH Host; verify the executable path after installing or changing PATH.
 
 Expand **Subpackage versions** under dsh-mnemon to inspect Sources, Strategies, and Providers. Each row shows installed and published versions, the Starter pin where applicable, and its maintenance method. Starter dependencies update with the Starter's tested combination; packages installed independently in the current Profile can update individually. Source links show local build instructions. Page updates require management access and `writeEnabled`; version checks and command copying remain available in read-only mode. Restart `dsh web` after package updates; the restart reminder remains on subsequent checks.
 
 ## Memory enhancements: expose stable behavior only
 
-![Default memory layers and three optional enhancements](../../assets/memory-space-terminology/en/enhancements.jpg)
+![Default memory layers and three optional enhancements](../../assets/webui-v0.5.4/en/enhancements.jpg)
 
 There is no standalone View page, and Status exposes no plugin catalog, dependency graph, or installation flow. The Starter ships three disabled enhancements using the same switches as other settings under **Settings → Memory System → Memory enhancements**:
 
@@ -58,7 +60,7 @@ A switch applies immediately to future turns; it never rewrites a turn that alre
 
 ## 2. Runtime: maintain every-turn context
 
-![Runtime scopes and a working-memory entry](../../assets/memory-space-terminology/en/runtime.jpg)
+![Runtime totals and two imported User Profile entries](../../assets/webui-v0.5.4/en/runtime.jpg)
 
 The header summarizes User Profile (`USER.md`) and Working Memory (`MEMORY.md`). A shared card style lists items below. Filter by source, text, category, and importance; clicking the current filter again never breaks the page. Long fields truncate within their own block and reveal the complete value on hover.
 
@@ -66,7 +68,7 @@ Runtime items should be compact, independent, and repeatedly useful. Working Mem
 
 ## 3. Documents: preserve complete project narratives
 
-![Atlas directory and Markdown reader](../../assets/memory-space-terminology/en/documents.jpg)
+![Imported project document directory and Markdown reader](../../assets/webui-v0.5.4/en/documents.jpg)
 
 Select a DSH workspace first: Documents needs a workspace identity even with global/custom storage. A selected conversation supplies its workspace; Workspace storage also allows explicit inspection selection. This identifies the project without changing the selected storage root.
 
@@ -80,7 +82,7 @@ Title and retrieval description determine discoverability, source path preserves
 
 ### Overview and live snapshot
 
-![An active native Memory Space](../../assets/memory-space-terminology/en/spaces.jpg)
+![Four imported Memory Spaces with two active](../../assets/webui-v0.5.4/en/spaces.jpg)
 
 Read the live snapshot in two layers from top to bottom:
 
@@ -88,6 +90,8 @@ Read the live snapshot in two layers from top to bottom:
 - The **Live multi-memory snapshot** merges those readable results into one relationship graph. Edge colors distinguish space ownership, temporal, semantic, causal, and entity-association links, while Provider and Memory Space labels preserve provenance.
 - The lower left reports total spaces, memories, and entities; the lower right reports currently rendered elements and connections. A value such as `60 / 129` is an interactive rendering window, not missing data.
 - Select a Memory Space, entity, or memory node to inspect its exact context on the right. Natural layout, dragging, and even reset change presentation only; they never rewrite Provider data.
+
+![Live graph from the two active native spaces](../../assets/webui-v0.5.4/en/graph.jpg)
 
 Each card represents a real space. Provider tags use color without duplicating icons inside tags; `Mnemon Native` appears as `mnemon` in the catalog. Click a card to reconnect only that Provider + ID. During reconnect, its state dot becomes an equal-size spinner; no global synchronization runs.
 
@@ -104,7 +108,7 @@ The UI never fabricates unsupported relationships, entities, deletion, or browse
 
 ### Create a Memory Space manually
 
-![Create a named memory space with a Provider](../../assets/memory-space-terminology/en/create.jpg)
+![Create a named memory space with a Provider](../../assets/webui-v0.5.4/en/space-create.jpg)
 
 Clicking Create always asks the user to choose a Provider explicitly. Only services enabled in Settings appear. Provider-specific fields use a vertical layout to avoid alignment drift. The new instance enters catalog, activation, and recall only after creation.
 
@@ -129,6 +133,8 @@ Normally, provide only a candidate. Confirmation starts a clean task Agent to qu
 
 ### Recall and Agent Query
 
+![Keyword recall of an imported record](../../assets/webui-v0.5.4/en/recall.jpg)
+
 - **Direct search** returns raw evidence without an Agent.
 - **Agent query** uses the same evidence, then starts an evidence-only top-level task Agent.
 - Providers return concurrently; one connection failure never hides other sources.
@@ -139,9 +145,15 @@ Focused questions are usually more reliable than broad keywords.
 
 ### Content and Entities
 
-![Native evidence with provenance](../../assets/memory-space-terminology/en/content.jpg)
+![Native evidence with provenance](../../assets/webui-v0.5.4/en/content.jpg)
 
 Content distinguishes enumerable, query-only, and unavailable surfaces. A Provider tag both applies a filter and clears it when clicked again. Entities aggregates only real indexes—currently Mnemon Native, Hindsight, and Holographic—rather than inferring capability from ordinary text.
+
+The [entity view](../../assets/webui-v0.5.4/en/entities.jpg) shows the same imported evidence connected through its native APPSO entity index.
+
+### Narrow layouts
+
+The 390 × 844 captures cover [directory navigation](../../assets/webui-v0.5.4/en/spaces-mobile.jpg), [long-name cards](../../assets/webui-v0.5.4/en/space-directory-mobile.jpg), the [creation sheet](../../assets/webui-v0.5.4/en/space-create-mobile.jpg) and [version maintenance](../../assets/webui-v0.5.4/en/versions-mobile.jpg). Long card names and some metrics truncate at this width. These browser captures do not establish complete phone or Host-settings compatibility; see [known limits](../reference/compatibility.md).
 
 ## 5. Settings: services are not Memory Space instances
 

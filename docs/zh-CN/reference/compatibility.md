@@ -15,7 +15,7 @@ Starter 固定经过测试的官方插件组合。下表记录验证范围，不
 
 参见[宿主兼容证据](../../pr-assets/dsh-rc1-compat/README.md)、[升级证据](../../pr-assets/main-rebase-20260904/README.md)与[当前开发检查](../development/README.md)。机制测试通过不是 LLM 质量评测通过；特定 OS 与真实 CLI 检查在没有对应环境时可能跳过。
 
-当前文档录制通过了中英文桌面浏览和增强开关持久化，但发现 390px 设置布局不可用。参见[明确记录的窄屏限制](../../pr-assets/documentation-refresh/README.md)；旧版弹窗响应式证据不代表当前 Host 所有界面均已通过。
+历史 v0.5.2 采集发现 390px 设置布局不可用，[失败证据](../../pr-assets/documentation-refresh/README.md)保留原版本身份。[v0.5.4 浅色采集](../../assets/webui-v0.5.4/README.md)覆盖双语桌面浏览，以及 390 × 844 下的记忆空间导航、创建与版本维护。长卡片名称和部分指标会截断；本次没有复测所有 Host 设置页或真实手机，因此不将早期设置限制标为已解决。
 
 ## 升级默认安装
 

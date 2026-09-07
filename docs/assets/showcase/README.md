@@ -1,6 +1,6 @@
-# Current WebUI showcase / 当前界面展示
+# Historical v0.5.2 WebUI showcase / v0.5.2 历史界面展示
 
-This is the historical v0.5.2 showcase. Current **memory space / 记忆空间** screenshots and responsive-layout evidence are in [the terminology update](../memory-space-terminology/README.md).
+This is the historical v0.5.2 showcase. Current **Light / 浅色** screenshots and bilingual recordings are in [the v0.5.4 gallery](../webui-v0.5.4/README.md). 当前素材入口为 v0.5.4 浅色图集；本目录保留历史截图与录制。
 
 
 Captured on **2026-09-06 (Asia/Shanghai)** from a real, isolated local DSH Web server. This is product documentation, not an LLM benchmark.
@@ -46,7 +46,7 @@ The screenshots show the default disabled enhancement state. The recording also 
 
 ## 中文说明
 
-本组素材来自真实本地 DSH、当前 0.5.2 实现与隔离的合成数据，不是设计稿或拼接界面。四条热记忆、两份档案及两个记忆空间由页面创建；四条长期证据由真实 CLI 写入夹具的明确存储根，未调用嵌入或模型。页面随后完成激活、同步与浏览。
+本组素材来自真实本地 DSH、当时的 0.5.2 实现与隔离的合成数据，不是设计稿或拼接界面。四条热记忆、两份档案及两个记忆空间由页面创建；四条长期证据由真实 CLI 写入夹具的明确存储根，未调用嵌入或模型。页面随后完成激活、同步与浏览。
 
 中英文桌面均验证了三个增强开关的开启、重新打开设置后的持久化，以及恢复默认关闭。390px 窄屏另发现设置裁切，失败证据单列，不计作通过。录屏为连续浏览器画面转码，保留真实按钮和内容。它不证明 LLM 效果、云 Provider 兼容性或真实手机表现。
 

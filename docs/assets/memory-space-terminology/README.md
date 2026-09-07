@@ -1,5 +1,9 @@
 # Memory space terminology UI evidence
 
+This is the pre-release terminology evidence. Current Light screenshots and bilingual recordings using imported data are in [the v0.5.4 gallery](../webui-v0.5.4/README.md).
+
+本目录是版本化前的用语改动证据。当前浅色截图与双语录制已移至 [v0.5.4 图集](../webui-v0.5.4/README.md)，使用备份导入数据。
+
 Captured on 2026-09-07 from the real local DSH WebUI, using the `codex/memory-space-terminology` working tree based on v0.5.3 (`7e6216094a9361e9abb091a5edb2b83cb7ed05df`). The version badge identifies the base package version. These captures were made before versioning and include the terminology update released in v0.5.4.
 
 ## Environment and scope
