@@ -60,12 +60,14 @@ Headless 会获得完整模型工具面。它把命令行任务作为普通用�
 | `mnemon_document_manage` | 创建、更新或归档档案 | 创建/更新确定性；归档使用 worker |
 | `mnemon_remember` | 按 Provider 语义沉淀洞察，回执区分已接受与持久提交 | `spawn` write worker |
 | `mnemon_link` | 在支持能力的 Provider 中建立 typed relationship | `spawn` write worker |
-| `mnemon_forget` | 在支持能力的 Provider 中按精确 ID 删除 | `spawn` write worker |
+| `mnemon_forget` | 在支持能力的 Provider 中按精确 ID 删除 | 仅限显式操作的 `spawn` write worker；自主蒸馏不含此工具 |
 | `mnemon_memory_body_create` | 由 Agent 创建独立 Mnemon Native 记忆空间；第三方连接只由用户在 WebUI 管理 | `spawn` write worker |
 | `mnemon_memory_body_update` | 更新名称、说明或 active | `spawn` write worker |
 | `mnemon_memory_body_merge` | 非破坏性合并 Mnemon Native 记忆空间 | `spawn` write worker |
 
 worker 内调用同名工具时直接进入服务层，不再递归委派。
+
+自主 write worker（蒸馏与 supervised writeback 运行）自行决定写入内容，因此宿主在其硬性工具白名单中排除了 `mnemon_forget`：遇到重复或冲突时只能跳过或写入修正后的条目，不能删除已有记忆。请求目标由用户或用户侧流程显式给出的操作（`/mnemon forget`、`mnemon_link` 与记忆空间管理）保留完整 write 工具面。
 
 `mnemon_runtime_memory` 的 `target=memory` 写入支持可选 `branches` 数组（git 分支名）。带分支范围的条目只在会话 workspace 处于所列分支上时投影进每回合 Runtime 快照；无分支标签的条目始终投影。`replace` 时提供 `branches` 修改范围，传空数组清除范围，省略则保持当前范围；该参数对 `target=user` 会被拒绝。
 
@@ -76,7 +78,7 @@ worker 内调用同名工具时直接进入服务层，不再递归委派。
 - **记忆空间**：需要跨任务保留，或适合图关系与深召回的稳定事实、决策和洞察。
 - **跳过**：问题、猜测、临时进度、完成日志、原始输出、秘密和可轻易从仓库重新发现的普通事实。
 
-`mnemon_forget` 是破坏性语义操作；只有用户明确要求，或内容已确认错误 / 过时时才应执行。
+`mnemon_forget` 是破坏性语义操作；只有用户明确要求，或内容已确认错误 / 过时时才应执行。宿主通过把该工具排除出自主 worker 的白名单来强制这一点；用户明确要求时主代理仍可调用。
 
 ## `/mnemon` 命令
 

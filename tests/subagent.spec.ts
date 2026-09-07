@@ -1062,6 +1062,33 @@ describe('Mnemon memory subagent coordinator', () => {
     expect((host.start.mock.calls[0] as unknown as [string, { prompt: Array<{ text: string }> }])[1].prompt[0]!.text).not.toMatch(/catalog_json|request_json|dbPath/)
   })
 
+  it('excludes destructive forget from autonomous distillation runs (issue 148)', async () => {
+    const host = subagents({ summary: 'Stored in project.', action: 'stored', memoryBodyIds: ['project'] })
+    const coordinator = createCoordinator(host.value)
+    await coordinator.remember(parent(), { content: 'Durable choice' }, new AbortController().signal)
+    const rememberCall = (host.start.mock.calls[0] as unknown as [string, { toolFilter: { allow: string[] }; persona: string }])[1]
+    expect(rememberCall.toolFilter.allow).toContain('mnemon_remember')
+    expect(rememberCall.toolFilter.allow).not.toContain('mnemon_forget')
+    expect(rememberCall.persona).toContain('you cannot and must not delete existing entries')
+  })
+
+  it('excludes destructive forget from supervised writeback runs (issue 148)', async () => {
+    const host = subagents({ summary: 'Stored in project.', action: 'stored', memoryBodyIds: ['project'] })
+    const coordinator = createCoordinator(host.value)
+    await coordinator.write(parent(), 'supervised-writeback', { content: 'Live user candidate' }, new AbortController().signal)
+    const writebackCall = (host.start.mock.calls[0] as unknown as [string, { toolFilter: { allow: string[] } }])[1]
+    expect(writebackCall.toolFilter.allow).not.toContain('mnemon_forget')
+    expect(writebackCall.toolFilter.allow).toContain('mnemon_remember')
+  })
+
+  it('keeps the forget tool for explicit user forget operations', async () => {
+    const host = subagents({ summary: 'Forgot m1.', action: 'forgotten', memoryBodyIds: ['project'] })
+    const coordinator = createCoordinator(host.value)
+    await coordinator.write(parent(), 'forget', { id: 'm1' }, new AbortController().signal)
+    const forgetCall = (host.start.mock.calls[0] as unknown as [string, { toolFilter: { allow: string[] } }])[1]
+    expect(forgetCall.toolFilter.allow).toContain('mnemon_forget')
+  })
+
   it('selects a provider in a tool-free child and keeps user policy out of the persona', async () => {
     const host = subagents({
       providerId: 'work-account',

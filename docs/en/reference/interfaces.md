@@ -60,12 +60,14 @@ Model tools, lifecycle hooks, and system scheduling use an `automatic` trigger. 
 | `mnemon_document_manage` | Create, update, or archive a Document | Create/update deterministic; archive uses a worker |
 | `mnemon_remember` | Retain one insight under Provider semantics; distinguish acceptance from durable completion | `spawn` write worker |
 | `mnemon_link` | Create a typed relationship where the provider supports it | `spawn` write worker |
-| `mnemon_forget` | Delete an exact ID where the provider supports it | `spawn` write worker |
+| `mnemon_forget` | Delete an exact ID where the provider supports it | `spawn` write worker for explicit operations only; excluded from autonomous distillation |
 | `mnemon_memory_body_create` | Let an Agent create a Mnemon Native space; third-party connections remain user-managed in WebUI | `spawn` write worker |
 | `mnemon_memory_body_update` | Update name, description, or active state | `spawn` write worker |
 | `mnemon_memory_body_merge` | Non-destructively merge Mnemon Native spaces | `spawn` write worker |
 
 When a worker invokes the same tool name, it reaches the service directly and is not delegated recursively.
+
+Autonomous write workers — distillation and supervised writeback runs — decide content on their own, so the host excludes `mnemon_forget` from their hard tool allowlist: a duplicate or conflict is resolved by skipping or storing a corrected entry, never by deleting the existing one. Operations whose request names an exact target supplied by the user or a user-facing flow (`/mnemon forget`, `mnemon_link`, and Memory Space management) keep the full write toolset.
 
 `mnemon_runtime_memory` accepts an optional `branches` array (git branch names) for `target=memory` writes. Branch-scoped entries are projected into the per-turn Runtime snapshot only when the session's workspace is checked out on a listed branch; untagged entries are always projected. On `replace`, providing `branches` changes the scope, an empty array clears it, and omitting it keeps the current scope. The parameter is rejected for `target=user`.
 
@@ -76,7 +78,7 @@ When a worker invokes the same tool name, it reaches the service directly and is
 - **Memory Spaces**: stable facts, decisions, and insights that must survive across tasks or benefit from graph relationships.
 - **Skip**: questions, guesses, temporary progress, completion logs, raw output, secrets, and ordinary repository facts that are easy to rediscover.
 
-`mnemon_forget` is a destructive semantic action. Use it only on explicit request or after confirming that content is wrong or obsolete.
+`mnemon_forget` is a destructive semantic action. Use it only on explicit request or after confirming that content is wrong or obsolete. The host enforces this for autonomous workers by excluding the tool from their allowlist; the main agent can still call it when the user explicitly asks.
 
 ## `/mnemon` commands
 
