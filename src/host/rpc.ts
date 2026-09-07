@@ -353,10 +353,20 @@ export function createPackHandler(input: LiveMnemonRuntime): HostRpcHandler {
   }
 }
 
-export function registerRpc(connection: HostConnectionHandle, input: LiveMnemonRuntime, lifecycle?: MnemonLifecycle, versions?: VersionUpdateManager, managementAuthority: HostRpcAuthority = 'loopback'): void {
+export function registerRpc(connection: HostConnectionHandle, input: LiveMnemonRuntime, lifecycle?: MnemonLifecycle, versions?: VersionUpdateManager, managementAuthority: HostRpcAuthority = 'loopback'): {
+  read: HostRpcHandler
+  activation: HostRpcHandler
+  write: HostRpcHandler
+  pack: HostRpcHandler
+} {
   const versionManager = versions ?? new VersionUpdateManager({ mnemonCliPath: () => input.config.cliPath })
-  connection.rpc.handle(MNEMON_READ_CHANNEL, createReadHandler(input, lifecycle, versionManager), { authority: 'trusted-host' })
-  connection.rpc.handle(MNEMON_ACTIVATION_CHANNEL, createActivationHandler(input), { authority: 'trusted-host' })
-  connection.rpc.handle(MNEMON_WRITE_CHANNEL, createWriteHandler(input, lifecycle, versionManager), { authority: managementAuthority })
-  connection.rpc.handle(MNEMON_PACK_CHANNEL, createPackHandler(input), { authority: managementAuthority })
+  const readHandler = createReadHandler(input, lifecycle, versionManager)
+  const activationHandler = createActivationHandler(input)
+  const writeHandler = createWriteHandler(input, lifecycle, versionManager)
+  const packHandler = createPackHandler(input)
+  connection.rpc.handle(MNEMON_READ_CHANNEL, readHandler, { authority: 'trusted-host' })
+  connection.rpc.handle(MNEMON_ACTIVATION_CHANNEL, activationHandler, { authority: 'trusted-host' })
+  connection.rpc.handle(MNEMON_WRITE_CHANNEL, writeHandler, { authority: managementAuthority })
+  connection.rpc.handle(MNEMON_PACK_CHANNEL, packHandler, { authority: managementAuthority })
+  return { read: readHandler, activation: activationHandler, write: writeHandler, pack: packHandler }
 }

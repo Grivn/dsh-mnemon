@@ -137,6 +137,8 @@ export function createSettingsHandler(settings: HostSettingsService): HostRpcHan
   }
 }
 
-export function registerSettingsRpc(connection: HostConnectionHandle, settings: HostSettingsService, authority: HostRpcAuthority = 'loopback'): void {
-  connection.rpc.handle(MNEMON_SETTINGS_CHANNEL, createSettingsHandler(settings), { authority })
+export function registerSettingsRpc(connection: HostConnectionHandle, settings: HostSettingsService, authority: HostRpcAuthority = 'loopback'): HostRpcHandler {
+  const handler = createSettingsHandler(settings)
+  connection.rpc.handle(MNEMON_SETTINGS_CHANNEL, handler, { authority })
+  return handler
 }

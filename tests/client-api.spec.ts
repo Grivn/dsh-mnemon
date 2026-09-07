@@ -27,6 +27,66 @@ describe('MnemonClient product transport', () => {
     }]])
   })
 
+  it('routes a paired remote client through namespaced shared endpoints', async () => {
+    const call = vi.fn(async (_channel: string, _endpoint: string, _payload: unknown) => ({
+      ok: true as const,
+      value: { ok: true as const, value: {} },
+    }))
+    const client = new MnemonClient({ isLoopback: false, rpc: { call } } as ClientConnectionHandle, 'session-1')
+    await client.statusSummary()
+    await client.mutateSourceManagement('source:spaces', 'body-update', {}, 'r1', true)
+    await client.assistSource('source:spaces', 'activation', { memoryBodyId: 'project', active: true }, 'r1', true)
+    await client.packTarget()
+    await client.applyView({ expectedRevision: 'view-1', strategyTypeId: 'default-three-tier', entries: {} })
+
+    expect(call.mock.calls.map(([channel, endpoint, payload]) => [channel, endpoint, (payload as { args: { endpoint: string } }).args.endpoint])).toEqual([
+      ['/api', 'dshMnemon/read', 'status-summary'],
+      ['/api', 'dshMnemon/write', 'source-management-mutate'],
+      ['/api', 'dshMnemon/activation', 'source-assistance'],
+      ['/api', 'dshMnemon/pack', 'target'],
+      ['/api', 'dshMnemon/viewWrite', 'apply'],
+    ])
+    expect(call.mock.calls[0]?.[2]).toEqual({ args: { endpoint: 'status-summary', payload: { sessionId: 'session-1' } } })
+  })
+
+  it('detects a paired remote page when an older Connection omits isLoopback', async () => {
+    vi.stubGlobal('location', { hostname: 'rsi.example' })
+    try {
+      const call = vi.fn(async () => ({
+        ok: true as const,
+        value: { ok: true as const, value: { healthy: true } },
+      }))
+      const client = new MnemonClient({ rpc: { call } } as ClientConnectionHandle, 'session-1')
+
+      await client.statusSummary()
+
+      expect(call).toHaveBeenCalledWith('/api', 'dshMnemon/read', {
+        args: { endpoint: 'status-summary', payload: { sessionId: 'session-1' } },
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('uses the page origin when a remote desktop reports host ownership as loopback', async () => {
+    vi.stubGlobal('location', { hostname: 'rsi.example' })
+    try {
+      const call = vi.fn(async () => ({
+        ok: true as const,
+        value: { ok: true as const, value: { healthy: true } },
+      }))
+      const client = new MnemonClient({ isLoopback: true, rpc: { call } } as ClientConnectionHandle)
+
+      await client.statusSummary()
+
+      expect(call).toHaveBeenCalledWith('/api', 'dshMnemon/read', {
+        args: { endpoint: 'status-summary', payload: {} },
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('shares one bulk projection across all turn tails until the durable cursor advances', async () => {
     let cursor = 7
     const call = vi.fn(async (_channel: string, endpoint: string) => {

@@ -3,6 +3,7 @@ import { dirname, relative, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { UserConfig, TsdownPlugin } from 'tsdown'
 import { transform } from 'lightningcss'
+import ts from 'typescript'
 
 const PLUGIN_ID = 'dsh-mnemon'
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
@@ -29,6 +30,7 @@ const host: UserConfig = {
   dts: false,
   clean: true,
   deps: { neverBundle: true },
+  plugins: [standardDecoratorsPlugin()],
 }
 
 const client: UserConfig = {
@@ -94,6 +96,25 @@ export function clientCssPlugin(injectStyles = true): TsdownPlugin {
         '}',
         `export default ${JSON.stringify(classMap)};`,
       ].join('\n')
+    },
+  }
+}
+
+/** Lower standard decorators because Rolldown currently preserves their syntax. */
+function standardDecoratorsPlugin(): TsdownPlugin {
+  return {
+    name: 'dsh-mnemon-standard-decorators',
+    transform(code: string, id: string) {
+      if (!id.replaceAll('\\', '/').endsWith('/src/host/remote-rpc.ts')) return null
+      const output = ts.transpileModule(code, {
+        fileName: id,
+        compilerOptions: {
+          target: ts.ScriptTarget.ES2022,
+          module: ts.ModuleKind.ESNext,
+          verbatimModuleSyntax: true,
+        },
+      })
+      return { code: output.outputText, map: null }
     },
   }
 }

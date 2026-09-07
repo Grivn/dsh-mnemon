@@ -29,6 +29,16 @@ export const MNEMON_ACTIVATION_CHANNEL = '/dsh-mnemon-activation'
 export const MNEMON_WRITE_CHANNEL = '/dsh-mnemon-write'
 export const MNEMON_PACK_CHANNEL = '/dsh-mnemon-pack'
 export const MNEMON_SETTINGS_CHANNEL = '/dsh-mnemon-settings'
+/** DSH API Gateway endpoints used by paired remote Web clients. */
+export const MNEMON_REMOTE_CHANNEL = '/api'
+export const MNEMON_REMOTE_NAMESPACE = 'dshMnemon'
+export const MNEMON_REMOTE_READ_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/read`
+export const MNEMON_REMOTE_ACTIVATION_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/activation`
+export const MNEMON_REMOTE_WRITE_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/write`
+export const MNEMON_REMOTE_PACK_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/pack`
+export const MNEMON_REMOTE_SETTINGS_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/settings`
+export const MNEMON_REMOTE_VIEW_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/view`
+export const MNEMON_REMOTE_VIEW_WRITE_ENDPOINT = `${MNEMON_REMOTE_NAMESPACE}/viewWrite`
 export const MNEMON_SETTINGS_NAMESPACE = 'mnemon'
 export const MNEMON_UI_SETTINGS_NAMESPACE = 'mnemon-ui'
 export * from './view-protocol.ts'
