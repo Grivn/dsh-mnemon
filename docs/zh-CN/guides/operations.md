@@ -127,9 +127,9 @@ DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然�
 
    公网入口使用非默认端口时，应传入准确 authority，例如 `memory.example.com:8443`。DSH 会刻意拒绝 `--host 0.0.0.0`；请让服务保持在回环地址，只由代理或 SSH tunnel 访问。
 3. 如果浏览器还没有该公网 authority 的有效 Cookie，请使用终端里以 `dsh web: ...` 输出的启动 token URL。经过反向代理时，只把其中的回环 origin 替换成公网 HTTPS origin，保留 `/` 路径与 `?token=...` query。例如把 `http://127.0.0.1:3080/?token=...` 转为 `https://memory.example.com/?token=...`。该 URL 等同凭据，不要放入日志、Issue 或聊天。DSH 会把它交换为 HttpOnly、SameSite Cookie，再重定向到干净的 `/`；尚未过期且 authority 相同的 Cookie 可以跨 Host 重启继续使用。
-4. 打开干净的公网 URL，确认“状态”和“设置 → 记忆系统”都能加载，一次有意的小范围设置保存成功，并且整页刷新后仍保持认证。
+4. 打开干净的公网 URL，确认“状态”和“设置 → 记忆系统”都能加载，并且整页刷新后仍保持认证。远程设置默认只读；需要管理时，先应用[显式远程管理授权](#remote-management)、重启 DSH，再验证一次有意的小范围保存。
 
-HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端口与代理是否保留 `Host`。HTTP 401 表示浏览器会话缺失或无效：重新使用当前进程的启动 token URL。DSH 0.1.2-alpha.5 使用相同的浏览器会话模型，并继续作为直接前序源码兼容目标；两个版本都会忽略 Mnemon 保留的 `remoteAccess` 兼容设置。
+HTTP 403 可能来自 Host/Origin 不匹配，或旧远程 Client 仍调用独立通道。请检查 `--trusted-host`、公网 authority 与代理路由，再升级至 dsh-mnemon v0.5.5 或更高版本、重启 DSH 并刷新浏览器；远程 Mnemon 调用使用已认证 API Gateway。HTTP 401 需要恢复 Host 浏览器认证或配对。若返回远程管理需要 `remoteAccess: trusted-host`，则是另一个 Mnemon 授权检查；浏览器认证成功本身不授予管理权限。
 
 ### 停用完整 Starter
 
@@ -142,9 +142,12 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 
 该开关会同时停用 Core/Host、三个随附 Source、默认 Strategy 和三个可选 Strategy 增强，不会卸载包或删除记忆数据。删除该覆盖项，或把它改为 `false`，再重启 DSH，即可重新启用完整 Starter。
 
-### 回滚到 DSH 0.1.1-rc.2
+<a id="remote-management"></a>
+<a id="回滚到-dsh-011-rc2"></a>
 
-上一条 rc.2 版本线使用逐方法 authority 层，而不是浏览器会话模型。普通读取与激活可以使用 `trusted-host`，设置、备份、Provider 连接和宽泛 mutation 则默认保持 loopback，只有 Host 本地 Mnemon 配置才能整体提升这些管理通道。远程使用 rc.2 时，公网入口必须已经具备可靠的用户认证。
+### 远程管理与 DSH 0.1.1-rc.2 回滚
+
+对于 v0.5.5 已认证网关客户端，`remoteAccess: trusted-host` 授予管理操作；默认远程读取与小范围激活不需要该授权。旧 DSH rc.2 通过逐方法 authority 层执行同一份本地配置，设置、备份与宽泛 mutation 默认仅限 loopback。仅为预期的已认证用户配置远程管理权限。
 
 1. 打开 `~/.dsh/profiles/web/cordis.patch.yml`；如果设置了 `DSH_HOME`，则路径为 `$DSH_HOME/profiles/web/cordis.patch.yml`。如果已经有顶层 `- id: mnemon`，请直接修改该项，不要添加重复项。如果初始化文件仍以 `[]` 结尾，请用下面的完整配置行替换它；否则把该行追加到现有顶层 YAML 列表：
 
@@ -176,7 +179,7 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 
    Profile patch 会替换目标行的完整 `config`，不会只深度合并一个字段。请保留已有自定义项；插件升级后用 `dsh web --dump-default-config` 对照它，避免遮蔽新增的包内默认值。
 2. 运行 `dsh web --dump-config` 检查最终配置树。确认最后的 `mnemon` 行包含 `remoteAccess: trusted-host`，并且 stderr 没有报告无法匹配 `mnemon` 目标。
-3. 使用同一条 `--trusted-host` 命令启动 rc.2。每次修改 `remoteAccess` 后都要重启，因为 Mnemon 只在启动时捕获该策略。最后通过带认证的代理验证“状态”、设置加载和一次有意的小范围保存。
+3. 使用同一条 `--trusted-host` 命令启动 DSH。每次修改 `remoteAccess` 后都要重启，因为 Mnemon 只在启动时捕获该策略。最后通过已认证远程连接验证“状态”、设置加载和一次有意的小范围保存。
 
 ## 安全边界
 
@@ -197,7 +200,7 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 
 ### Web 与模型
 
-- DSH 0.1.2-rc.1 与它的 alpha.5 前序版本中，所有 RPC 与 stream 都要求同一个已认证浏览器会话；保留的 `remoteAccess` 不影响 transport。
+- DSH 负责远程 RPC 与 stream 的认证或配对；v0.5.5 Mnemon 网关映射对管理操作另行要求 `remoteAccess: trusted-host`，本地回环客户端保留旧通道。
 - DSH 0.1.1-rc.2 中，读与激活使用 `trusted-host`；写、设置和备份默认保持 `loopback`，只有 Host 本地 `remoteAccess: trusted-host` 才会将三者整体提升。
 - Provider 目录和管理响应始终脱敏；界面只显示已配置字段名，不返回已保存凭据值。
 - WebUI 依据 Host 返回的可写 settings snapshot 判断产品能力，不再根据传输位置猜测权限；设置通道不可用时会显示明确诊断，而不是空白页。
@@ -237,7 +240,7 @@ HTTP 403 通常来自 Host/Origin 防线：检查 `--trusted-host`、公网端�
 | ZIP 导出提示 WAL busy | 等待 Memory Space 写入完成并重试；不要绕过未 checkpoint WAL 检查 |
 | ZIP 导入 checksum / schema 失败 | 备份损坏或格式不兼容；保留当前根，不要手工解压覆盖 |
 | 更新按钮不出现 | 当前已是最新、远程检查失败，或安装来源是 link / 手工模式；按面板提示沿原方式更新 |
-| rc.2 远程页面能切换记忆空间，但不能执行其他写操作 | 默认安全设计；仅在入口已有可靠认证时，本地设置 `remoteAccess: trusted-host`、配置 DSH `trustedHosts` 并重启 Host |
+| 已认证远程页面能读取或激活记忆空间，但不能保存设置或执行其他写入 | 默认管理限制；确需远程管理时，保留当前配置、在本地设置 `remoteAccess: trusted-host` 并重启 DSH |
 | alpha 中 DSH 重启或 authority 改变后 Mnemon RPC 返回 401 | 打开 `dsh web` 输出的启动 URL，让一次性 token 建立新的、与 authority 绑定的浏览器 Cookie |
 
 ## 已知限制
