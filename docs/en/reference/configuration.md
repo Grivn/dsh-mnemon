@@ -56,7 +56,7 @@ mnemon:
     mode: inherit # inherit | fixed
     # provider: deepseek # required for fixed
     # model: deepseek-chat # required for fixed
-  remoteAccess: read-only # rc.2 only: read-only | trusted-host
+  remoteAccess: read-only # remote management: read-only | trusted-host
 ```
 
 ## Options
@@ -90,7 +90,7 @@ mnemon:
 | `tabEnabled` | `true` | boolean | Whether to mount the selected entry and workbench; Host RPC, commands, and Agent tools remain registered when off |
 | `writeEnabled` | `true` | boolean | Whether to expose semantic write tools, write RPC, and write commands |
 | `taskAgentModel` | `{ mode: inherit }` | `inherit` / `fixed` | Model route for independent task Agents used by AI metadata, Agent Query, memory distillation, and Document archiving, plus the idle-review worker; `fixed` requires both `provider` and `model` and also pins their bounded workers for write, answer, provider placement, migration, compaction, archive, and metadata maintenance. Conversation Recall and Related are direct Host reads and do not use this route |
-| `remoteAccess` | `read-only` | `read-only` / `trusted-host` | Startup-only DSH 0.1.1-rc.2 rollback policy for non-loopback Mnemon management RPC; ignored by DSH 0.1.2-alpha.5 and 0.1.2-rc.1 |
+| `remoteAccess` | `read-only` | `read-only` / `trusted-host` | Startup-only grant for non-loopback Mnemon management; enforced by the API Gateway projection and retained for legacy DSH 0.1.1-rc.2 channels |
 | `mnemon-ui.turnBar` | `true` | boolean | Turn-tail memory activity bar; on by default, **applies live after saving** |
 | `mnemon-ui.saveAction` | `true` | boolean | “Save to memory” icon and confirmation on finalized assistant replies; on by default, **applies live after saving** |
 
@@ -164,9 +164,9 @@ These pure recall-quality policies belong to the Memory Spaces Source. Configura
 
 ### Browser authentication
 
-One branch-free registration path supports the stable DSH 0.1.2-rc.1 baseline, its alpha.5 predecessor, and the previous 0.1.1-rc.2 line. Mnemon always supplies the trailing authority object required by rc.2; the 0.1.2 two-argument JavaScript implementation naturally ignores it, so no package-version check or capability branch is involved.
+Legacy channel registration supports the stable DSH 0.1.2-rc.1 baseline, its alpha.5 predecessor, and the previous 0.1.1-rc.2 line. Mnemon supplies the trailing authority object required by rc.2; the 0.1.2 two-argument JavaScript implementation naturally ignores that argument. The remote Gateway projection applies its management grant separately.
 
-DSH 0.1.2-rc.1 and alpha.5 authenticate every Mnemon RPC through the browser session established from the Host's launch-token URL and signed, authority-bound cookie. They ignore `remoteAccess`, which remains accepted solely so the same plugin configuration can roll back to rc.2 safely. DSH `trustedHosts` remains a Host/Origin fence, not a replacement for HTTPS or deployment access controls.
+DSH owns browser authentication or pairing and Host/Origin validation. Since dsh-mnemon v0.5.5, remote pages use the namespaced API Gateway; local loopback clients retain legacy channels. Mnemon's Gateway projection separately enforces `remoteAccess`: `read-only` allows ordinary reads, narrow activation and settings inspection, but rejects writes, ZIP operations, View mutations and settings changes. Settings snapshots report `writable: false` without the `trusted-host` grant. Restart DSH after changing this startup-only policy. DSH `trustedHosts` does not replace HTTPS or deployment access controls.
 
 On DSH 0.1.1-rc.2, `remoteAccess` remains a real startup security boundary and cannot be changed through Web settings. The default `read-only` mode keeps settings, ZIP backups, Provider connections, and broad mutations loopback-only; `trusted-host` promotes all three management channels together and must be used only behind reliable deployment authentication. `writeEnabled=false` is a product-level read-only mode on every supported version; it is not a substitute for transport authentication.
 
@@ -360,7 +360,7 @@ If the old value comes only from a composition profile, migration saves a canoni
 
 The bundled `cordis.patch.yml` provides the default config row. A DSH profile configuration with the same ID may replace that row as a whole. Do not add only `cliPath` to a final profile patch: use `MNEMON_CLI_PATH` or the `mnemon.cliPath` user setting instead. When a profile patch must be customized for another reason, retain every key that must remain enabled instead of assuming a deep merge.
 
-The `remoteAccess` override needed for a cloud rc.2 rollback is one such whole-row customization. Stable DSH 0.1.2-rc.1 does not need that override. When rc.2 is required, use the complete, upgrade-aware example in the [cloud-hosted WebUI procedure](../guides/operations.md#cloud-hosted-webui), not a standalone `config: { remoteAccess: trusted-host }` fragment.
+A `remoteAccess` override for authenticated Gateway management or a cloud rc.2 rollback is one such whole-row customization. Use the complete, upgrade-aware example in the [remote management procedure](../guides/operations.md#remote-management), preserving the rest of the current configuration; a standalone `config: { remoteAccess: trusted-host }` fragment replaces those other fields.
 
 ## Common Configurations
 

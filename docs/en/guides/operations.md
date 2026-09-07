@@ -127,9 +127,9 @@ Stable DSH 0.1.2-rc.1 is the recommended registry target. It authenticates the p
 
    For a non-default public port, use the exact authority, for example `memory.example.com:8443`. DSH deliberately rejects `--host 0.0.0.0`; keep the service on loopback and let the proxy or an SSH tunnel reach it.
 3. For a browser that does not already have a valid cookie for this public authority, use the launch-token URL printed as `dsh web: ...`. With a reverse proxy, replace only the printed loopback origin with the public HTTPS origin and preserve the `/` path and `?token=...` query. For example, transform `http://127.0.0.1:3080/?token=...` into `https://memory.example.com/?token=...`. Treat that URL as a credential and do not put it in logs, tickets, or chat. DSH exchanges it for an HttpOnly, SameSite cookie and redirects to a clean `/`; a still-valid authority-bound cookie can survive a Host restart.
-4. Open the clean external URL and verify that **Status** and **Settings → Memory System** both load, an intentional small settings save succeeds, and a page reload remains authenticated.
+4. Open the clean external URL and verify that **Status** and **Settings → Memory System** both load and a page reload remains authenticated. Remote settings are read-only by default. If management is intended, apply the [explicit remote management grant](#remote-management), restart DSH, then verify one deliberate small save.
 
-An HTTP 403 points to the Host/Origin fence: check `--trusted-host`, the public port, and whether the proxy preserves `Host`. An HTTP 401 means the browser session is missing or invalid: return to the current process's launch-token URL. DSH 0.1.2-alpha.5 uses the same browser-session model and remains covered as the immediate source-compatibility predecessor. Both releases ignore Mnemon's retained `remoteAccess` compatibility setting.
+An HTTP 403 can indicate a Host/Origin mismatch or an old remote Client still using standalone channels: check `--trusted-host`, the public authority and proxy routing, then upgrade dsh-mnemon to v0.5.5 or later, restart DSH and reload the browser. Remote Mnemon calls use the authenticated API Gateway. An HTTP 401 requires restoring the Host's browser authentication or pairing. A response saying remote management requires `remoteAccess: trusted-host` is a separate Mnemon grant check; successful browser authentication alone does not authorize management.
 
 ### Disable the complete Starter
 
@@ -142,9 +142,12 @@ The legacy `mnemon` Entry remains the lifecycle switch for the complete Starter.
 
 This disables the Core/Host, all three bundled Sources, the default Strategy, and all three optional Strategy enhancements together. It does not remove installed packages or delete memory data. Remove the override, or change it to `false`, and restart DSH to enable the Starter again.
 
-### DSH 0.1.1-rc.2 rollback
+<a id="remote-management"></a>
+<a id="dsh-011-rc2-rollback"></a>
 
-The previous rc.2 line uses method-specific authority tiers instead of the browser-session model. Ordinary reads and activation may use `trusted-host`, while settings, backups, Provider connections, and broad mutations remain loopback-only unless local Mnemon configuration promotes all management channels. Use rc.2 remotely only behind reliable user authentication.
+### Remote management and DSH 0.1.1-rc.2 rollback
+
+For v0.5.5 authenticated Gateway clients, `remoteAccess: trusted-host` grants management operations; default remote reads and narrow activation do not need it. The previous DSH rc.2 line enforces the same local configuration through legacy method-authority tiers, with settings, backups and broad mutations loopback-only by default. Configure management only for the intended authenticated users.
 
 1. Open `~/.dsh/profiles/web/cordis.patch.yml`, or `$DSH_HOME/profiles/web/cordis.patch.yml` when `DSH_HOME` is set. Edit an existing top-level `- id: mnemon` entry instead of adding a duplicate. If the initialized file still ends in `[]`, replace that marker with the complete row below; otherwise append the row to the existing top-level YAML list:
 
@@ -176,7 +179,7 @@ The previous rc.2 line uses method-specific authority tiers instead of the brows
 
    A profile patch replaces the targeted row's complete `config` instead of deep-merging one field. Preserve existing customizations, and compare it with `dsh web --dump-default-config` after a plugin upgrade so new bundled defaults are not masked.
 2. Inspect the effective tree with `dsh web --dump-config`. Confirm that the final `mnemon` row contains `remoteAccess: trusted-host` and that stderr reports no unmatched `mnemon` target.
-3. Start rc.2 with the same `--trusted-host` command, then restart it after any `remoteAccess` change because Mnemon captures that policy at startup. Verify **Status**, settings loading, and one deliberate small save through the authenticated proxy.
+3. Start DSH with the same `--trusted-host` command, and restart after any `remoteAccess` change because Mnemon captures that policy at startup. Verify **Status**, settings loading, and one deliberate small save through the authenticated remote connection.
 
 ## Security boundaries
 
@@ -197,7 +200,7 @@ The previous rc.2 line uses method-specific authority tiers instead of the brows
 
 ### Web and model
 
-- On DSH 0.1.2-rc.1 and its alpha.5 predecessor, every RPC and stream requires the same authenticated browser session; the retained `remoteAccess` value has no transport effect.
+- DSH owns authentication or pairing for remote RPCs and streams. The v0.5.5 Mnemon Gateway projection additionally requires `remoteAccess: trusted-host` for management; local loopback clients retain their legacy channels.
 - On DSH 0.1.1-rc.2, read and activation use `trusted-host`; write, settings, and backup default to `loopback` and are promoted together only by local `remoteAccess: trusted-host` configuration.
 - Provider catalogs and management responses are redacted; the UI receives configured field names, never saved credential values.
 - The WebUI follows the Host's writable settings snapshot instead of inferring capability from transport locality; an unavailable settings channel renders an explicit diagnostic rather than an empty page.
@@ -237,7 +240,7 @@ Report vulnerabilities privately through [SECURITY.md](../../../SECURITY.md), no
 | ZIP export reports WAL busy | Wait for Memory Space writes to settle; do not bypass the uncheckpointed-WAL guard |
 | ZIP import checksum/schema failure | The backup is damaged or incompatible; preserve the current root and never unzip over it manually |
 | No Update button | Already current, remote check failed, or the source is link/manual; follow panel guidance |
-| An rc.2 remote page can activate a Memory Space but cannot perform another write | Secure default; only behind reliable authentication, set `remoteAccess: trusted-host` locally, configure DSH `trustedHosts`, and restart the Host |
+| An authenticated remote page can read or activate a Memory Space but cannot save settings or perform other writes | Default management restriction; for intended remote management, preserve the current configuration, set `remoteAccess: trusted-host` locally, and restart DSH |
 | On alpha, Mnemon RPC returns 401 after a DSH restart or authority change | Open the launch URL printed by `dsh web` so the one-time token can establish a fresh authority-bound browser cookie |
 
 ## Known limitations
