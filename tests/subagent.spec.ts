@@ -1085,8 +1085,9 @@ describe('Mnemon memory subagent coordinator', () => {
     const host = subagents({ summary: 'Forgot m1.', action: 'forgotten', memoryBodyIds: ['project'] })
     const coordinator = createCoordinator(host.value)
     await coordinator.write(parent(), 'forget', { id: 'm1' }, new AbortController().signal)
-    const forgetCall = (host.start.mock.calls[0] as unknown as [string, { toolFilter: { allow: string[] } }])[1]
+    const forgetCall = (host.start.mock.calls[0] as unknown as [string, { toolFilter: { allow: string[] }; persona: string }])[1]
     expect(forgetCall.toolFilter.allow).toContain('mnemon_forget')
+    expect(forgetCall.persona).not.toContain('you cannot and must not delete existing entries')
   })
 
   it('selects a provider in a tool-free child and keeps user policy out of the persona', async () => {
@@ -1183,7 +1184,7 @@ describe('Mnemon memory subagent coordinator', () => {
       action: 'skipped',
     })
     expect(host.start).toHaveBeenCalledWith('fork', expect.objectContaining({
-      toolFilter: { allow: expect.arrayContaining(['mnemon_document_search', 'mnemon_runtime_memory', 'mnemon_document_manage']) },
+      toolFilter: { allow: expect.arrayContaining(['mnemon_document_search', 'mnemon_runtime_memory', 'mnemon_document_create']) },
       persona: expect.stringContaining('idle checkpoint reviewer'),
       prompt: [{ type: 'text', text: 'Review the inherited completed checkpoint now.' }],
     }))
@@ -1191,6 +1192,10 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(reviewCall.persona).toContain('Never move a document to cold archive in this pass')
     expect(reviewCall.persona).toContain('Deep Recall is unavailable after the parent TurnView closes')
     expect(reviewCall.persona).not.toContain('Memory View')
+    expect(reviewCall.persona).toContain('Never update or replace an existing document')
+    expect(reviewCall.toolFilter.allow).not.toContain('mnemon_document_manage')
+    expect(reviewCall.toolFilter.allow).not.toContain('mnemon_view_action')
+    expect(reviewCall.toolFilter.allow).not.toContain('mnemon_forget')
     expect(reviewCall.toolFilter.allow).not.toContain('mnemon_recall')
     expect(reviewCall.toolFilter.allow).not.toContain('mnemon_related')
     expect(reviewCall.toolFilter.allow).not.toContain('mnemon_memory_bodies')
@@ -1772,7 +1777,7 @@ describe('Mnemon memory subagent coordinator', () => {
       action: 'skipped',
     })
     expect(host.start).toHaveBeenCalledWith('fork', expect.objectContaining({
-      toolFilter: { allow: expect.arrayContaining(['mnemon_document_search', 'mnemon_runtime_memory', 'mnemon_document_manage']) },
+      toolFilter: { allow: expect.arrayContaining(['mnemon_document_search', 'mnemon_runtime_memory', 'mnemon_document_create']) },
       agentOptions: { provider: 'pinned-provider', model: 'pinned-model' },
     }))
   })

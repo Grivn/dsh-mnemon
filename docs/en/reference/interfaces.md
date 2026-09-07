@@ -58,6 +58,7 @@ Model tools, lifecycle hooks, and system scheduling use an `automatic` trigger. 
 |---|---|---|
 | `mnemon_runtime_memory` | `add` / `replace` / `remove` hot memory | Deterministic control; add overflow may start a worker |
 | `mnemon_document_manage` | Create, update, or archive a Document | Create/update deterministic; archive uses a worker |
+| `mnemon_document_create` | Create a separate Document without updating or archiving existing ones | Deterministic Source `create` Action; available to idle review |
 | `mnemon_remember` | Retain one insight under Provider semantics; distinguish acceptance from durable completion | `spawn` write worker |
 | `mnemon_link` | Create a typed relationship where the provider supports it | `spawn` write worker |
 | `mnemon_forget` | Delete an exact ID where the provider supports it | `spawn` write worker for explicit operations only; excluded from autonomous distillation |
@@ -68,6 +69,8 @@ Model tools, lifecycle hooks, and system scheduling use an `automatic` trigger. 
 When a worker invokes the same tool name, it reaches the service directly and is not delegated recursively.
 
 Autonomous write workers — distillation and supervised writeback runs — decide content on their own, so the host excludes `mnemon_forget` from their hard tool allowlist: a duplicate or conflict is resolved by skipping or storing a corrected entry, never by deleting the existing one. Operations whose request names an exact target supplied by the user or a user-facing flow (`/mnemon forget`, `mnemon_link`, and Memory Space management) keep the full write toolset.
+
+Idle review can search Documents and call `mnemon_document_create`, but cannot call `mnemon_document_manage` or `mnemon_view_action`. It skips covered candidates or creates one separate document referencing existing document ids. The Source's `create` Action accepts `title`, `content`, optional `description`, `sourcePaths`, and `sessionIds`; it rejects `action`, `id`, and other unknown fields. Capacity exhaustion rejects creation without archiving an existing document. This protection applies to existing user- and Agent-created documents. Explicit editing continues through the existing management paths.
 
 `mnemon_runtime_memory` accepts an optional `branches` array (git branch names) for `target=memory` writes. Branch-scoped entries are projected into the per-turn Runtime snapshot only when the session's workspace is checked out on a listed branch; untagged entries are always projected. On `replace`, providing `branches` changes the scope, an empty array clears it, and omitting it keeps the current scope. The parameter is rejected for `target=user`.
 
@@ -96,6 +99,7 @@ Autonomous write workers — distillation and supervised writeback runs — deci
 - `recall` and `related` read through the live Agent's scoped Source route without spawning a worker. `remember` and `forget` use that Agent as the write worker's parent.
 - Command recall returns at most 10 results.
 - `forget` requires one exact ID without spaces.
+- `forget` reports deletion only for a `forgotten` receipt; skipped, failed, or unconfirmed results are reported as errors with the worker summary.
 
 ## In-conversation contracts
 

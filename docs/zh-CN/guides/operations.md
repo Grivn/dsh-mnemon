@@ -206,6 +206,7 @@ HTTP 403 可能来自 Host/Origin 不匹配，或旧远程 Client 仍调用独�
 - WebUI 依据 Host 返回的可写 settings snapshot 判断产品能力，不再根据传输位置猜测权限；设置通道不可用时会显示明确诊断，而不是空白页。
 - WebUI 不直接读取 SQLite、启动进程、调用远程 Provider 或指定任意更新命令；Provider 网络访问只发生在 Host。
 - worker 使用 persona、工具白名单、经过 schema 校验的一次性结果工具与 `maxDepth: 1`。
+- 蒸馏和 supervised writeback worker 不能调用 `mnemon_forget`；后台审查的档案写入只开放仅创建工具，不能覆盖用户原文，也不能通过归档腾出容量。这些限制默认启用，无需增强插件。
 - 查询、候选、档案正文与历史记忆全部按不可信数据处理。
 
 这些边界不是秘密扫描器。当前没有确定性的凭据检测；不要提交密钥、token、私钥和原始敏感日志。

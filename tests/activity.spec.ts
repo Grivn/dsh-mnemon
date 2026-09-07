@@ -87,4 +87,16 @@ describe('TurnActivityProjection', () => {
 
     expect(projection.snapshot([call(1, 2, 'second', 'mnemon_status')])).toEqual({ cursor: 1, activities: [] })
   })
+
+  it('records a committed create-only Document as a visible document writeback', () => {
+    const projection = new TurnActivityProjection()
+    const meta = memoryWritePresentation('documents', 'create')({ title: 'Rollout follow-up', content: 'Separate new evidence.' }, {
+      action: 'created', memoryReceipt: { status: 'succeeded', completion: 'committed', committedAt: '2026-09-08T00:00:00.000Z' },
+    })
+    const events = [call(1, 1, 'created', 'mnemon_document_create'), result(2, 1, 'created', false, meta)]
+    expect(projection.snapshot(events).activities[0]).toMatchObject({
+      writes: 1, names: ['mnemon_document_create'], writebacks: [{ toolName: 'mnemon_document_create', sourceTypeId: 'documents',
+        operationId: 'create', item: { title: 'Rollout follow-up', excerpt: 'Separate new evidence.' } }],
+    })
+  })
 })

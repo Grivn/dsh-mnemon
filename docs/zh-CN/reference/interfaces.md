@@ -58,6 +58,7 @@ Headless 会获得完整模型工具面。它把命令行任务作为普通用�
 |---|---|---|
 | `mnemon_runtime_memory` | `add` / `replace` / `remove` 热记忆 | 确定性控制；add 溢出时可能启动 worker |
 | `mnemon_document_manage` | 创建、更新或归档档案 | 创建/更新确定性；归档使用 worker |
+| `mnemon_document_create` | 新建独立档案，不更新或归档已有档案 | 确定性 Source `create` Action；供后台审查使用 |
 | `mnemon_remember` | 按 Provider 语义沉淀洞察，回执区分已接受与持久提交 | `spawn` write worker |
 | `mnemon_link` | 在支持能力的 Provider 中建立 typed relationship | `spawn` write worker |
 | `mnemon_forget` | 在支持能力的 Provider 中按精确 ID 删除 | 仅限显式操作的 `spawn` write worker；自主蒸馏不含此工具 |
@@ -68,6 +69,8 @@ Headless 会获得完整模型工具面。它把命令行任务作为普通用�
 worker 内调用同名工具时直接进入服务层，不再递归委派。
 
 自主 write worker（蒸馏与 supervised writeback 运行）自行决定写入内容，因此宿主在其硬性工具白名单中排除了 `mnemon_forget`：遇到重复或冲突时只能跳过或写入修正后的条目，不能删除已有记忆。请求目标由用户或用户侧流程显式给出的操作（`/mnemon forget`、`mnemon_link` 与记忆空间管理）保留完整 write 工具面。
+
+后台审查可以搜索档案并调用 `mnemon_document_create`，不能调用 `mnemon_document_manage` 或 `mnemon_view_action`。已有档案覆盖候选时跳过；有新增知识时，新建一份独立档案并引用相关已有档案 ID。Source 的 `create` Action 接收 `title`、`content`，以及可选的 `description`、`sourcePaths`、`sessionIds`；拒绝 `action`、`id` 等额外字段。容量不足时拒绝创建，不归档已有档案。已有的用户档案和 Agent 创建档案都受此保护；显式编辑继续使用原有管理路径。
 
 `mnemon_runtime_memory` 的 `target=memory` 写入支持可选 `branches` 数组（git 分支名）。带分支范围的条目只在会话 workspace 处于所列分支上时投影进每回合 Runtime 快照；无分支标签的条目始终投影。`replace` 时提供 `branches` 修改范围，传空数组清除范围，省略则保持当前范围；该参数对 `target=user` 会被拒绝。
 
@@ -96,6 +99,7 @@ worker 内调用同名工具时直接进入服务层，不再递归委派。
 - `recall`、`related` 通过命令所在 live Agent 的限定 Source 路由直接读取，不启动 worker；`remember`、`forget` 使用该 Agent 作为写入 worker 的 parent。
 - 命令 recall 最多返回 10 条。
 - `forget` 必须接收一个不含空格的精确 ID。
+- `forget` 仅在收到 `forgotten` 回执时报告删除成功；跳过、失败或未确认的结果返回错误并附 worker 摘要。
 
 ## 对话内交互契约
 

@@ -78,7 +78,8 @@ async function execute(serviceOrSource: MnemonAgentRuntimeSource, coordinator: M
     case 'forget': {
       if (!graph.config.writeEnabled) return { kind: 'error', text: 'Mnemon 当前为只读模式，不能删除记忆。' }
       if (argument === '' || /\s/u.test(argument)) return error('forget 需要一条记忆的精确 ID。')
-      await coordinator.write(invocation.agent, 'forget', { id: argument }, invocation.signal)
+      const result = await coordinator.write(invocation.agent, 'forget', { id: argument }, invocation.signal)
+      if (result.action !== 'forgotten') return { kind: 'error', text: `Mnemon 未确认删除记忆：${argument}（${result.action}）${result.summary === '' ? '' : `\n${result.summary}`}` }
       return { kind: 'success', text: `已软删除 Mnemon 记忆：${argument}` }
     }
     default:

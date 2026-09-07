@@ -167,7 +167,7 @@ try {
   const toolRequest = requests.find(request => Array.isArray(request.tools) && request.tools.length > 0)
   if (toolRequest === undefined) throw new Error('Headless model request did not expose any tools')
   const toolNames = new Set(toolRequest.tools.map(tool => tool?.function?.name).filter(name => typeof name === 'string'))
-  const required = ['mnemon_status', 'mnemon_recall', 'mnemon_document_search', 'mnemon_runtime_memory', 'mnemon_remember', 'mnemon_view_route', 'mnemon_view_action']
+  const required = ['mnemon_status', 'mnemon_recall', 'mnemon_document_search', 'mnemon_document_create', 'mnemon_runtime_memory', 'mnemon_remember', 'mnemon_view_route', 'mnemon_view_action']
   const missing = required.filter(name => !toolNames.has(name))
   if (missing.length > 0) throw new Error(`Headless model request is missing Mnemon tools: ${missing.join(', ')}`)
   if (extensionsEnabled) {
