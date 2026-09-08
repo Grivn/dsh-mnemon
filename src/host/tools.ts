@@ -210,6 +210,29 @@ export function registerTools(ctx: HostContextShape, runtimeSource: MnemonAgentR
   } as never))
 
   ctx.tools.register(definition({
+    name: 'mnemon_document_create',
+    description: 'Create one new managed project Document without updating or archiving existing documents. Search first and skip duplicates; save only substantial new reusable project knowledge, with references to related document ids. Capacity exhaustion rejects creation and preserves existing documents.',
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        title: { type: 'string', description: 'Meaningful project-document title.' },
+        description: { type: 'string', description: 'Concise routing description.' },
+        content: { type: 'string', description: 'New managed Markdown body.' },
+        sourcePaths: { type: 'array', items: { type: 'string' }, description: 'Read-only source paths relative to the workspace.' },
+      },
+      required: ['title', 'content'],
+    },
+    output: { schema: JSON_OBJECT_OUTPUT, render: (_args: unknown, value: unknown) => text(value),
+      presentationMeta: memoryWritePresentation('documents', 'create') },
+    execute: (args: { title: string; description?: string; content: string; sourcePaths?: string[] }, exec: ToolExecution) => {
+      requireSource(exec, 'documents', 'write')
+      return sourceAction(exec, 'documents', 'create', { ...args, sessionIds: [requireAgent(exec).id] })
+    },
+    presentCall: (args: { title: string }) => ({ card: 'generic', title: 'Create Mnemon Document', kind: 'edit', rawInput: args.title }),
+    presentResult: () => ({ card: 'generic', title: 'Mnemon Document created' }),
+  } as never))
+
+  ctx.tools.register(definition({
     name: 'mnemon_document_manage',
     description: 'Create or update one managed project Document through the Mnemon Documents control plane. Use for substantial reusable project knowledge, not user-profile preferences, routine progress, raw transcripts, secrets, or small hot-memory facts. Source paths are references inside the workspace and are never edited. Archive is allowed only from a root request and first writes a durable Mnemon cold-reference through an isolated subagent.',
     parameters: {

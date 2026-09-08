@@ -79,14 +79,14 @@ describe('conversation interaction surfaces', () => {
     expect(consumeMnemonAnchor('session-b')).toBeNull()
   })
 
-  it('opens each turn-memory tool on its corresponding workbench page', async () => {
+  it.each(['mnemon_document_search', 'mnemon_document_create'])('opens %s from turn activity on the Documents page', async toolName => {
     const rpcCall = vi.fn(async (_channel: string, endpoint: string) => {
       if (endpoint !== 'turn-activities') throw new Error(`unexpected endpoint: ${endpoint}`)
       return {
         ok: true as const,
         value: {
           cursor: 12,
-          activities: [{ turn: 2, count: 2, names: ['mnemon_document_search', 'mnemon_runtime_memory'], recalls: 0, writes: 1, documentSearches: 1, inspections: 0, failures: 0 }],
+          activities: [{ turn: 2, count: 2, names: [toolName, 'mnemon_runtime_memory'], recalls: 0, writes: 1, documentSearches: 1, inspections: 0, failures: 0 }],
         },
       }
     })

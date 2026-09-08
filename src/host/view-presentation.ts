@@ -12,7 +12,7 @@ const ROUTE_TOOLS: Record<string, Record<string, string>> = {
 }
 const ACTION_TOOLS: Record<string, Record<string, string>> = {
   runtime: { mutate: 'mnemon_runtime_memory' },
-  documents: { manage: 'mnemon_document_manage' },
+  documents: { manage: 'mnemon_document_manage', create: 'mnemon_document_create' },
   'memory-spaces': { remember: 'mnemon_remember', link: 'mnemon_link', forget: 'mnemon_forget',
     'manage-spaces': 'mnemon_memory_body_create / mnemon_memory_body_update / mnemon_memory_body_merge' },
 }

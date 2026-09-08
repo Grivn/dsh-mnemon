@@ -18,6 +18,20 @@ function grantIds(grant: MemoryReadGrant, includeArchived = false): string[] {
     ...(includeArchived ? stringArray(value.archivedDocumentIds, 'archivedDocumentIds', 10_000) ?? [] : [])]
 }
 
+const CREATE_PROPERTIES = {
+  title: { type: 'string' }, description: { type: 'string' }, content: { type: 'string' },
+  sourcePaths: { type: 'array' }, sessionIds: { type: 'array' },
+}
+
+function documentCreation(value: MemoryJsonValue): DocumentMutation {
+  const input = record(value, 'Documents create')
+  // Enforce the narrower capability at the Source boundary as well as in its schema.
+  for (const key of Object.keys(input)) {
+    if (!Object.hasOwn(CREATE_PROPERTIES, key)) throw new Error('unsupported Documents create field: ' + key)
+  }
+  return documentMutation({ ...input, action: 'create' })
+}
+
 function documentMutation(value: MemoryJsonValue, allowedIds?: readonly string[]): DocumentMutation {
   const input = record(value, 'Documents mutation')
   const action = text(input.action, 'action', 20)!
@@ -84,9 +98,16 @@ export function createDocumentsMemorySource(config: Config = {}): MemorySourceDe
         additionalProperties: false,
         properties: {
           action: { type: 'string', enum: ['create', 'update'] },
-          id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, content: { type: 'string' },
-          sourcePaths: { type: 'array' }, sessionIds: { type: 'array' },
+          id: { type: 'string' }, ...CREATE_PROPERTIES,
         },
+      },
+    }, {
+      id: 'create',
+      description: 'Create one new project Document without updating or archiving existing documents. Capacity exhaustion rejects the write.',
+      capability: 'write',
+      inputSchema: {
+        type: 'object', required: ['title', 'content'], additionalProperties: false,
+        properties: CREATE_PROPERTIES,
       },
     }],
     management: {
@@ -108,14 +129,14 @@ export function createDocumentsMemorySource(config: Config = {}): MemorySourceDe
         }
         if (request.scenario.startsWith('management.') && request.scenario !== 'management.catalog') return {
           sourceInstanceKey: context.sourceInstanceKey, sourceTypeId: 'documents', role: 'narrative', availability: 'ready',
-          revision: documents.forWorkspace(root).revision(), capabilities: ['status', 'project', 'search', 'read', 'write'], routeIds: ['search'], actionIds: ['manage'],
+          revision: documents.forWorkspace(root).revision(), capabilities: ['status', 'project', 'search', 'read', 'write'], routeIds: ['search'], actionIds: ['manage', 'create'],
         }
         const current = snapshot(root)!
         prepared.set(request.scope, current)
         const active = current.documents.filter(document => document.status === 'active' && document.healthy)
         return {
           sourceInstanceKey: context.sourceInstanceKey, sourceTypeId: 'documents', role: 'narrative', availability: 'ready',
-          revision: current.revision, capabilities: ['status', 'project', 'search', 'read', 'write'], routeIds: ['search'], actionIds: ['manage'],
+          revision: current.revision, capabilities: ['status', 'project', 'search', 'read', 'write'], routeIds: ['search'], actionIds: ['manage', 'create'],
           hints: { activeCount: active.length },
         }
       },
@@ -236,7 +257,9 @@ export function createDocumentsMemorySource(config: Config = {}): MemorySourceDe
         const root = workspace(request.view.scope)
         if (root === undefined) throw new Error('Documents Action requires a workspace-scoped View')
         const grant = request.grant
-        const mutation = documentMutation(request.input, grant === undefined ? [] : grantIds(grant))
+        const mutation = request.offer.sourceActionId === 'create'
+          ? documentCreation(request.input)
+          : documentMutation(request.input, grant === undefined ? [] : grantIds(grant))
         const result = await documents.forWorkspace(root).mutate(mutation)
         return receipt(request.view.id, request.offer.id, context.sourceInstanceKey, result.snapshot.revision, result as unknown as MemoryJsonValue, 'committed')
       },

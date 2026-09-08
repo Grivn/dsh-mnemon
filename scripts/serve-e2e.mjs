@@ -7,12 +7,14 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { documentProtectionModel } from './fixtures/document-protection-model.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
 let betterSidebarRoot
 for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
+  if (flag === '--document-protection') continue
   if (flag.startsWith('--better-sidebar=')) {
     const value = flag.slice('--better-sidebar='.length)
     if (value === '') throw new Error('--better-sidebar requires a package directory')
@@ -30,13 +32,26 @@ const dataDir = join(fixture, 'data')
 const workspace = join(fixture, 'workspace')
 await Promise.all([dshHome, dataDir, workspace].map(path => mkdir(path)))
 let modelRequests = 0
+const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
 const model = createServer(async (request, response) => {
-  for await (const _chunk of request) { /* Consume the request without storing model input. */ }
+  let input = ''
+  for await (const chunk of request) { if (protectionModel !== undefined) input += chunk }
   console.log('Fixture model request: ' + ++modelRequests)
+  let reply
+  try { reply = protectionModel?.(JSON.parse(input)) ?? 'Isolated Mnemon WebUI test response.' }
+  catch (error) {
+    console.error(error)
+    response.writeHead(500, { 'content-type': 'application/json' })
+    response.end(JSON.stringify({ error: { message: error instanceof Error ? error.message : String(error) } }))
+    return
+  }
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+  const delta = typeof reply === 'string' ? { role: 'assistant', content: reply } : {
+    role: 'assistant', tool_calls: [{ index: 0, id: 'fixture-call-' + modelRequests, type: 'function', function: { name: reply.name, arguments: JSON.stringify(reply.args) } }],
+  }
   for (const choice of [
-    { index: 0, delta: { role: 'assistant', content: 'Isolated Mnemon WebUI test response.' }, finish_reason: null },
-    { index: 0, delta: {}, finish_reason: 'stop' },
+    { index: 0, delta, finish_reason: null },
+    { index: 0, delta: {}, finish_reason: typeof reply === 'string' ? 'stop' : 'tool_calls' },
   ]) response.write(`data: ${JSON.stringify({ id: 'mnemon-web-e2e', choices: [choice] })}\n\n`)
   response.end('data: [DONE]\n\n')
 })
@@ -117,6 +132,7 @@ try {
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + browsePicker
+    + (protectionModel === undefined ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
     + (extensionsEnabled ? extensionNames.map(name => `- id: ${name.slice(4)}\n  disabled: false\n`).join('') : ''))
   await writeFile(join(workspace, 'README.md'), '# Mnemon isolated browser test\n\nNo production memory or credentials are used.\n')
   console.log('Fixture: ' + fixture)

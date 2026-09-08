@@ -16,6 +16,7 @@ const WRITE_TOOLS = new Set([
   'mnemon_forget',
   'mnemon_link',
   'mnemon_document_manage',
+  'mnemon_document_create',
   'mnemon_runtime_memory',
   'mnemon_memory_body_create',
   'mnemon_memory_body_update',

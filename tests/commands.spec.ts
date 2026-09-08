@@ -83,4 +83,23 @@ describe('/mnemon command', () => {
     const result = await createMnemonCommand(runtime(service), coordinator()).handler(invocation('remember 一条稳定记忆'))
     expect(result).toEqual({ kind: 'success', text: 'Mnemon 记忆 Agent 已处理：stored · 记忆空间 project' })
   })
+
+  it('reports an explicit forget only after a forgotten receipt', async () => {
+    const memoryCoordinator = coordinator()
+    const result = await createMnemonCommand(runtime({ config: { writeEnabled: true, defaultRecallLimit: 10 } }), memoryCoordinator)
+      .handler(invocation('forget memory-exact-id'))
+    expect(memoryCoordinator.write).toHaveBeenCalledWith(agent, 'forget', { id: 'memory-exact-id' }, expect.any(AbortSignal))
+    expect(result).toEqual({ kind: 'success', text: '已软删除 Mnemon 记忆：memory-exact-id' })
+  })
+
+  it.each(['skipped', 'failed', 'accepted', 'unknown'])('does not report deletion after a %s worker receipt', async action => {
+    const memoryCoordinator = coordinator({ write: vi.fn(async () => ({
+      delegated: true as const, runId: 'child-1', provider: 'spawn', summary: 'No deletion was committed.', action, memoryBodyIds: [],
+    })) })
+    const result = await createMnemonCommand(runtime({ config: { writeEnabled: true, defaultRecallLimit: 10 } }), memoryCoordinator)
+      .handler(invocation('forget memory-exact-id'))
+    expect(result.kind).toBe('error')
+    expect(result.text).toContain('No deletion was committed.')
+    expect(result.text).not.toContain('已软删除')
+  })
 })
