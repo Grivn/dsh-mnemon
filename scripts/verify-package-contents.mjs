@@ -39,9 +39,10 @@ const relativeReadmeImages = readmeFiles.flatMap((path) => {
     .map(source => `${path}: ${source}`)
 })
 
-// Core/Host and the shared page kit only; Source/Provider implementations must
-// ship in their own artifacts. Keep a bounded budget, not the old monolith size.
-const maximumUnpackedBytes = 1_250_000
+// Core/Host, public declarations and bilingual documentation only. The public
+// transfer contract and generic approval/configuration UI add about 32 KiB to
+// the former 1.25 MB budget; Source implementations remain separate artifacts.
+const maximumUnpackedBytes = 1_400_000
 
 if (missing.length > 0 || unexpected.length > 0 || hostLeaks.length > 0 || relativeReadmeImages.length > 0 || pack.unpackedSize > maximumUnpackedBytes) {
   if (missing.length > 0) console.error(`Missing package files:\n${missing.map(path => `- ${path}`).join('\n')}`)

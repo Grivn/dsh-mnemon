@@ -128,14 +128,15 @@
     "verify:plugins": "node scripts/verify-plugin-artifacts.mjs",
     "verify:docs": "node scripts/verify-docs.mjs",
     "e2e:serve": "node scripts/serve-e2e.mjs",
-    "verify": "pnpm run verify:docs && pnpm run typecheck && pnpm run verify:build && pnpm --workspace-concurrency=4 -r build && pnpm -r typecheck && pnpm -r test && pnpm run test:root && pnpm run verify:headless && pnpm run verify:package",
+    "verify": "pnpm run verify:docs && pnpm run typecheck && pnpm run verify:build && pnpm run build:plugins && pnpm -r typecheck && pnpm -r test && pnpm run test:root && pnpm run verify:headless && pnpm run verify:package",
     "changeset": "changeset",
     "release:intent": "node scripts/check-release-intent.mjs",
     "release:status": "changeset status",
     "release:version": "changeset version && node scripts/sync-release-metadata.mjs && pnpm install --lockfile-only",
     "dsh:link-source": "node scripts/link-dsh-source.mjs",
     "dsh:restore-registry": "node scripts/link-dsh-source.mjs --restore",
-    "release:check": "node scripts/release.mjs --check"
+    "release:check": "node scripts/release.mjs --check",
+    "build:plugins": "node scripts/build-plugin-packages.mjs"
   },
   "dependencies": {
     "dsh-mnemon-provider-byterover": "0.5.4",
@@ -184,6 +185,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "dsh-mnemon-workspace-kit": "0.1.0",
     "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/cli": "^2.31.1",
     "@deepseek-ai/cordis": "^4.0.2",
