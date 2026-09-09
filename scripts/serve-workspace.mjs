@@ -117,6 +117,7 @@ ${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspac
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
   if (values['workspace-plugins']) patch += await readFile(join(root, 'scripts/workspace-plugins.patch.yml'), 'utf8')
+  if (values['workspace-plugins']) patch += `- id: mnemon-source-agent-jobs\n  disabled: false\n  config:\n    adapters:\n      - id: local-fixture\n        label: Local validation\n        command: ${JSON.stringify(process.execPath)}\n        args: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}']\n        resumeArgs: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}', '{session}']\n        timeoutSeconds: 60\n`
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), patch)
   await writeFile(join(workspace, 'README.md'), '# Memory workspace validation\n\nSynthetic content used to validate local services and plugin composition.\n')
   await writeFile(join(state, 'workspace.code-workspace'), JSON.stringify({ folders: [{ path: root }, { path: workspace }] }, null, 2) + '\n')

@@ -1,11 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { COMPOSABLE_MEMORY_API_VERSION, type MemoryJsonValue, type MemoryOperationScope, type MemorySourceActionManifest, type MemorySourceDefinition, type MemorySourceManagementRequest } from 'dsh-mnemon/contracts'
+import { COMPOSABLE_MEMORY_API_VERSION, type MemoryJsonValue, type MemoryOperationScope, type MemorySourceActionManifest, type MemorySourceDefinition, type MemorySourceManagementRequest, type MemorySourceRuntimeContext } from 'dsh-mnemon/contracts'
 import { createMemoryMutationReceipt, defineMemorySource, memoryInputInteger, memoryInputRecord, memoryInputText, truncateMemoryText } from 'dsh-mnemon/extension-sdk'
 import { digest, json, RecordStore, recordScope, reviseRecord, validateRecord, visibleRecord, type RecordScope, type RecordSnapshot, type RecordValue } from './records.ts'
 
 export interface RecordSourceConfig { dataDir?: string }
+export function sourceRecordDirectory(typeId: string, context: MemorySourceRuntimeContext, config: RecordSourceConfig = {}): string {
+  if (!/^[a-z][a-z0-9-]*$/.test(typeId)) throw new Error('Invalid Source type')
+  const root = config.dataDir ?? (typeof context.configuration?.dataDir === 'string' ? context.configuration.dataDir : undefined) ?? process.env.MNEMON_DATA_DIR ?? join(homedir(), '.mnemon')
+  return join(root, 'sources', typeId, digest(context.sourceInstanceKey).slice(0, 20))
+}
 export interface RecordSourceOptions {
   typeId: string
   role: string
@@ -49,9 +54,7 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
       actions: [{ id: modelAction, description: modelAction === 'append' ? `Append a new ${options.label} record; existing records are preserved.` : `Propose a ${options.label} record for human approval; it stays inactive until approved.`, capability: 'write', inputSchema: writeSchema }, ...options.modelActions ?? []],
     },
     create(context) {
-      const dataDir = config.dataDir ?? (typeof context.configuration?.dataDir === 'string' ? context.configuration.dataDir : undefined)
-        ?? process.env.MNEMON_DATA_DIR ?? join(homedir(), '.mnemon')
-      const store = new RecordStore(join(dataDir, 'sources', options.typeId, digest(context.sourceInstanceKey).slice(0, 20)))
+      const store = new RecordStore(sourceRecordDirectory(options.typeId, context, config))
       const prepared = new WeakMap<object, RecordSnapshot>()
       // Bounded opaque snapshots keep large collections out of Core's JSON grants.
       // Eviction fails closed; it never substitutes a newer collection for an old View.

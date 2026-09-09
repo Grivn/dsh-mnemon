@@ -115,3 +115,6 @@
         - id: mnemon-strategy-team-coordination
           name: dsh-mnemon-strategy-team-coordination
           disabled: true
+        - id: mnemon-source-agent-jobs
+          name: dsh-mnemon-source-agent-jobs
+          disabled: true

@@ -2,6 +2,7 @@ import { constants } from 'node:fs'
 import { open, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { spawn } from 'node:child_process'
+import { StringDecoder } from 'node:string_decoder'
 
 export const withinRoot = (root: string, target: string): boolean => {
   const rel = relative(root, target)
@@ -54,10 +55,12 @@ export async function readBoundedFile(roots: readonly string[], value: string, m
 
 export interface ProcessResult { code: number | null; stdout: string; stderr: string; truncated: boolean }
 /** An argv-only child, bounded in time and output, with process-group cancellation. */
-export function runBoundedProcess(command: string, args: readonly string[], options: { cwd?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number; env?: NodeJS.ProcessEnv } = {}): Promise<ProcessResult> {
+export function runBoundedProcess(command: string, args: readonly string[], options: { cwd?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number; env?: NodeJS.ProcessEnv; stdin?: string; onOutput?(stream: 'stdout' | 'stderr', text: string): void } = {}): Promise<ProcessResult> {
   options.signal?.throwIfAborted()
   return new Promise((resolveResult, reject) => {
-    const child = spawn(command, args, { shell: false, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'], ...(options.cwd ? { cwd: options.cwd } : {}), ...(options.env ? { env: options.env } : {}) })
+    const child = spawn(command, args, { shell: false, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'], ...(options.cwd ? { cwd: options.cwd } : {}), ...(options.env ? { env: options.env } : {}) })
+    child.stdin.on('error', () => { /* A child may exit before consuming all input. */ })
+    child.stdin.end(options.stdin ?? '')
     let stdout = '', stderr = '', size = 0, truncated = false, failure: unknown
     const max = options.maxBytes ?? 2 * 1024 * 1024
     const kill = (signal: NodeJS.Signals) => { try { if (child.pid && process.platform !== 'win32') process.kill(-child.pid, signal); else child.kill(signal) } catch { /* Already exited. */ } }
@@ -65,10 +68,13 @@ export function runBoundedProcess(command: string, args: readonly string[], opti
     const stop = () => { kill('SIGTERM'); force ??= setTimeout(() => kill('SIGKILL'), 500); force.unref() }
     const abort = () => { failure = options.signal?.reason ?? new Error('Process cancelled'); stop() }
     const timer = setTimeout(() => { failure = new Error('Process timed out'); stop() }, options.timeoutMs ?? 10_000)
+    const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') }
     const collect = (chunk: Buffer, error: boolean) => {
       const remaining = Math.max(0, max - size)
-      const value = chunk.subarray(0, remaining).toString('utf8')
+      const stream = error ? 'stderr' : 'stdout'
+      const value = decoders[stream].write(chunk.subarray(0, remaining))
       if (error) stderr += value; else stdout += value
+      try { options.onOutput?.(stream, value) } catch (reason) { failure = reason; stop() }
       size += chunk.length
       if (size > max) { truncated = true; stop() }
     }
@@ -78,6 +84,6 @@ export function runBoundedProcess(command: string, args: readonly string[], opti
     if (options.signal?.aborted) abort()
     const cleanup = () => { clearTimeout(timer); if (force) clearTimeout(force); options.signal?.removeEventListener('abort', abort) }
     child.once('error', error => { cleanup(); reject(error) })
-    child.once('close', code => { cleanup(); if (failure) reject(failure); else resolveResult({ code, stdout, stderr, truncated }) })
+    child.once('close', code => { cleanup(); stdout += decoders.stdout.end(); stderr += decoders.stderr.end(); if (failure) reject(failure); else resolveResult({ code, stdout, stderr, truncated }) })
   })
 }

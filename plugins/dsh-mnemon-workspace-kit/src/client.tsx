@@ -14,6 +14,7 @@ export interface CollectionPageOptions {
   kinds: Array<{ value: string; label: Localized }>
   scopes: RecordScope[]; defaultScope: RecordScope
   scopeForKind?: Readonly<Record<string, RecordScope>>
+  editable?(record: RecordValue): boolean
   fields?: CollectionField[]
   renderExtras?(props: MemorySourcePageProps, snapshot: RecordSnapshot, reload: () => Promise<void>): ReactNode
   recordActions?: Array<{ label: Localized; operation: string; available?(record: RecordValue): boolean; data?(record: RecordValue): { [key: string]: MemoryJsonValue } }>
@@ -104,7 +105,7 @@ export function createCollectionPage(options: CollectionPageOptions): (props: Me
         <h3>{record.title}</h3><div className="mc-meta"><span className="mc-badge">{options.kinds.find(item => item.value === record.kind)?.label[language] ?? record.kind}</span>{record.kind !== record.scope && <span className="mc-badge">{t[record.scope]}</span>}<span className="mc-badge">{t[record.state]}</span><time dateTime={record.updatedAt}>{new Date(record.updatedAt).toLocaleString(props.locale)}</time>{record.date && <span>{record.date}</span>}{record.signals > 1 && <span>{record.signals} {t.signals}</span>}</div>
         {record.content && <p className="mc-content">{record.content}</p>}
         <div className="mc-meta">{(options.fields ?? []).filter(field => record.data[field.key] !== undefined && record.data[field.key] !== '' && record.data[field.key] !== false).map(field => <span key={field.key} className="mc-badge">{label(field.label)}{field.type !== 'boolean' && <>: {field.options?.find(option => option.value === record.data[field.key])?.label[language] ?? (Array.isArray(record.data[field.key]) ? (record.data[field.key] as string[]).join(', ') : String(record.data[field.key]))}</>}</span>)}</div>
-        {props.writable && <footer><button disabled={busy} onClick={() => edit(record)}>{t.edit}</button>{record.state === 'pending' && <><button data-primary="true" disabled={busy} onClick={() => void write('approve', { id: record.id, version: record.version })}>{t.approve}</button><button disabled={busy} onClick={() => void write('reject', { id: record.id, version: record.version })}>{t.reject}</button></>}
+        {props.writable && <footer>{(options.editable?.(record) ?? true) && <button disabled={busy} onClick={() => edit(record)}>{t.edit}</button>}{record.state === 'pending' && <><button data-primary="true" disabled={busy} onClick={() => void write('approve', { id: record.id, version: record.version })}>{t.approve}</button><button disabled={busy} onClick={() => void write('reject', { id: record.id, version: record.version })}>{t.reject}</button></>}
           {['active', 'pending'].includes(record.state) ? <button disabled={busy} onClick={() => void write('archive', { id: record.id, version: record.version })}>{t.archive}</button> : <button disabled={busy} onClick={() => void write('restore', { id: record.id, version: record.version })}>{t.restore}</button>}
           {options.recordActions?.filter(action => action.available?.(record) ?? true).map(action => <button key={action.operation} disabled={busy} onClick={() => void write(action.operation, { id: record.id, version: record.version, ...action.data?.(record) })}>{label(action.label)}</button>)}
         </footer>}
