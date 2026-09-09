@@ -12,9 +12,16 @@ import { documentProtectionModel } from './fixtures/document-protection-model.mj
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
 let betterSidebarRoot
+let electronExecutable
 for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
   if (flag === '--document-protection') continue
+  if (flag.startsWith('--electron=')) {
+    const value = flag.slice('--electron='.length)
+    if (value === '') throw new Error('--electron requires an Electron executable')
+    electronExecutable = resolve(value)
+    continue
+  }
   if (flag.startsWith('--better-sidebar=')) {
     const value = flag.slice('--better-sidebar='.length)
     if (value === '') throw new Error('--better-sidebar requires a package directory')
@@ -72,7 +79,13 @@ let web
 let stopping = false
 let restarting = false
 function launch() {
-  web = spawn(process.execPath, [dshBin, 'web', '--no-open', '--host', '127.0.0.1', '--port', '0'], { env, cwd: workspace, stdio: 'inherit' })
+  const args = [dshBin, 'web', '--no-open', '--host', '127.0.0.1', '--port', '0']
+  const hostEnv = { ...env }
+  if (electronExecutable !== undefined) {
+    for (const key of Object.keys(hostEnv)) if (key.toUpperCase() === 'ELECTRON_RUN_AS_NODE') delete hostEnv[key]
+    args.unshift('--expose-internals', join(root, 'scripts/fixtures/electron-dsh-host.cjs'))
+  }
+  web = spawn(electronExecutable ?? process.execPath, args, { env: hostEnv, cwd: workspace, stdio: 'inherit' })
   web.once('error', error => { console.error(error); process.exitCode = 1; void stop() })
   web.once('exit', code => { if (!stopping && !restarting) { if (code) process.exitCode = code; void stop() } })
 }
