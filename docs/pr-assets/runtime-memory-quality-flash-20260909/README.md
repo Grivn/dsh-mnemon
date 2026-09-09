@@ -69,3 +69,8 @@ MNEMON_RUN_FLASH_QUALITY=1 MNEMON_FLASH_QUALITY_WAVES=24 MNEMON_FLASH_QUALITY_RE
 Ordinary CI skips live API experiments. Inspect quality verdicts and retained content after execution. The committed reporter adds whole-report redaction, dynamic revision/hash recording and correct classification of intermediate development checks. Historical verdicts remain unchanged; the workload and production behavior were not modified to improve scores.
 
 Prioritize preserving fields and module attribution during whole-entry replacement, filtering do-not-persist material across later reviews, and connecting base documents with corrections during retrieval. Reduce fragmented documents from routine configuration tasks. These changes belong in Strategy orchestration, explicit Source Action contracts and bounded document supersession/correction cooperation. Core and Provider responsibilities and document protection should remain intact. This acceptance addition does not implement those follow-up fixes.
+
+
+## Repository verification
+
+After merging main `a1c500a`, integration commit `0017102` passed the full `pnpm run verify`: 836 root tests passed and 5 opt-in live tests were skipped, including types, plugin builds/tests, deterministic builds, real isolated Headless activation and package checks. `verify:plugins --skip-build` separately passed external verification of 16 independent plugin repositories and 17 artifacts, including three optional Strategies enabled together. See [validation.json](./validation.json). Main added UI ordering and Electron npm-launcher support. Paid experiments were not repeated after that merge; the live quality findings remain scoped to the production revision stated above.

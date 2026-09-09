@@ -69,3 +69,8 @@ MNEMON_RUN_FLASH_QUALITY=1 MNEMON_FLASH_QUALITY_WAVES=24 MNEMON_FLASH_QUALITY_RE
 普通 CI 默认跳过真实 API 实验；执行完成后必须检查质量评分和保留内容。当前提交的报告器增加了全报告脱敏、动态版本/哈希记录和中途检查失败的正确分类；历史输出保留原始判定，工作负载和生产行为未为提高成绩而修改。
 
 后续应优先处理整条替换时的字段与归属保留、禁止持久化内容在后续审阅中的过滤，以及基础文档与纠正文档的检索关系；同时减少常规配置工作产生的碎片文档。这些应通过 Strategy 编排、明确的 Source Action 契约和受限的文档纠正/过期信息协作完成。Core 和 Provider 继续保持模块职责，文档保护边界应保留。该验收提交没有实施这些后续修复。
+
+
+## 仓库验证
+
+在合并 main 的 `a1c500a` 后，`0017102` 完整通过 `pnpm run verify`：根项目 836 项通过、5 项真实 API 用例默认跳过，包含类型、插件构建与测试、确定性构建、真实隔离 Headless 和包检查。`verify:plugins --skip-build` 另通过 16 个独立插件仓库、17 个制品的外部验证，包含三个可选 Strategy 同时启用。详情见 [validation.json](./validation.json)。main 新增 UI 排序和 Electron npm 启动支持；未在合并后重跑付费实验，实测质量结论仍仅对应前述生产 revision。
