@@ -109,3 +109,15 @@ Screenshots: [three-way conflicts](assets/workspace-context/sync-conflicts.png),
 独立同步 Source 已通过真实 Git 分叉历史、三种冲突决策、计划持久化、作用域和版本拒绝、格式与地址校验、墓碑记录、中断恢复及真实 Core 多实例测试。它不提供模型动作；记录工具包与 Runtime 的同步校验分别包含在 19 项和 41 项测试中。
 
 WebUI 实测了四类项目数据的首次快照，确认应用不会自动推送，再分别对笔记、任务与反馈使用两者保留、采用本机、采用远端。导入结果保留本机历史，Git 合并提交具有两个父提交，代码分支保持原样。另一个全局目标实测六条轨道，导入工作记忆、用户偏好、个人任务、每日任务和每日日志，回执全部完成，Runtime 旧内容保留于恢复目录。远端仅为本机合成裸仓库；没有向正式仓库发送数据。
+
+## Task views and result capture checkpoint
+
+Task checks cover all four priority groups, combined type/category/date/deadline filters, deterministic ordering and exclusion of completed work from overdue results. The WebUI populated four groups, filtered a single overdue task, marked it complete and observed zero overdue matches. Daily-only filtering returned exactly one task. At 390 × 844, document and scroll width were both 390 pixels and all filters remained reachable.
+
+Journal tests use a real Git repository to confirm branch provenance and deduplication for feedback and project/daily job results. The WebUI ran a copied local job, observed successful exit 0 and its retained log, then filtered two new results by date and background-job category. Notifications independently recorded the completion. The fixture workspace has no Git branch, so those UI records have no invented branch.
+
+Two React race tests reject a late read from a previous workspace and prevent an old pending save from overwriting the new workspace or restoring its draft. Workspace utilities passed 21 tests; Tasks and Journal passed four each, plus type checks and separate builds. Screenshots: [priority matrix](assets/workspace-context/tasks-priority-matrix.png), [mobile task filters](assets/workspace-context/tasks-mobile.png), [project and daily results](assets/workspace-context/job-journal-capture.png).
+
+任务视图实测四个象限、组合筛选、每日任务，以及完成逾期任务后计数从 1 变为 0。390 × 844 窄屏下控件可达，页面没有横向溢出。日志测试使用真实 Git 仓库验证分支来源和去重；WebUI 中的新任务成功完成，随后实际生成项目、每日两份日志和独立站内通知。普通目录不伪造 Git 分支。
+
+共享集合页面通过两个异步竞争测试，保证旧工作区的响应与草稿不会覆盖新页面。工具包共 21 项测试通过，任务与日志各 4 项通过，独立类型检查与构建完成。

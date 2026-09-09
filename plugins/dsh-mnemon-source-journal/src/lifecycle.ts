@@ -1,9 +1,11 @@
 import type {} from '@deepseek-ai/dsh-command-feedback'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import { newRecord, RecordStore, type RecordValue } from 'dsh-mnemon-workspace-kit'
+import { newRecord, RecordStore, type RecordValue, type WorkspaceActivity } from 'dsh-mnemon-workspace-kit'
 import { agentMemoryScope, visibleMessages } from 'dsh-mnemon-workspace-kit/dsh'
-export async function captureJournalEvent(store: RecordStore, agent: Agent, event: SessionEvent, config: { captureTurns?: boolean; captureFeedback?: boolean }, signal?: AbortSignal): Promise<void> {
+import { sourceOptions } from './source.ts'
+export interface JournalCaptureConfig { captureTurns?: boolean; captureFeedback?: boolean; captureJobResults?: boolean }
+export async function captureJournalEvent(store: RecordStore, agent: Agent, event: SessionEvent, config: JournalCaptureConfig, signal?: AbortSignal): Promise<void> {
   if (!agent.session.header.cwd || agent.session.header.origin === 'subagent') return
   const scope = agentMemoryScope(agent), key = `${scope.sessionId}:${event.seq}:${event.type}`
   let record: RecordValue | undefined
@@ -16,6 +18,22 @@ export async function captureJournalEvent(store: RecordStore, agent: Agent, even
     record = newRecord('result', `Conversation turn ${event.data.turn}`, messages.messages.map(message => `[${message.role} #${message.seq}] ${message.text}`).join('\n\n').slice(0, 30_000), 'project', scope, { category: 'conversation', eventKey: key, sessionId: scope.sessionId!, turn: event.data.turn, truncated: messages.truncated })
   }
   if (!record) return
+  await sourceOptions.prepare?.(record, scope)
   record.data.eventAt = new Date(event.time).toISOString()
   await store.change(undefined, records => { if (!records.some(value => value.data.eventKey === key)) records.push(record!) }, signal)
+}
+
+/** Consume durable facts without calling or importing the publishing Source. */
+export async function captureWorkspaceActivity(store: RecordStore, activity: Readonly<WorkspaceActivity>, config: JournalCaptureConfig, signal?: AbortSignal): Promise<void> {
+  if (config.captureJobResults !== true || activity.kind !== 'job-completed') return
+  signal?.throwIfAborted()
+  const rows: RecordValue[] = []
+  for (const target of activity.scope.workspaceId ? ['project', 'daily'] as const : ['daily'] as const) {
+    const eventKey = `${activity.sourceInstanceKey}:${activity.eventKey}:${target}`
+    const record = newRecord('result', activity.title.slice(0, 300), activity.summary.slice(0, 30_000), target, activity.scope, {
+      category: 'background-job', eventKey, sourceInstanceKey: activity.sourceInstanceKey, recordId: activity.recordId ?? '', level: activity.level, eventAt: new Date().toISOString(), truncated: activity.summary.length > 30_000,
+    })
+    await sourceOptions.prepare?.(record, activity.scope); sourceOptions.validate(record); rows.push(record)
+  }
+  await store.change(undefined, records => { for (const row of rows) if (!records.some(record => record.data.eventKey === row.data.eventKey)) records.push(row) }, signal)
 }

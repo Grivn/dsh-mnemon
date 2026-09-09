@@ -1,7 +1,9 @@
 import { installMemorySourceUI, type MemorySourceUIContext } from 'dsh-mnemon/client'
 import { createCollectionPage } from 'dsh-mnemon-workspace-kit/client'
+import { JournalViews } from './views.tsx'
 export const inject = ['slots']
 export const Page = createCollectionPage({
+  renderRecords: context => <JournalViews {...context} />,
   "title": {
     "en": "Activity journal",
     "zh-CN": "活动日志"
@@ -39,6 +41,7 @@ export const Page = createCollectionPage({
   ],
   "defaultScope": "project",
   "fields": [
+    { key: "branch", type: "text", label: { en: "Git branch", "zh-CN": "Git 分支" }, readOnly: true },
     {
       "key": "category",
       "label": {

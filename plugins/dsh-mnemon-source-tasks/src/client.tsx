@@ -1,7 +1,9 @@
 import { installMemorySourceUI, type MemorySourceUIContext } from 'dsh-mnemon/client'
 import { createCollectionPage } from 'dsh-mnemon-workspace-kit/client'
+import { TaskViews } from './views.tsx'
 export const inject = ['slots']
 export const Page = createCollectionPage({
+  renderRecords: context => <TaskViews {...context} />,
   scopeForKind: { personal: 'global', work: 'global', project: 'project', daily: 'daily' },
   "title": {
     "en": "Tasks",

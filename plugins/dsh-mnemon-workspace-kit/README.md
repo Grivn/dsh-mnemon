@@ -1,5 +1,9 @@
 # Workspace Source utilities
 
+Collection pages may supply `renderRecords` to own filters and grouping while reusing the bound record renderer and its mutation checks. `readOnly` fields stay visible in records but are omitted from editors. Pending reads, writes and drafts are fenced when the selected Source, workspace or session changes.
+
+集合页面可用 `renderRecords` 自行实现筛选与分组，复用按实例绑定的记录渲染与修改校验。`readOnly` 字段只展示、不进入编辑表单。切换 Source、工作区或会话后，旧响应与草稿不会覆盖新页面。
+
 Shared implementation utilities for independently installed Sources. This package is not a Source, a Strategy, a Loader or a storage registry. Each caller owns its schema, directory, scope, operations and presentation.
 
 `RecordStore` provides atomic revision-fenced persistence and per-record history. `createRecordSource` adapts an owned collection to the public memory contracts. `./client` supplies a browser-only collection editor.

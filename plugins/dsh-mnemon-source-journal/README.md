@@ -1,5 +1,9 @@
 # Activity journal
 
+`captureJobResults` optionally consumes the public workspace activity event. A completed job produces one project result and one daily result, deduplicated by Source and event identity. No job implementation or directory is accessed. Automatic turn, feedback and job captures resolve actual Git branch provenance through the same Source preparation as manual records. The page filters by type, inclusive date range, branch and category.
+
+`captureJobResults` 可选订阅公开工作区活动事件。任务完成后生成项目和每日两条成果，按发布 Source 和事件标识去重，不读取任务插件的实现或目录。轮次、反馈和任务结果均通过 Source 自己的准备流程记录真实 Git 分支。页面支持类型、包含边界的日期范围、分支和分类筛选。
+
 Project progress, daily activity and feedback with durable history.
 
 This independently installed Source owns its records, scope, review state and management page. Its public routes return View-pinned evidence. Model suggestions remain pending; explicit management edits are revision-fenced. Archives and edits retain history. Disabling the plugin retains its data.

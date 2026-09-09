@@ -1,5 +1,9 @@
 # Tasks
 
+The page combines task type, completion state, deadline, daily date and category filters. List and priority-matrix views use the same revision-fenced editor, approval, archive and completion controls. Completed or cancelled tasks are excluded from overdue results; completion records a timestamp.
+
+页面支持类型、完成状态、截止范围、每日日期与分类的组合筛选。列表和重要与紧急矩阵共用版本校验、审核、编辑、归档和完成操作。已完成或已取消任务不计入逾期，完成时保留时间与历史。
+
 Personal, work, project and daily tasks with review and deadlines.
 
 This independently installed Source owns its records, scope, review state and management page. Its public routes return View-pinned evidence. Model suggestions remain pending; explicit management edits are revision-fenced. Archives and edits retain history. Disabling the plugin retains its data.

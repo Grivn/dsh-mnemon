@@ -12,6 +12,8 @@ export const sourceOptions: RecordSourceOptions = {
     record.data.status ??= 'pending'
     record.data.important ??= false
     record.data.urgent ??= false
+    if (record.data.status === 'done') record.data.completedAt ??= new Date().toISOString()
+    else delete record.data.completedAt
   },
   validate(record) {
     if (!['pending', 'in-progress', 'done', 'blocked', 'cancelled'].includes(String(record.data.status ?? 'pending'))) throw new Error('Unsupported task status')
