@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { COMPOSABLE_MEMORY_API_VERSION, type MemoryJsonValue, type MemoryOperationScope, type MemorySourceDefinition, type MemorySourceManagementRequest } from 'dsh-mnemon/contracts'
+import { COMPOSABLE_MEMORY_API_VERSION, type MemoryJsonValue, type MemoryOperationScope, type MemorySourceActionManifest, type MemorySourceDefinition, type MemorySourceManagementRequest } from 'dsh-mnemon/contracts'
 import { createMemoryMutationReceipt, defineMemorySource, memoryInputInteger, memoryInputRecord, memoryInputText, truncateMemoryText } from 'dsh-mnemon/extension-sdk'
-import { digest, json, RecordStore, recordScope, reviseRecord, visibleRecord, type RecordScope, type RecordSnapshot, type RecordValue } from './records.ts'
+import { digest, json, RecordStore, recordScope, reviseRecord, validateRecord, visibleRecord, type RecordScope, type RecordSnapshot, type RecordValue } from './records.ts'
 
 export interface RecordSourceConfig { dataDir?: string }
 export interface RecordSourceOptions {
@@ -16,6 +16,8 @@ export interface RecordSourceOptions {
   defaultScope: RecordScope
   scopeForKind?: Readonly<Record<string, RecordScope>>
   modelWrites?: 'proposal' | 'append'
+  /** Memory-only operations handled by mutate. Existing records must belong to the pinned View. */
+  modelActions?: readonly MemorySourceActionManifest[]
   validate(record: RecordValue): void
   prepare?(record: RecordValue, scope: MemoryOperationScope): Promise<void> | void
   visible?(record: RecordValue, scope: MemoryOperationScope): Promise<boolean> | boolean
@@ -44,13 +46,35 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
       capabilities: ['status', 'project', 'recall', 'write', 'export', 'import'], consistency: 'exact-snapshot',
       management: { label: options.label, description: options.description },
       routes: [{ id: 'search', description: `Search and read ${options.label}.`, capability: 'recall', inputSchema: readSchema, maxCalls: 8, maxResults: 20, maxCharacters: 12_000 }],
-      actions: [{ id: modelAction, description: modelAction === 'append' ? `Append a new ${options.label} record; existing records are preserved.` : `Propose a ${options.label} record for human approval; it stays inactive until approved.`, capability: 'write', inputSchema: writeSchema }],
+      actions: [{ id: modelAction, description: modelAction === 'append' ? `Append a new ${options.label} record; existing records are preserved.` : `Propose a ${options.label} record for human approval; it stays inactive until approved.`, capability: 'write', inputSchema: writeSchema }, ...options.modelActions ?? []],
     },
     create(context) {
       const dataDir = config.dataDir ?? (typeof context.configuration?.dataDir === 'string' ? context.configuration.dataDir : undefined)
         ?? process.env.MNEMON_DATA_DIR ?? join(homedir(), '.mnemon')
       const store = new RecordStore(join(dataDir, 'sources', options.typeId, digest(context.sourceInstanceKey).slice(0, 20)))
       const prepared = new WeakMap<object, RecordSnapshot>()
+      // Bounded opaque snapshots keep large collections out of Core's JSON grants.
+      // Eviction fails closed; it never substitutes a newer collection for an old View.
+      const snapshots = new Map<string, RecordValue[]>()
+      let snapshotBytes = 0
+      const pin = (records: RecordValue[]): string => {
+        const key = digest(records)
+        if (!snapshots.has(key)) {
+          snapshots.set(key, records); snapshotBytes += Buffer.byteLength(JSON.stringify(records))
+          while (snapshots.size > 16 || snapshotBytes > 64 * 1024 * 1024 && snapshots.size > 1) {
+            const oldest = snapshots.keys().next().value!
+            snapshotBytes -= Buffer.byteLength(JSON.stringify(snapshots.get(oldest)))
+            snapshots.delete(oldest)
+          }
+        }
+        return key
+      }
+      const pinned = (grant: MemoryJsonValue): RecordValue[] => {
+        const key = memoryInputText(memoryInputRecord(grant, 'record grant').snapshot, 'snapshot', 64)!
+        const records = snapshots.get(key)
+        if (!records) throw new Error('The pinned record snapshot expired; compose a new View')
+        return structuredClone(records)
+      }
       const active = async (snapshot: RecordSnapshot, scope: MemoryOperationScope, archives = false): Promise<RecordValue[]> => {
         const records = snapshot.records.filter(record => visibleRecord(record, scope) && (record.state === 'active' || archives && record.state === 'archived'))
         const included = await Promise.all(records.map(record => options.visible?.(record, scope) ?? true))
@@ -66,8 +90,13 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           ...recordScope(selectedScope, scope, memoryInputText(input.date, 'date', 10, false)), state, data: structuredClone(data),
           signals: 1, createdAt: now, updatedAt: now, version: 1, history: [] }
       }
-      async function change(operation: string, input: { [key: string]: MemoryJsonValue }, scope: MemoryOperationScope, revision?: string, signal?: AbortSignal): Promise<RecordSnapshot> {
+      async function change(operation: string, input: { [key: string]: MemoryJsonValue }, scope: MemoryOperationScope, revision?: string, signal?: AbortSignal, modelRecords?: RecordValue[]): Promise<RecordSnapshot> {
         return store.change(revision, async records => {
+          if (modelRecords && operation !== modelAction) {
+            const before = modelRecords.find(record => record.id === input.id && record.state === 'active')
+            const current = records.find(record => record.id === input.id && visibleRecord(record, scope))
+            if (!before || !current || current.version !== before.version) throw new Error('Record is not active in this View or has changed; read it in a new View')
+          }
           if (['create', 'propose', 'append'].includes(operation)) {
             const item = create(input, scope, operation === 'propose' ? 'pending' : 'active')
             await options.prepare?.(item, scope)
@@ -77,6 +106,28 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
               && digest(record.data) === digest(item.data))
             if (operation === 'propose' && duplicate) { reviseRecord(duplicate, 'repeat-proposal'); duplicate.signals++; return }
             records.push(item)
+            return
+          }
+          if (operation === 'import') {
+            if (!Array.isArray(input.records) || input.records.length > 10_000) throw new Error('Import requires a bounded records array')
+            if (input.conflicts !== undefined && !['skip', 'replace'].includes(String(input.conflicts))) throw new Error('Choose skip or replace for import conflicts')
+            const imported = new Set<string>()
+            for (const value of input.records) {
+              const item: unknown = structuredClone(value)
+              validateRecord(item)
+              if (imported.has(item.id)) throw new Error('Duplicate imported record id')
+              imported.add(item.id)
+              if (!options.kinds.includes(item.kind) || !options.scopes.includes(item.scope) || !visibleRecord(item, scope)) throw new Error('Imported record is outside this Source or scope')
+              options.validate(item)
+              const index = records.findIndex(record => record.id === item.id)
+              if (index < 0) { records.push(item); continue }
+              const existing = records[index]!
+              if (!visibleRecord(existing, scope)) throw new Error('Imported id belongs to another scope')
+              if (digest(existing) === digest(item) || input.conflicts === 'skip') continue
+              if (input.conflicts !== 'replace') throw new Error('Import conflict: ' + item.id)
+              reviseRecord(existing, 'import')
+              records[index] = { ...item, version: existing.version, updatedAt: existing.updatedAt, history: existing.history }
+            }
             return
           }
           if (['update', 'approve', 'archive', 'reject', 'restore', 'delete'].includes(operation)) {
@@ -108,7 +159,7 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           prepared.set(request.scope, snapshot)
           const scoped = managed(snapshot, request.scope).records
           return { sourceInstanceKey: context.sourceInstanceKey, sourceTypeId: options.typeId, role: options.role, availability: 'ready', revision: snapshot.revision,
-            capabilities: ['status', 'project', 'recall', 'write', 'export', 'import'], routeIds: ['search'], actionIds: [modelAction],
+            capabilities: ['status', 'project', 'recall', 'write', 'export', 'import'], routeIds: ['search'], actionIds: [modelAction, ...options.modelActions?.map(action => action.id) ?? []],
             hints: { activeCount: scoped.filter(record => record.state === 'active').length, pendingCount: scoped.filter(record => record.state === 'pending').length } }
         },
         async project(request, signal) {
@@ -121,7 +172,7 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           return { fragments: request.includeProjection ? [{ id: context.sourceInstanceKey + '/summary', sourceInstanceKey: context.sourceInstanceKey, mode: request.mode,
             text: truncateMemoryText(text, request.maxCharacters), revision: snapshot.revision }] : [],
             readGrant: { id: context.sourceInstanceKey + '/' + snapshot.revision, sourceInstanceKey: context.sourceInstanceKey, schema: 'mnemon-record-grant/v1',
-              value: json(archived), revision: snapshot.revision, consistency: 'exact-snapshot' },
+              value: { snapshot: pin(archived) }, revision: snapshot.revision, consistency: 'exact-snapshot' },
             presentation: { visibleItems: records.length, totalItems: managed(snapshot, request.scope).records.length,
               items: records.slice(0, 20).map(record => ({ id: record.id, title: record.title, ...(record.content.trim() ? { excerpt: truncateMemoryText(record.content, 160) } : {}) })) },
           }
@@ -130,15 +181,15 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           request.signal?.throwIfAborted()
           const input = memoryInputRecord(request.input, 'record query')
           const term = (memoryInputText(input.query, 'query', 1000, false) ?? '').toLocaleLowerCase()
-          let records = (structuredClone(request.grant.value) as unknown as RecordValue[]).filter(record =>
+          let records = pinned(request.grant.value).filter(record =>
             (record.state === 'active' || input.archived === true && record.state === 'archived')
             && (input.id === undefined || record.id === input.id) && (input.kind === undefined || record.kind === input.kind)
             && (input.date === undefined || record.date === input.date) && (input.status === undefined || record.data.status === input.status)
             && (input.since === undefined || (record.date ?? record.createdAt.slice(0, 10)) >= String(input.since))
             && (input.until === undefined || (record.date ?? record.createdAt.slice(0, 10)) <= String(input.until))
             && (!term || (record.title + '\n' + record.content + '\n' + JSON.stringify(record.data)).toLocaleLowerCase().includes(term)))
-          records = options.search?.(records, input, request.view.scope) ?? records
           if (input.recent !== false) records.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
+          records = options.search?.(records, input, request.view.scope) ?? records
           const limit = Math.min(memoryInputInteger(input.limit, 10, 1, 100), request.route.maxResults ?? 20)
           let remaining = request.route.maxCharacters ?? 12_000
           const items = records.slice(0, limit).flatMap(record => {
@@ -164,10 +215,16 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           return { revision: snapshot.revision, value: json(managed(snapshot, request.scope)) }
         },
         async mutate(request) {
-          const snapshot = await change(modelAction, memoryInputRecord(request.input, 'record write'), request.view.scope, undefined, request.signal)
+          const operation = request.offer.sourceActionId
+          if (operation !== modelAction && !options.modelActions?.some(action => action.id === operation)) throw new Error('Unsupported record action')
+          const input = memoryInputRecord(request.input, 'record write')
+          if (operation !== modelAction && !request.grant) throw new Error('The action needs this Source\'s pinned read grant')
+          const snapshot = await change(operation, input, request.view.scope, undefined, request.signal, operation !== modelAction ? pinned(request.grant!.value) : undefined)
+          const affected = snapshot.records.filter(record => visibleRecord(record, request.view.scope) && (input.id ? record.id === input.id : record.title === input.title)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
           return createMemoryMutationReceipt(request.view.id, request.offer.id, context.sourceInstanceKey, snapshot.revision,
-            { message: modelAction === 'propose' ? 'Saved for approval; not active context.' : 'New record appended.', pending: modelAction === 'propose' }, modelAction === 'propose' ? 'candidate' : 'committed')
+            { message: operation === 'propose' ? 'Saved for approval; not active context.' : 'Record saved.', pending: operation === 'propose', recordId: affected[0]?.id ?? null, version: affected[0]?.version ?? null }, operation === 'propose' ? 'candidate' : 'committed')
         },
+        dispose() { snapshots.clear(); snapshotBytes = 0 },
       }
     },
   })

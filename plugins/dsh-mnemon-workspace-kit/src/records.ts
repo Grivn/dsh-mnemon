@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
+import { mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises'
+import { isAbsolute, join, resolve } from 'node:path'
+import { lock } from 'proper-lockfile'
 import type { MemoryJsonValue, MemoryOperationScope } from 'dsh-mnemon/contracts'
 import { withMemoryStorageLock } from 'dsh-mnemon/extension-sdk'
 
@@ -62,9 +62,14 @@ export function validateRecord(value: unknown): asserts value is RecordValue {
     || typeof r.updatedAt !== 'string' || !Number.isFinite(Date.parse(r.updatedAt))
     || !r.data || typeof r.data !== 'object' || Array.isArray(r.data) || JSON.stringify(r.data).length > 128_000
     || !Array.isArray(r.history) || r.history.length > 50) throw new Error('Invalid record fields')
-  if (r.scope === 'project' && (typeof r.workspaceId !== 'string' || !r.workspaceId.startsWith('/'))) throw new Error('Invalid project scope')
+  for (const entry of r.history) {
+    if (!entry || typeof entry.operation !== 'string' || entry.operation.length > 100 || typeof entry.at !== 'string' || !Number.isFinite(Date.parse(entry.at))
+      || typeof entry.title !== 'string' || entry.title.length > 300 || typeof entry.content !== 'string' || entry.content.length > 100_000
+      || !['pending', 'active', 'archived', 'rejected', 'deleted'].includes(entry.state) || !entry.data || typeof entry.data !== 'object' || Array.isArray(entry.data) || JSON.stringify(entry.data).length > 128_000) throw new Error('Invalid record history')
+  }
+  if (r.scope === 'project' && (typeof r.workspaceId !== 'string' || !isAbsolute(r.workspaceId))) throw new Error('Invalid project scope')
   if (r.scope === 'session' && (typeof r.sessionId !== 'string' || !r.sessionId)) throw new Error('Invalid session scope')
-  if (r.scope === 'daily' && (typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !Number.isFinite(Date.parse(r.date)))) throw new Error('Invalid daily scope')
+  if (r.scope === 'daily' && (typeof r.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.date) || !Number.isFinite(Date.parse(r.date)) || new Date(r.date).toISOString().slice(0, 10) !== r.date)) throw new Error('Invalid daily scope')
 }
 
 /** One Source-owned directory; no global registry or access to other Sources. */
@@ -93,44 +98,31 @@ export class RecordStore {
     return withMemoryStorageLock(this.directory, async () => {
       signal?.throwIfAborted()
       await mkdir(this.directory, { recursive: true, mode: 0o700 })
-      const lock = join(this.directory, 'write.lock')
       const owner = randomUUID()
-      const deadline = Date.now() + 10_000
-      while (true) {
-        signal?.throwIfAborted()
-        try {
-          await mkdir(lock, { mode: 0o700 })
-          await writeFile(join(lock, 'owner.json'), JSON.stringify({ pid: process.pid, owner }), { mode: 0o600 })
-          break
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-          try {
-            const prior = JSON.parse(await readFile(join(lock, 'owner.json'), 'utf8')) as { pid: number }
-            if (Number.isSafeInteger(prior.pid) && prior.pid > 0) {
-              try { process.kill(prior.pid, 0) } catch (reason) { if ((reason as NodeJS.ErrnoException).code === 'ESRCH') { await rm(lock, { recursive: true, force: true }); continue } }
-            }
-          } catch { /* An owner still creating its marker is not a stale lock. */ }
-          if (Date.now() >= deadline) throw new Error('Another process is writing this collection; retry after it finishes')
-          await delay(25, undefined, signal ? { signal } : {})
-        }
-      }
+      let compromised: Error | undefined
+      const release = await lock(this.directory, { lockfilePath: join(this.directory, 'records.lock'), stale: 10_000, update: 2_000,
+        retries: { retries: 24, minTimeout: 50, maxTimeout: 500, factor: 1.4, randomize: false },
+        onCompromised(error) { compromised = error },
+      })
       const temporary = join(this.directory, `records.${owner}.tmp`)
       try {
         const current = await this.read(signal)
         if (expectedRevision !== undefined && expectedRevision !== current.revision) throw new Error('Record revision changed; refresh before saving')
         await operation(current.records)
         signal?.throwIfAborted()
-        for (const record of current.records) validateRecord(record)
+        const ids = new Set<string>()
+        for (const record of current.records) { validateRecord(record); if (ids.has(record.id)) throw new Error('Duplicate record id'); ids.add(record.id) }
         const content = JSON.stringify({ format: 'mnemon-records/v1', records: current.records } satisfies RecordFile, null, 2) + '\n'
         if (current.records.length > 10_000 || Buffer.byteLength(content) > 32 * 1024 * 1024) throw new Error('Record collection capacity exceeded')
-        await writeFile(temporary, content, { mode: 0o600, flag: 'wx' })
+        const handle = await open(temporary, 'wx', 0o600)
+        try { await handle.writeFile(content); await handle.sync() } finally { await handle.close() }
         signal?.throwIfAborted()
+        if (compromised) throw compromised
         await rename(temporary, this.file)
         return { revision: digest(current.records), records: current.records }
       } finally {
         await rm(temporary, { force: true })
-        const currentOwner = JSON.parse(await readFile(join(lock, 'owner.json'), 'utf8')) as { owner: string }
-        if (currentOwner.owner === owner) await rm(lock, { recursive: true })
+        await release()
       }
     })
   }

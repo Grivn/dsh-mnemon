@@ -18,3 +18,7 @@
   disabled: false
 - id: mnemon-strategy-team-coordination
   disabled: false
+- id: mnemon-source-files
+  disabled: false
+- id: mnemon-source-sessions
+  disabled: false

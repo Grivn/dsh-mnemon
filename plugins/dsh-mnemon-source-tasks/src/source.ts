@@ -3,6 +3,7 @@ export const sourceOptions: RecordSourceOptions = {
   typeId: 'tasks', role: 'task-context', label: 'Tasks', description: 'Scoped tasks, priorities, deadlines and completion history.',
   kinds: ['personal', 'work', 'project', 'daily'], scopes: ['global', 'project', 'daily'], defaultScope: 'project',
   scopeForKind: { personal: 'global', work: 'global', project: 'project', daily: 'daily' },
+  modelActions: [{ id: 'set-status', capability: 'write', description: 'Update the status of an approved task read in this View. Does not approve, delete or replace tasks.', inputSchema: { type: 'object', additionalProperties: false, required: ['id', 'status'], properties: { id: { type: 'string' }, status: { type: 'string', enum: ['pending', 'in-progress', 'done', 'blocked', 'cancelled'] } } } }],
   prepare(record, scope) {
     const target = record.kind === 'project' ? 'project' : record.kind === 'daily' ? 'daily' : 'global'
     delete record.workspaceId; delete record.sessionId
@@ -26,11 +27,15 @@ export const sourceOptions: RecordSourceOptions = {
       .sort((a, b) => String(a.data.due || '9999').localeCompare(String(b.data.due || '9999')) || Number(b.data.urgent === true) - Number(a.data.urgent === true)).slice(0, 8)
   },
   mutate(operation, input, { records, scope }) {
-    if (operation !== 'complete') throw new Error('Unsupported task operation')
+    if (!['complete', 'set-status'].includes(operation)) throw new Error('Unsupported task operation')
     const record = records.find(record => record.id === input.id && visibleRecord(record, scope))
     if (!record || record.state !== 'active') throw new Error('Active task not found')
     if (input.version !== undefined && input.version !== record.version) throw new Error('Task version changed')
-    if (record.data.status === 'done') return
-    reviseRecord(record, 'complete'); record.data.status = 'done'; record.data.completedAt = new Date().toISOString()
+    const status = operation === 'complete' ? 'done' : input.status
+    if (!['pending', 'in-progress', 'done', 'blocked', 'cancelled'].includes(String(status))) throw new Error('Unsupported task status')
+    if (record.data.status === status) return
+    reviseRecord(record, operation); record.data.status = status!
+    if (status === 'done') record.data.completedAt = new Date().toISOString()
+    else delete record.data.completedAt
   },
 }

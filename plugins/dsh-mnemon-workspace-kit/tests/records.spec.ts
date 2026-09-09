@@ -6,23 +6,52 @@ import { MemoryCompositionRunner } from 'dsh-mnemon/testing'
 import { defineMemoryStrategy, installMemory } from 'dsh-mnemon/extension-sdk'
 import { COMPOSABLE_MEMORY_API_VERSION } from 'dsh-mnemon/contracts'
 import type { Context } from '@deepseek-ai/cordis'
-import { createRecordSource, RecordStore, type RecordSnapshot } from '../src/index.ts'
+import { createRecordSource, RecordStore, reviseRecord, type RecordSnapshot, type RecordSourceOptions } from '../src/index.ts'
 
 const options = { typeId: 'test-records', role: 'test-records', label: 'Records', description: 'Test records', kinds: ['note'], scopes: ['project', 'global'] as const, defaultScope: 'project' as const, validate() {} }
 const policy = { apply(ctx: Context) { installMemory(ctx, { strategies: [defineMemoryStrategy({
   manifest: { apiVersion: COMPOSABLE_MEMORY_API_VERSION, kind: 'strategy', typeId: 'records-policy', packageName: 'records-policy', deterministic: true, supportedSourceRoles: ['test-records'], maxSources: 5, maxRoutes: 5, maxActions: 5 },
   compose(request, sources) { return { strategyTypeId: 'records-policy', explanation: 'Test composition', sources: sources.map(source => ({ sourceInstanceKey: source.sourceInstanceKey, projection: { mode: 'eager', maxCharacters: Math.floor(request.budget.maxProjectionCharacters / sources.length) }, routeIds: source.routeIds, actionIds: source.actionIds })) } },
 })] }) } }
-async function fixture() {
+async function fixture(overrides: Partial<RecordSourceOptions> = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), 'mnemon-records-'))
   const runner = new MemoryCompositionRunner()
-  const source = { apply(ctx: Context) { installMemory(ctx, { sources: [createRecordSource(options, { dataDir })] }) } }
+  const source = { apply(ctx: Context) { installMemory(ctx, { sources: [createRecordSource({ ...options, ...overrides }, { dataDir })] }) } }
   const unmount = await runner.mount(source, { instanceId: 'notes' })
   await runner.mount(policy, { instanceId: 'policy' })
   return { runner, dataDir, source, unmount, scope: { storage: 'custom' as const, workspaceId: '/project-a', sessionId: 'test-session' } }
 }
 
 describe('scoped record Source', () => {
+  it('imports approved exports with explicit conflict decisions and scope checks', async () => {
+    const { runner, scope } = await fixture()
+    try {
+      const client = await runner.managementClient('source:notes', scope)
+      await client.mutate('create', { title: 'Original' }, { confirmed: true })
+      const exported = (await client.read('export')).value as unknown as RecordSnapshot
+      const record = structuredClone(exported.records[0]!); record.title = 'Remote edit'
+      await expect(client.mutate('import', { records: [record] } as any, { confirmed: true })).rejects.toThrow(/conflict/)
+      await client.mutate('import', { records: [record], conflicts: 'replace' } as any, { confirmed: true })
+      const changed = (await client.read('snapshot')).value as unknown as RecordSnapshot
+      expect(changed.records[0]?.title).toBe('Remote edit'); expect(changed.records[0]?.history[0]?.title).toBe('Original')
+      const other = await runner.managementClient('source:notes', { ...scope, workspaceId: '/other' })
+      await expect(other.mutate('import', { records: [record] } as any, { confirmed: true })).rejects.toThrow(/scope/)
+    } finally { await runner.dispose() }
+  })
+  it('fences extra model actions to the exact active record version in the View', async () => {
+    const { runner, scope } = await fixture({ modelActions: [{ id: 'complete', capability: 'write', description: 'Complete a record', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } }], mutate(_operation, input, context) { const record = context.records.find(record => record.id === input.id)!; reviseRecord(record, 'complete'); record.data.status = 'done' } })
+    try {
+      const client = await runner.managementClient('source:notes', scope)
+      await client.mutate('create', { title: 'Active task' }, { confirmed: true })
+      const record = ((await client.read('snapshot')).value as unknown as RecordSnapshot).records[0]!
+      const turn = await runner.beginTurn({ scope })
+      const offer = turn.view.actionOffers.find(offer => offer.sourceActionId === 'complete')!
+      await expect(turn.executeAction(offer.id, { id: 'outside' }, () => true)).rejects.toThrow(/View|changed/)
+      const receipt = await turn.executeAction(offer.id, { id: record.id }, () => true)
+      expect(JSON.stringify(receipt)).toContain(record.id)
+      await expect(turn.executeAction(offer.id, { id: record.id }, () => true)).rejects.toThrow(/changed/)
+    } finally { await runner.dispose() }
+  })
   it('keeps proposals inactive, deduplicates signals and requires a new View after approval', async () => {
     const { runner, scope } = await fixture()
     try {

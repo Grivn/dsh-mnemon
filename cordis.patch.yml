@@ -94,6 +94,12 @@
         - id: mnemon-source-playbooks
           name: dsh-mnemon-source-playbooks
           disabled: true
+        - id: mnemon-source-files
+          name: dsh-mnemon-source-files
+          disabled: true
+        - id: mnemon-source-sessions
+          name: dsh-mnemon-source-sessions
+          disabled: true
         - id: mnemon-strategy-workspace
           name: dsh-mnemon-strategy-workspace
           disabled: true
