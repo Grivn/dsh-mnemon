@@ -137,3 +137,13 @@ Two React race tests reject a late read from a previous workspace and prevent an
 任务视图实测四个象限、组合筛选、每日任务，以及完成逾期任务后计数从 1 变为 0。390 × 844 窄屏下控件可达，页面没有横向溢出。日志测试使用真实 Git 仓库验证分支来源和去重；WebUI 中的新任务成功完成，随后实际生成项目、每日两份日志和独立站内通知。普通目录不伪造 Git 分支。
 
 共享集合页面通过两个异步竞争测试，保证旧工作区的响应与草稿不会覆盖新页面。工具包共 21 项测试通过，任务与日志各 4 项通过，独立类型检查与构建完成。
+
+## Independent artifacts and prompt scheduling checkpoint
+
+All 35 independent plugin repositories passed standalone tarball installation, workspace-link rejection, type checking, tests and builds. The external consumer passed its public SDK composition and Client tests against 36 packed artifacts. Real DSH passed installation of only the packed Starter, upgrade from 0.4.7, and concurrent activation of three optional Strategy packages. The consumer now declares every tested plugin explicitly and derives the expected artifact set from that manifest, replacing an obsolete fixed package count.
+
+WebUI created a continuous prompt schedule, used it in two consecutive human turns, stopped it, and completed a third turn. The durable record remained stopped with exactly two uses. A separate immediate invocation previewed its expanded variables and completed once with explicit wake; the native conversation produced another assistant response at 18:15. These checks validate delivery and turn accounting with the local deterministic model. Screenshots: [stopped after two uses](assets/workspace-context/prompt-schedule-stopped.png), [immediate invocation](assets/workspace-context/prompt-immediate.png).
+
+35 个独立插件逐一通过制品安装、禁止工作区链接、类型检查、测试和构建；外部消费者用 36 个打包制品通过公开 SDK 组合与前端测试。真实 DSH 验证仅安装 Starter、从 0.4.7 升级，以及同时启用三个可选策略。消费者清单现在明确声明全部插件，制品数量随清单校验。
+
+提示词持续调度在两个人类轮次中各触发一次；手动停止后的下一轮保持两次使用。另一次立即调用预览变量展开结果后完成一次，并显式唤醒会话，原生会话在 18:15 产生新回复。实际模型仍是本机固定响应，验证范围是投递、计数和停止行为。
