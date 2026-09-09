@@ -17,3 +17,7 @@ Install alongside `dsh-mnemon-strategy-workspace` in an explicit DSH profile. Co
 `captureTurns` explicitly enables completed human-turn excerpts; `captureFeedback` captures DSH's public `/feedback` records. Both use stable session-event references to prevent duplicate capture and exclude private reasoning and injected plugin messages. Source-owned timestamps and truncation markers describe what was captured.
 
 `captureTurns` 显式开启用户轮次完成记录；`captureFeedback` 记录 DSH 公开的 `/feedback` 事件。稳定的会话事件引用防止重复写入，私有推理及注入消息不进入日志，保留时间、来源与截断标记。
+
+`writeReminderTurns` (0–1000, default 0) counts completed human turns without an actual journal write. The count is durable and scoped to workspace and session. Duplicate events, plugin-only turns and subagents do not advance it. Accepted journal writes reset it; a pending suggestion does not. The page shows the current gap. The Journal capture enhancement consumes the Source's public due hint; Workspace only includes that reminder when the same Source has an actual writable action in the current View.
+
+`writeReminderTurns`（0–1000，默认 0）记录连续未写日志的已完成人类轮次，按工作区和会话持久保存。重复事件、纯插件轮次与子代理不会增加计数；实际采纳的日志写入会清零，待审核建议不会。页面可读取当前间隔。日志增强策略仅消费 Source 公开的到期提示，且该 Source 在当前 View 中确实可写时，Workspace 才加入记录提醒。

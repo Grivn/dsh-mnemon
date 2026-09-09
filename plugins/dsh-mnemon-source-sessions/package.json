@@ -38,7 +38,10 @@
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
     "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-token-meter": "0.1.2-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -59,7 +62,10 @@
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
     "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-token-meter": "0.1.2-rc.1"
   },
   "publishConfig": {
     "access": "public",
@@ -76,6 +82,15 @@
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-conversation": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-token-meter": {
       "optional": true
     }
   },

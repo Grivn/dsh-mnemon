@@ -37,7 +37,7 @@ await chmod(native, 0o700)
 const completedChecks = new Set()
 try {
   const history = await readFile(join(logs, 'workspace-checks.jsonl'), 'utf8')
-  for (const line of history.split('\n').filter(Boolean)) { const value = JSON.parse(line); if (typeof value.check === 'string' && !['read', 'job-plan'].includes(value.dispatched)) completedChecks.add(value.check) }
+  for (const line of history.split('\n').filter(Boolean)) { const value = JSON.parse(line); if (typeof value.check === 'string' && !['read', 'job-plan', 'prompt-read'].includes(value.dispatched)) completedChecks.add(value.check) }
 } catch (error) { if (error.code !== 'ENOENT') throw error }
 const model = values.model === 'fixture' ? createServer(async (request, response) => {
   const deliveryFixture = request.url?.startsWith('/notification/') === true
@@ -82,6 +82,29 @@ const model = values.model === 'fixture' ? createServer(async (request, response
     }
     await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check: 'job:' + jobCheck[2], offeredTools: tools, dispatched: !planResult && toolCall ? 'job-plan' : toolCall?.name ?? null }) + '\n', { mode: 0o600 })
   }
+  const promptCheck = [...fullText.matchAll(/\[workspace-check:use-playbook:([a-f0-9-]{36}):([a-zA-Z0-9-]{1,100})\]/g)].at(-1)
+  if (!toolCall && !review && promptCheck && !completedChecks.has('prompt:' + promptCheck[2]) && tools.includes('mnemon_view_action') && tools.includes('mnemon_view_route')) {
+    const [, id, nonce] = promptCheck, evidence = (body.messages ?? []).find(message => message.role === 'tool' && message.tool_call_id === 'workspace-prompt-read-' + nonce)
+    const envelopes = [...fullText.matchAll(/^MNEMON VIEW ROUTES .*?: (\[.*\])$/gm)]
+    let source
+    try { source = JSON.parse(envelopes.at(-1)?.[1] ?? '[]').find(value => value.source.includes('playbooks')) } catch {}
+    if (!evidence) {
+      const route = source?.routes.find(route => route.description.startsWith('Search and read Playbooks'))
+      if (route) toolCall = { id: 'workspace-prompt-read-' + nonce, name: 'mnemon_view_route', args: { routeId: route.id, input: { id } } }
+    } else {
+      const find = (value, depth = 0) => {
+        if (depth > 8 || value == null) return
+        if (typeof value === 'string') { try { return find(JSON.parse(value), depth + 1) } catch { return } }
+        if (typeof value !== 'object') return
+        if (value.id === id && typeof value.text === 'string' && typeof value.revision === 'string') return value
+        for (const child of Object.values(value)) { const found = find(child, depth + 1); if (found) return found }
+      }
+      const record = find(evidence.content), action = source?.actions.find(action => action.description.startsWith('Use this approved prompt once.'))
+      completedChecks.add('prompt:' + nonce)
+      if (record && action) toolCall = { id: 'workspace-prompt-use-' + nonce, name: 'mnemon_view_action', args: { offerId: action.id, input: { id, version: Number(record.revision), variables: { task: '模型提示词授权验收' }, wake: true } } }
+    }
+    await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check: 'prompt:' + promptCheck[2], offeredTools: tools, dispatched: !evidence && toolCall ? 'prompt-read' : toolCall?.name ?? null }) + '\n', { mode: 0o600 })
+  }
   const sessionCheck = [...fullText.matchAll(/\[workspace-check:create-session:([a-zA-Z0-9-]{1,100})\]/g)].at(-1)?.[1]
   if (!toolCall && !review && sessionCheck && !completedChecks.has('session:' + sessionCheck) && tools.includes('mnemon_view_action')) {
     const envelopes = [...fullText.matchAll(/^MNEMON VIEW ROUTES .*?: (\[.*\])$/gm)]
@@ -103,11 +126,13 @@ const model = values.model === 'fixture' ? createServer(async (request, response
     await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check, offeredTools: tools, dispatched: toolCall?.name ?? null }) + '\n', { mode: 0o600 })
   }
   const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: proposals ? [{ kind: 'fact', title: '合成验收建议', content: '这是一条用于验证跨插件审核流程的合成建议。' }] : [], ...(proposals ? { skill: { slug: 'validation-checklist', title: '验收检查流程', content: '检查具体结果、测试证据与适用范围。此条目用于验证插件流程。' } } : {}) }) : 'The isolated workspace is ready. This is a deterministic local test response.'
+  const capacityCheck = !review && [...fullText.matchAll(/\[workspace-check:context-usage:(\d{1,7})\]/g)].at(-1)?.[1]
+  const syntheticUsage = capacityCheck === false || capacityCheck === undefined ? undefined : { prompt_tokens: Number(capacityCheck), completion_tokens: 20, total_tokens: Number(capacityCheck) + 20 }
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   for (const choice of [
     { index: 0, delta: toolCall ? { role: 'assistant', tool_calls: [{ index: 0, id: toolCall.id ?? 'workspace-' + toolCall.name + '-' + check, type: 'function', function: { name: toolCall.name, arguments: JSON.stringify(toolCall.args) } }] } : { role: 'assistant', content }, finish_reason: null },
     { index: 0, delta: {}, finish_reason: toolCall ? 'tool_calls' : 'stop' },
-  ]) response.write(`data: ${JSON.stringify({ id: 'workspace-fixture', choices: [choice] })}\n\n`)
+  ]) response.write(`data: ${JSON.stringify({ id: 'workspace-fixture', choices: [choice], ...(choice.finish_reason && syntheticUsage ? { usage: syntheticUsage } : {}) })}\n\n`)
   response.end('data: [DONE]\n\n')
 }) : undefined
 if (model) await new Promise((fulfill, reject) => { model.once('error', reject); model.listen(0, '127.0.0.1', fulfill) })

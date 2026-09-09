@@ -6,6 +6,25 @@ import { newRecord, RecordStore } from 'dsh-mnemon-workspace-kit'
 import { advanceSchedules, makeSchedule, renderPrompt } from '../src/schedule.ts'
 const scope = { storage: 'custom' as const, workspaceId: '/project', sessionId: 'one' }
 describe('explicit prompt schedules', () => {
+  it('retains a failed expansion without preventing other schedules or replaying it', async () => {
+    const store = new RecordStore(await mkdtemp(join(tmpdir(), 'mnemon-prompt-failure-')))
+    const book = newRecord('prompt', 'Valid', 'Continue {{task}}', 'project', scope, { enabled: true })
+    const bad = makeSchedule(book, scope, { variables: { task: 'original' }, count: 1, interval: 1, startAfter: 1 })
+    bad.data.variables = {}
+    const good = makeSchedule(book, scope, { variables: { task: 'valid' }, count: 1, interval: 1, startAfter: 1 })
+    await store.change(undefined, records => { records.push(book, bad, good) })
+    expect(await advanceSchedules(store, scope, 1)).toMatchObject([{ text: 'Continue valid' }])
+    expect((await store.read()).records.find(record => record.id === bad.id)?.data).toMatchObject({ status: 'failed', uses: 0 })
+    expect(await advanceSchedules(store, scope, 2)).toEqual([])
+  })
+  it('normalizes a zero interval to one use and expands the time at invocation', async () => {
+    const store = new RecordStore(await mkdtemp(join(tmpdir(), 'mnemon-prompt-clock-'))), book = newRecord('prompt', 'Clock', 'Now {{date}} {{time}}', 'project', scope, { enabled: true })
+    const schedule = makeSchedule(book, scope, { variables: {}, count: 0, interval: 0, startAfter: 1 })
+    expect(schedule.data).toMatchObject({ continuous: false, remaining: 1, interval: 1 })
+    await store.change(undefined, records => { records.push(book, schedule) })
+    expect((await advanceSchedules(store, scope, 1))[0]?.text).toMatch(/Now \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}Z/)
+    expect(await advanceSchedules(store, scope, 2)).toEqual([])
+  })
   it('expands literal variables, rejects missing input and inactive playbooks', () => {
     expect(renderPrompt('Hello {{who}}, {{workspace}}', { who: '<literal>' }, scope)).toBe('Hello <literal>, /project')
     expect(() => renderPrompt('{{missing}}', {}, scope)).toThrow(/Missing/)

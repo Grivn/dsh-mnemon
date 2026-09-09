@@ -161,3 +161,17 @@ Screenshots: [model capability](assets/workspace-context/session-model-capabilit
 会话 Source 提供独立授权的创建、分叉、改名和投递动作，执行前持久登记请求；中断结果不会静默重复执行。模型与预设目录来自 DSH 的公开注册表，未知图片能力保持未知。创建及恢复时通过公开 setup 挂载预设，避免仅保存名称而缺少工具。
 
 WebUI 精确定位消息 7，并从该轮创建原生分支；分支中的模型请求经过原生审批后，创建并唤醒一个普通协作会话，实际产生回复。改名与身份读取确认了父会话、预设和模型。两个会话的持久请求头均包含 42 个工具，包含读取、写入、编辑、Shell 和技能；未启动原生子代理。书签定位使用 Source 自己的阅读区，原生对话通过独立按钮打开，没有改动宿主 DOM。25 项工具包测试、6 项会话测试以及 35 个插件构建通过，移动页面没有横向溢出。
+
+## Durable reminders, capacity and reviewed prompt invocation
+
+Journal passed five tests for persisted human-turn gaps, event deduplication, subagent and plugin-only exclusion, session isolation and actual-write resets. Workspace passed five tests, including rejection of reminders for Sources with no offered write action. The journal enhancement remained a pure consumer of public hints. Session checks passed seven tests including unknown, moderate and high capacity readings; Playbooks passed nine tests, including exact-version Core authorization, duplicate schedules, one-shot wake behavior and isolation of a failed variable expansion.
+
+Real WebUI exercised synthetic 35% and 45% usage and then a low-usage round; the additive amber/red hint appeared and disappeared accordingly. After two human turns without a journal write, the Source reported due. The next native request's system instructions retained the reminder. Saving an actual progress record reset the count to zero. Usage numbers were explicitly injected by the loopback fixture and are not measurements of an external provider's billing.
+
+The model read an approved prompt through a granted Source route, then requested use of exact version 5. Native DSH paused for `session-instructions` approval showing the prompt ID, version, variables and wake intent. One approval produced a committed receipt and attributed next-step injection in the same fifth human round. The durable schedule was completed with one use and zero remaining; no extra human round or continuous loop was created.
+
+Screenshots: [moderate capacity](assets/workspace-context/context-capacity-moderate.png), [high capacity](assets/workspace-context/context-capacity-high.png), [journal due](assets/workspace-context/journal-reminder-due.png), [journal reset](assets/workspace-context/journal-reminder-cleared.png), [exact prompt approval](assets/workspace-context/prompt-model-approval.png), [attributed delivery](assets/workspace-context/prompt-model-delivery.png), [completed schedule](assets/workspace-context/prompt-model-completed.png).
+
+日志通过持久计数、事件去重、子代理与纯插件轮次排除、作用域和实际写入清零测试。策略仅在同一 Source 确实提供写入动作时加入到期提醒。WebUI 实测了合成 35%、45% 和低用量下的提示变化；连续两个人类轮次未记录后保持到期，下一次原生请求仍含提醒，保存实际进展后清零。
+
+模型先读取已采纳提示词，再以版本 5 请求原生授权。批准一次后，回执确认保存，并在第五个人类轮次的下一步以插件来源注入；调度记录显示完成、使用 1 次、剩余 0 次，没有额外用户轮次或循环。相关截图保存在上述路径。固定模型用于检验编排，合成 token 用量不代表外部服务计费。

@@ -5,7 +5,8 @@
 - id: mnemon-source-journal
   disabled: false
   config:
-    captureTurns: true
+    captureTurns: false
+    writeReminderTurns: 2
     captureFeedback: true
     captureJobResults: true
 - id: mnemon-source-tasks

@@ -1,10 +1,13 @@
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { promptActions, promptOperation } from './actions.ts'
+import { createMemoryMutationReceipt } from 'dsh-mnemon/extension-sdk'
 import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem'
 import { listSkillFiles, readSkillFile, saveSkillFile } from './files.ts'
 import type { SkillCandidate } from '@deepseek-ai/dsh-skill'
 import z from 'schemastery'
-import type { MemoryJsonValue, MemorySourceDefinition } from 'dsh-mnemon/contracts'
+import type { MemoryJsonValue, MemorySourceDefinition, MemorySourceRuntime } from 'dsh-mnemon/contracts'
 import { defineMemoryPlugin, installMemory, memoryConfigurationDigest, memoryInputRecord } from 'dsh-mnemon/extension-sdk'
 import { allowedDirectories, createRecordSource, digest, json, RecordStore, reviseRecord, sourceRecordDirectory, visibleRecord, type RecordSourceConfig } from 'dsh-mnemon-workspace-kit'
 import { agentMemoryScope, DshWorkspaceAdapter, installAgentHooks } from 'dsh-mnemon-workspace-kit/dsh'
@@ -18,7 +21,7 @@ export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en:
 interface Integration { ctx?: Context; attach?(store: RecordStore): void; changed?(): void; adapter?: DshWorkspaceAdapter }
 export function createPlaybooksSource(config: Config = {}, integration: Integration = {}): MemorySourceDefinition {
   const base = createRecordSource(sourceOptions, config)
-  return { ...base, create(context) {
+  return { ...base, manifest: { ...base.manifest, actions: [...base.manifest.actions ?? [], ...promptActions] }, create(context) {
     const runtime = base.create(context), store = new RecordStore(sourceRecordDirectory('playbooks', context, config))
     integration.attach?.(store)
     const stop = integration.ctx ? installAgentHooks(integration.ctx, { async beforeStep(input) {
@@ -27,7 +30,8 @@ export function createPlaybooksSource(config: Config = {}, integration: Integrat
       if (due.length) integration.changed?.()
       return due.map(prompt => createUserMessage({ content: [{ type: 'text', text: `Scheduled prompt: ${prompt.title}\nInvocation: ${prompt.id}\n\n${prompt.text}` }], source: { kind: 'plugin', plugin: name, form: 'instructions' } }))
     } }) : undefined
-    return { ...runtime,
+    const enhanced: MemorySourceRuntime = { ...runtime,
+      async facts(request, signal) { const value = await runtime.facts(request, signal); return { ...value, actionIds: [...value.actionIds, ...promptActions.map(action => action.id)] } },
       async manage(request) {
         if (request.mode === 'read' && ['native-skills', 'native-skill'].includes(request.operation)) {
           if (!integration.ctx) throw new Error('The native skill registry is unavailable')
@@ -66,14 +70,16 @@ export function createPlaybooksSource(config: Config = {}, integration: Integrat
             if (!record || input.version !== undefined && record.version !== input.version) throw new Error('Playbook version changed')
             if (request.operation === 'stop-schedule') { if (record.kind !== 'schedule') throw new Error('Choose a schedule'); reviseRecord(record, 'stop'); record.data.status = 'stopped'; return }
             const variables = typeof input.variables === 'string' ? memoryInputRecord(JSON.parse(input.variables || '{}'), 'prompt variables') : memoryInputRecord(input.variables ?? {}, 'prompt variables')
-            invoked = makeSchedule(record, request.scope, { variables, count: Number(input.count ?? 1), interval: Number(input.interval ?? 1), startAfter: Number(input.startAfter ?? 1) })
+            if (request.operation === 'schedule' && records.some(value => value.kind === 'schedule' && visibleRecord(value, request.scope) && value.state === 'active' && value.data.bookId === record.id && ['scheduled', 'delivering'].includes(String(value.data.status)))) throw new Error('This prompt already has an active schedule in this session')
+            invoked = makeSchedule(record, request.scope, { variables, count: request.operation === 'use-now' ? 1 : Number(input.count ?? 1), interval: request.operation === 'use-now' ? 1 : Number(input.interval ?? 1), startAfter: request.operation === 'use-now' ? 1 : Number(input.startAfter ?? 1) })
             if (request.operation === 'use-now') { if (!integration.adapter) throw new Error('Live DSH session delivery is unavailable'); invoked.data.status = 'delivering' }
             records.push(invoked)
           }, request.signal)
           if (request.operation === 'use-now' && invoked) {
             try {
-              await integration.adapter!.deliver(request.scope.sessionId!, `Playbook: ${invoked.title}\nInvocation: ${invoked.id}\n\n${invoked.content}`, request.scope, { plugin: name, wake: input.wake === true, ...(request.signal ? { signal: request.signal } : {}) })
-              await store.change(undefined, records => { const invocation = records.find(record => record.id === invoked!.id)!; reviseRecord(invocation, 'delivered'); invocation.data.status = 'completed'; invocation.data.uses = 1; const book = records.find(record => record.id === invocation.data.bookId); if (book) { reviseRecord(book, 'use'); book.data.uses = Number(book.data.uses ?? 0) + 1 } })
+              const running = integration.adapter!.services.agents.get(SessionId(request.scope.sessionId!))?.status === 'running'
+              await integration.adapter!.deliver(request.scope.sessionId!, `Playbook: ${invoked.title}\nInvocation: ${invoked.id}\n\n${invoked.content}`, request.scope, { plugin: name, wake: input.wake === true && !running, steering: input.wake === true && running, ...(request.signal ? { signal: request.signal } : {}) })
+              await store.change(undefined, records => { const invocation = records.find(record => record.id === invoked!.id)!; reviseRecord(invocation, 'delivered'); invocation.data.status = 'completed'; invocation.data.uses = 1; invocation.data.remaining = 0; invocation.data.continuous = false; const book = records.find(record => record.id === invocation.data.bookId); if (book) { reviseRecord(book, 'use'); book.data.uses = Number(book.data.uses ?? 0) + 1 } })
             } catch (error) { await store.change(undefined, records => { const invocation = records.find(record => record.id === invoked!.id)!; reviseRecord(invocation, 'delivery-failed'); invocation.data.status = 'failed'; invocation.data.error = String(error).slice(0, 2000) }); throw error }
           }
           integration.changed?.()
@@ -81,9 +87,24 @@ export function createPlaybooksSource(config: Config = {}, integration: Integrat
         }
         const result = await runtime.manage!(request); if (request.mode === 'mutate') integration.changed?.(); return result
       },
-      async mutate(request) { const result = await runtime.mutate!(request); integration.changed?.(); return result },
+      async mutate(request) {
+        const action = promptActions.find(action => action.id === request.offer.sourceActionId)
+        if (!action) { const result = await runtime.mutate!(request); integration.changed?.(); return result }
+        if (request.offer.authority !== action.authority) throw new Error('Explicit prompt authority is required')
+        const input = memoryInputRecord(request.input, 'prompt action'), snapshot = await store.read(request.signal), operation = promptOperation[action.id as keyof typeof promptOperation]
+        if (operation !== 'create') {
+          const record = snapshot.records.find(value => value.id === input.id && visibleRecord(value, request.view.scope))
+          if (!record || record.version !== input.version) throw new Error('Prompt version changed; read the current record before retrying')
+          if (operation === 'update' && record.kind !== 'prompt') throw new Error('Only reusable prompts can be updated through this action')
+        }
+        const result = await enhanced.manage!({ sourceInstanceKey: context.sourceInstanceKey, scope: request.view.scope, mode: 'mutate', operation, input: { ...input, ...(operation === 'create' ? { kind: 'prompt' } : {}) }, expectedRevision: snapshot.revision, confirmed: true, ...(request.signal ? { signal: request.signal } : {}) })
+        const records = (result.value as unknown as { records: import('dsh-mnemon-workspace-kit').RecordValue[] }).records
+        const changed = ['create', 'schedule', 'use-now'].includes(operation) ? records.find(record => !snapshot.records.some(previous => previous.id === record.id)) : records.find(record => record.id === input.id)
+        return createMemoryMutationReceipt(request.view.id, request.offer.id, context.sourceInstanceKey, result.revision, json({ operation, id: changed?.id ?? input.id ?? null, version: changed?.version ?? null, status: changed?.data.status ?? changed?.state ?? null }), 'committed')
+      },
       async dispose() { await stop?.(); await runtime.dispose?.() },
     }
+    return enhanced
   } }
 }
 export function apply(ctx: Context, config: Config = {}): void {

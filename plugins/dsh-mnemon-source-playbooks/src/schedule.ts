@@ -1,7 +1,7 @@
 import type { MemoryJsonValue, MemoryOperationScope } from 'dsh-mnemon/contracts'
 import { newRecord, RecordStore, reviseRecord, today, visibleRecord, type RecordValue } from 'dsh-mnemon-workspace-kit'
 export function renderPrompt(content: string, variables: Record<string, MemoryJsonValue>, scope: MemoryOperationScope): string {
-  const values = { ...variables, date: today(), workspace: scope.workspaceId ?? '', session: scope.sessionId ?? '' }
+  const values = { ...variables, date: today(), time: new Date().toISOString().slice(11, 19) + 'Z', workspace: scope.workspaceId ?? '', session: scope.sessionId ?? '' }
   const rendered = content.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g, (_whole, name: string) => {
     const value = values[name as keyof typeof values]
     if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') throw new Error('Missing prompt variable: ' + name)
@@ -12,8 +12,9 @@ export function renderPrompt(content: string, variables: Record<string, MemoryJs
 }
 export function makeSchedule(book: RecordValue, scope: MemoryOperationScope, options: { variables: Record<string, MemoryJsonValue>; count: number; interval: number; startAfter: number }): RecordValue {
   if (book.kind === 'schedule' || book.state !== 'active' || !visibleRecord(book, scope) || book.data.enabled === false || !scope.sessionId) throw new Error('An enabled, approved playbook and a current session are required')
-  for (const [key, minimum] of [['count', 0], ['interval', 1], ['startAfter', 1]] as const) if (!Number.isInteger(options[key]) || options[key] < minimum || options[key] > 1000) throw new Error('Invalid schedule count or interval')
-  return newRecord('schedule', book.title, renderPrompt(book.content, options.variables, scope), 'session', scope, { bookId: book.id, bookVersion: book.version, enabled: true, status: 'scheduled', remaining: options.count, continuous: options.count === 0, interval: options.interval, next: options.startAfter, rounds: 0, uses: 0, lastTurn: -1 })
+  for (const [key, minimum] of [['count', 0], ['interval', 0], ['startAfter', 1]] as const) if (!Number.isInteger(options[key]) || options[key] < minimum || options[key] > 1000) throw new Error('Invalid schedule count or interval')
+  if (options.interval === 0) options = { ...options, count: 1, interval: 1 }
+  return newRecord('schedule', book.title, renderPrompt(book.content, options.variables, scope), 'session', scope, { template: book.content, variables: options.variables, bookId: book.id, bookVersion: book.version, enabled: true, status: 'scheduled', remaining: options.count, continuous: options.count === 0, interval: options.interval, next: options.startAfter, rounds: 0, uses: 0, lastTurn: -1 })
 }
 /** Reserve each invocation durably before it enters a DSH step; never replay a consumed reservation. */
 export async function advanceSchedules(store: RecordStore, scope: MemoryOperationScope, turn: number, signal?: AbortSignal): Promise<Array<{ id: string; title: string; text: string }>> {
@@ -28,8 +29,11 @@ export async function advanceSchedules(store: RecordStore, scope: MemoryOperatio
       if (!book || book.state !== 'active' || book.data.enabled === false) { record.data.status = 'stopped'; record.data.error = 'The source playbook is disabled or unavailable'; continue }
       record.data.rounds = Number(record.data.rounds) + 1
       if (Number(record.data.rounds) < Number(record.data.next)) continue
-      if (due.length >= 8 || due.reduce((total, value) => total + value.text.length, 0) + record.content.length > 40_000) { record.data.error = 'Invocation deferred by the per-turn prompt budget'; continue }
-      due.push({ id: record.id, title: record.title, text: record.content })
+      let text: string
+      try { text = typeof record.data.template === 'string' ? renderPrompt(record.data.template, record.data.variables as Record<string, MemoryJsonValue>, scope) : record.content }
+      catch { record.data.status = 'failed'; record.data.error = 'The saved prompt cannot be expanded; review its variables before creating another schedule'; continue }
+      if (due.length >= 8 || due.reduce((total, value) => total + value.text.length, 0) + text.length > 40_000) { record.data.error = 'Invocation deferred by the per-turn prompt budget'; continue }
+      due.push({ id: record.id, title: record.title, text })
       record.data.uses = Number(record.data.uses) + 1; record.data.lastUsedAt = new Date().toISOString(); record.data.next = Number(record.data.rounds) + Number(record.data.interval)
       if (!record.data.continuous) { record.data.remaining = Number(record.data.remaining) - 1; if (record.data.remaining === 0) record.data.status = 'completed' }
       reviseRecord(book, 'scheduled-use'); book.data.uses = Number(book.data.uses ?? 0) + 1

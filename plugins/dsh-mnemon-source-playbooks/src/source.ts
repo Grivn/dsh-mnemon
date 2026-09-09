@@ -9,6 +9,7 @@ export const sourceOptions: RecordSourceOptions = {
       if (record.scope !== 'session' || typeof record.data.bookId !== 'string' || !['scheduled', 'delivering', 'completed', 'stopped', 'failed'].includes(String(record.data.status)) || !Number.isInteger(record.data.uses)) throw new Error('Invalid prompt schedule')
       return
     }
+    for (const [key, limit] of [['summary', 500], ['tags', 1000]] as const) if (record.data[key] !== undefined && (typeof record.data[key] !== 'string' || record.data[key].length > limit)) throw new Error('Invalid prompt ' + key)
     if (typeof record.data.enabled !== 'boolean') throw new Error('Enabled must be boolean')
     if (record.kind === 'skill' && (typeof record.data.slug !== 'string' || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(record.data.slug) || record.data.slug.length > 100)) throw new Error('A skill needs a reusable kebab-case name')
     if (record.data.category !== undefined && (typeof record.data.category !== 'string' || record.data.category.length > 100)) throw new Error('Invalid category')

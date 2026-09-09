@@ -29,3 +29,7 @@ Ordinary session actions require explicit native session authority. Each request
 Bookmarks open an exact Source-owned message reader with neighboring visible text and a native fork action. Old anchors are located before applying output limits; missing anchors fail explicitly. This does not replace the native conversation renderer.
 
 普通会话动作需要明确授权，并在执行前留存请求回执。预设在会话发布前挂载；恢复会话继承自身已记录的模型配置。模型目录仅返回原生展示信息。书签在 Source 自己的阅读区精确定位消息，并提供按完成轮次分叉；不存在的锚点明确报错，不替换宿主的对话渲染器。
+
+An additive native composer slot reads DSH's public `contextPressure` projection. It shows an amber hint at 30% and a red hint at 40%, and hides at lower usage or unknown capacity. It neither changes the native meter nor estimates missing model limits. The isolated fixture has explicit synthetic usage markers solely for validating these thresholds.
+
+输入区的公开扩展插槽读取原生 `contextPressure` 投影：达到 30% 显示黄色提示，达到 40% 显示红色提示，低用量或未知容量时隐藏。不修改原生计量器，也不猜测缺失的模型上限。隔离测试服务的显式合成用量标记仅用于验证阈值。

@@ -7,6 +7,17 @@ const source = (role: string, index: number): MemoryAvailableSource => ({ source
   actions: [{ id: 'propose', description: 'Propose', capability: 'write', inputSchema: {} }] })
 const request = { scope: { storage: 'custom' as const }, scenario: 'test', budget: DEFAULT_MEMORY_VIEW_BUDGET }
 describe('workspace composition', () => {
+  it('keeps source-specific capture reminders inside actual write selections and budgets', () => {
+    const journal = source('activity-log', 1), capture = { instanceKey: 'strategy-extension:capture', typeId: 'journal-capture', slot: 'capture', value: { instruction: 'Capture outcomes.', reminders: [{ sourceKey: journal.sourceInstanceKey, instruction: 'Journal entry due.' }, { sourceKey: 'source:foreign', instruction: 'Never include this.' }] } }
+    const result = WORKSPACE_STRATEGY.compose(request, [journal], [capture])
+    expect(result.guidance?.system).toContain('Journal entry due.')
+    expect(result.guidance?.system).not.toContain('Never include')
+    const budget = WORKSPACE_STRATEGY.compose({ ...request, budget: { ...request.budget, maxActions: 0 } }, [journal], [capture])
+    expect(budget.guidance?.system).not.toContain('Journal entry due.')
+    const readonly = WORKSPACE_STRATEGY.compose(request, [journal], [capture, { instanceKey: 'strategy-extension:focus', typeId: 'focus', slot: 'focus', value: { sourceKeys: [journal.sourceInstanceKey], writableSourceKeys: [], maxProjectionCharacters: 100 } }])
+    expect(readonly.guidance?.system).not.toContain('Journal entry due.')
+    expect(() => validateWorkspacePolicy('capture', { instruction: 'Capture', reminders: [{ sourceKey: 'source:one', instruction: 'Due', execute: true }] })).toThrow('Unsupported capture reminder')
+  })
   it('composes all supported roles deterministically within one budget', () => {
     const sources = WORKSPACE_SOURCE_ROLES.map(source)
     const result = WORKSPACE_STRATEGY.compose(request, sources)

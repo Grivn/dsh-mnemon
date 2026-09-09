@@ -1,3 +1,4 @@
+import { installCapacityBadge, type CapacityContext } from './capacity.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { installMemorySourceUI, type MemorySourcePageProps, type MemorySourceUIContext } from 'dsh-mnemon/client'
 import { collectionStyles, createCollectionPage, LookupPanel, RecordActionPanel, type LookupPanelOptions, type RecordActionPanelOptions } from 'dsh-mnemon-workspace-kit/client'
@@ -74,4 +75,4 @@ export function Page(props: MemorySourcePageProps) {
     {page === 'models' && <><LookupPanel {...props} options={{ title: { en: 'Native model catalog', 'zh-CN': '原生模型目录' }, operation: 'models', fields: [{ key: 'query', label: { en: 'Search models', 'zh-CN': '筛选模型' }, type: 'text' }, { key: 'provider', label: { en: 'Provider (optional)', 'zh-CN': '提供方（可选）' }, type: 'text' }, { key: 'model', label: { en: 'Exact model (optional)', 'zh-CN': '精确模型（可选）' }, type: 'text' }], itemActions: [{ label: { en: 'Read capabilities', 'zh-CN': '读取详细能力' }, operation: 'models', input: item => { const p = item.provenance as { provider: string; id: string }; return { provider: p.provider, model: p.id } } }] }} /><LookupPanel {...props} options={{ title: { en: 'Native agent presets', 'zh-CN': '原生会话预设' }, operation: 'presets', fields: [] }} /></>}
   </section>
 }
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'sessions', pages: [{ id: 'sessions', label: 'Conversations', localizedLabel: { en: 'Conversations', 'zh-CN': '会话资料' }, order: 46, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function apply(ctx: MemorySourceUIContext & CapacityContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'sessions', pages: [{ id: 'sessions', label: 'Conversations', localizedLabel: { en: 'Conversations', 'zh-CN': '会话资料' }, order: 46, component: Page, navigation: { group: 'sources', primary: true } }] }); installCapacityBadge(ctx) }
