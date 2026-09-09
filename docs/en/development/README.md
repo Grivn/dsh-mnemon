@@ -89,6 +89,8 @@ MNEMON_RUN_FLASH_QUALITY=1 MNEMON_FLASH_QUALITY_WAVES=24 MNEMON_FLASH_QUALITY_RE
 
 The default is 12 waves per session; the extended workload has 24. Both use Flash with thinking disabled, guided recall/writeback and the default 10,240-byte memory limit. Only the idle debounce is shortened from 30 to 5 seconds; eligibility rules stay unchanged. The suite records retained facts, transient markers, corrected answers, module attribution, no-write turns, tool errors and archival. A successful Vitest run means the experiment completed: inspect `finalEvaluation.automatedVerdict` and manually audit retained prose for stale documents, duplicates and scope errors before declaring quality acceptance. The [2026-09-09 acceptance report](../../pr-assets/runtime-memory-quality-flash-20260909/README.md) records failures as well as successful checks. Ordinary CI skips both live cases. This simulation does not substitute for full application builds, a half-day human workflow or Windows testing.
 
+Keep generated live-run output outside the repository, as the commands above do. Follow the [evidence storage policy](../../pr-assets/README.md): commit summaries, reproduction inputs and minimal examples; attach complete sanitized run data to the PR with its revision and SHA-256.
+
 The performance regression composes 100 three-Source Views under wall/CPU budgets. Deterministic builds compare all generated hashes. Neither check promises production network latency or LLM quality.
 
 Both the default and three-extension profiles run that performance fence. The

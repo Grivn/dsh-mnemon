@@ -6,6 +6,10 @@ These are dated engineering records, not a gallery of current product features. 
 
 以下是工程验收记录，不是当前功能图集。每份报告只对应其注明的 revision、环境、结果与限制；不要替换历史截图，也不要将旧 benchmark 成绩用作新实现的证据。
 
+For new evaluations, commit the reusable harness, workload generator, concise bilingual summary, aggregate metrics, reproduction parameters and minimal failure examples. Put expanded workloads, complete answers, memory snapshots and per-wave output in a sanitized archive attached to the PR. Before removing bulk evidence from the working tree, verify the archive download and record its URL, SHA-256, tested revision and file manifest. Keep reviewed acceptance separate from original automated scores. Routine CI outputs can remain CI artifacts; retain acceptance evidence in a downloadable PR attachment.
+
+新的评测在仓库中保留可复用脚本、工作负载生成器、简短双语摘要、汇总指标、复现参数和最小失败样例。展开的输入、全部回答、记忆快照和逐轮输出先脱敏打包，作为 PR 附件保存；移出工作树前验证下载，并记录 URL、SHA-256、实测 revision 和文件清单。人工验收结论与原始自动评分分开记录。常规 CI 输出可作为 CI artifact，作为验收依据的数据另保留可下载的 PR 附件。
+
 | Record / 记录 | Scope / 范围 |
 |---|---|
 | [Automatic memory quality — 2026-09-09](./runtime-memory-quality-flash-20260909/README.md) / [中文](./runtime-memory-quality-flash-20260909/README.zh-CN.md) | Four concurrent developer sessions with real Flash; current facts, corrections, clutter and fresh recall / 四会话自动记忆质量验收 |
