@@ -1,5 +1,6 @@
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type { ContextPressureProjection } from '@deepseek-ai/dsh-token-meter'
 
 export function capacityReading(pressure: ContextPressureProjection | undefined) {

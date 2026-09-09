@@ -1,6 +1,6 @@
 # Workspace context validation
 
-This log records completed checks as the optional workspace composition is implemented. The full capability inventory remains in [the delivery plan](plans/composable-workspace-context.md).
+This log retains the implementation checkpoints and their evidence. All final gates passed; see [Final verification](#final-verification) for the delivery results. Earlier checkpoint counts describe their respective stages. The full capability inventory remains in [the delivery plan](plans/composable-workspace-context.md).
 
 ## Isolated instance
 
@@ -28,13 +28,13 @@ The WebUI caught two integration defects that unit composition alone did not exp
 
 ## 中文
 
-此日志仅记录已经完成的验收。完整能力清单见[实施计划](plans/composable-workspace-context.md)，其余插件与最终整体验收仍在进行。
+此日志保留各实施阶段及对应验收证据，早期测试数量表示当时的阶段结果。最终整体验收已通过，见[最终验证](#final-verification)；完整能力清单见[实施计划](plans/composable-workspace-context.md)。
 
 开发分支从已提交的 `main` 建立，使用独立 worktree、DSH 主目录、Mnemon 可执行文件与数据目录。原检出目录及其中未提交的改动没有参与测试。当前验证服务监听本机 5279 端口，DSH 为 `0.1.2-rc.1`，实际 Mnemon 为 `0.2.7`。固定响应的本地模型验证编排流程，不代表真实模型质量；原生记忆验收覆盖实际数据库写入及 WebUI 读取，不代表已启用向量生成。
 
 已通过的 WebUI 流程包括：项目笔记提交审核、采纳、归档与恢复；任务优先级和截止日期编辑、重启保留、完成及历史查看；真实文件检索与行号片段；可见对话检索、相邻消息阅读、保存书签、按已完成轮次分叉并打开子会话；以及同一原生数据库中验收事实的写入和读取。
 
-会话分叉保留原始可见消息、工作目录、预设、模型与推理等级。真实页面测试发现并修正了管理操作命名及子会话工作区归属问题。上述截图保留了对应结果；完整仓库检查、独立安装产物检查和后续插件验收将在功能补齐后继续执行。
+会话分叉保留原始可见消息、工作目录、预设、模型与推理等级。真实页面测试发现并修正了管理操作命名及子会话工作区归属问题。上述截图保留了对应结果；完整仓库检查、独立安装产物检查和后续插件结果记录在下文各阶段及最终验收中。
 
 ## Background jobs checkpoint
 
@@ -189,3 +189,28 @@ Screenshots: [isolated code conversation](assets/workspace-context/isolated-code
 通过 DSH 原生“添加工作区”加入了实际代码 worktree，新会话使用标准编码预设并完成回复。原生持久记录确认工作目录、预设及 42 个工具。跨项目页面测试发现全局/自定义存储下隐藏的旧检查对象会影响管理请求，现已改为跟随当前会话；工作区模式保留显式检查选择。22 项侧栏测试通过，WebUI 实测代码目录为 0 条项目方法，切回测试目录恢复 2 条，调度按会话隔离。
 
 方法库 10 项测试及真实页面验证涵盖局部元信息保留、四条件检索、过期修改拒绝、分类重命名/移除与历史。刷新后修改成功，删除分类保留方法正文；示例分类已恢复。窄屏无横向溢出。原生模型设置提供显示名称与容量入口，插件没有维护重复配置。
+
+## Final verification
+
+Final verification completed on 2026-09-09 in branch `codex/composable-workspace-context`, created from committed `main` at `0d5f5fa`. The separate worktree and its service profile remain available through the generated `../services/workspace.code-workspace`.
+
+| Gate | Result |
+|---|---|
+| `pnpm verify` | Passed: bilingual documentation, types, deterministic builds, all plugin checks, 841 root tests across 79 files, real Headless activation, package contents, public imports, publint and declaration validation |
+| `pnpm verify:plugins` | Passed: 35 independent packages installed without workspace links, each type checked, tested and built; 36 packed artifacts, external public SDK and Client consumer, real DSH Starter and optional Strategy activation |
+| `pnpm release:intent` | Passed: changeset coverage for the expanded public package graph and changed existing components |
+| Real WebUI | Passed: the desktop and mobile workflows recorded above, including project isolation, version conflicts, native approval, persistence and recovery |
+
+The final isolated installation caught a missing public type augmentation in the Sessions capacity component. It now declares the DSH session UI, session controller and projection packages explicitly and imports the public session UI type augmentation. The standalone Sessions package and the entire artifact gate passed after this correction.
+
+The retained complete composition contains 15 Sources, the Workspace Strategy and four enabled enhancements; Focus remains installed and disabled after its separate read-only check. Its final preview has 29 read routes, 40 actions and 2,992 context characters. The actual code-worktree conversation has the standard preset and 42 tools. The real Mnemon CLI and WebUI share the dedicated database containing the retained validation fact.
+
+There are 73 retained PNGs in `docs/assets/workspace-context`, including the [complete composition](assets/workspace-context/complete-composition.png) and [native service status](assets/workspace-context/native-status.png). Command logs remain outside the code worktree in `../services/logs/verify-final.log`, `verify-plugin-artifacts-final.log` and `release-intent-final.log`. Service data and logs are retained for reopening and restart.
+
+The local model and job adapter validate orchestration with deterministic responses. External model quality, third-party accounts and embedding availability were not claimed: the native status check reports zero embedded records out of one, with no reachable embedding service configured. Notification delivery used two loopback receivers and synchronization used local bare Git repositories. No external publication is part of this delivery.
+
+最终验收于 2026-09-09 完成。分支 `codex/composable-workspace-context` 从已提交的 `main`（`0d5f5fa`）建立，独立 worktree、服务目录和生成的 workspace 文件均保留。`pnpm verify`、`pnpm verify:plugins` 与 `pnpm release:intent` 全部通过：841 项根测试、全部插件检查，以及 35 个独立包和 36 个制品的无工作区链接安装、类型、测试、构建及真实 DSH 集成。
+
+独立安装发现会话容量组件缺少公开类型扩展依赖，已明确声明并导入 DSH 的公开会话 UI 类型；修正后该插件及全部制品再次通过。最终组合包含 15 个 Source、Workspace 主策略与四个已启用增强，专注增强在单独验收后保持关闭。预览为 29 条读取路由、40 个操作、2,992 个上下文字符；实际代码目录会话具有标准预设与 42 个工具，真实 Mnemon 数据库中的验收事实可由 CLI 和 WebUI 读取。
+
+保留 73 张 PNG 截图，覆盖桌面、移动、跨项目、审批、冲突、持久化和恢复流程。检查日志、服务状态和测试数据保存在独立 services 目录，服务继续运行。本机固定模型与 CLI 程序检验编排；外部模型质量、第三方账号和嵌入服务未验证，当前原生状态为 1 条记忆、0 条已嵌入。通知只发往两个本机接收器，同步只使用本机裸仓库；本次没有对外发布。
