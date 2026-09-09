@@ -28,3 +28,5 @@ Add an optional composable workspace with independent Sources for project contex
 Add reviewed execution and delivery plans, persistent operation receipts, exact bookmarks, native presets and model metadata, prompt scheduling, activity reminders and public context-capacity hints. Keep data ownership, scope boundaries, provenance and revision checks within each Source; retain data when plugins are disabled.
 
 Support the expanded independent artifact graph and external consumer checks. Fix Global/Custom workbench project selection to follow the active conversation while preserving Workspace inspection selection.
+
+Align settings with DSH theme controls and compact rows. Expose Strategy parameters in expandable rows with composition summaries, and open a full native dialog when the host content column is too narrow for the form.

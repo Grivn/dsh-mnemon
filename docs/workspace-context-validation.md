@@ -214,3 +214,29 @@ The local model and job adapter validate orchestration with deterministic respon
 独立安装发现会话容量组件缺少公开类型扩展依赖，已明确声明并导入 DSH 的公开会话 UI 类型；修正后该插件及全部制品再次通过。最终组合包含 15 个 Source、Workspace 主策略与四个已启用增强，专注增强在单独验收后保持关闭。预览为 29 条读取路由、40 个操作、2,992 个上下文字符；实际代码目录会话具有标准预设与 42 个工具，真实 Mnemon 数据库中的验收事实可由 CLI 和 WebUI 读取。
 
 保留 73 张 PNG 截图，覆盖桌面、移动、跨项目、审批、冲突、持久化和恢复流程。检查日志、服务状态和测试数据保存在独立 services 目录，服务继续运行。本机固定模型与 CLI 程序检验编排；外部模型质量、第三方账号和嵌入服务未验证，当前原生状态为 1 条记忆、0 条已嵌入。通知只发往两个本机接收器，同步只使用本机裸仓库；本次没有对外发布。
+
+## Settings UI follow-up — 2026-09-10
+
+Settings now uses DSH theme tokens, public buttons and icons, compact preference rows, segmented choices and switches. Composition exposes compatible installed Strategy packages as expandable rows; each package still owns its configuration descriptor. Preview retains exact-draft and revision checks, with summary counts and expandable Source operations. The implementation uses published DSH APIs and only styles its own markup.
+
+Real WebUI checks covered desktop dark and light themes, numeric validation, persistence, preview invalidation, reload and a 390 × 844 viewport. Review interval `0` was rejected; `6` was previewed, saved and retained after reload, then restored to the default `5` with its override removed. A draft Focus configuration previewed two Sources, three read routes and zero actions; reload discarded it and restored the complete 15-Source, 29-route, 40-action composition. The code-worktree conversation's preview contained 2,380 context characters. Focus remains disabled.
+
+At 390 pixels, native navigation leaves a 98-pixel content column. The plugin offers a launcher there and opens its form in the public DSH dialog, providing 286 pixels of content. Form width matched scroll width, and document width matched its 390-pixel scroll width. The title and close button remain visible during long forms; the basic settings Save/Discard footer stays reachable. Returning and reopening retained a basic display draft, Discard restored the saved value, and Escape closed only the plugin dialog and restored focus. The viewport and original system-following theme were restored after testing.
+
+The final `pnpm verify` passed 845 root tests across 80 files, all plugin checks and builds, Headless activation with 39 tools, package contents, public imports and package linting. Targeted tests cover preview/save fencing, read-only configuration, multiline list editing, narrow-dialog focus and parent-draft retention. Logs are retained in `../services/logs/settings-final-targeted.log` and `settings-verify-final.log`.
+
+| Evidence | Capture |
+|---|---|
+| Desktop settings | [Dark](assets/workspace-context/settings-native-dark.png), [light](assets/workspace-context/settings-native-light.png) |
+| Strategy rows | [Dark](assets/workspace-context/settings-composition-dark.png), [light](assets/workspace-context/settings-composition-light.png) |
+| Exact composition preview | [Counts and Source details](assets/workspace-context/settings-composition-preview.png) |
+| Narrow entry and full form | [Launcher](assets/workspace-context/settings-mobile-entry.png), [form](assets/workspace-context/settings-mobile.png) |
+| Long form and pending draft | [Strategy fields](assets/workspace-context/settings-mobile-fields.png), [Save/Discard](assets/workspace-context/settings-mobile-draft.png) |
+
+设置现采用 DSH 的主题变量、公开按钮与图标，以及紧凑设置行、分段选项和开关。兼容的独立策略插件按行展开参数，字段仍由各插件自己的描述符提供。组合预览保留草稿与版本校验，汇总数量后可逐层展开 Source 操作详情；实现仅使用 DSH 公开 API，并只为自身页面设置样式。
+
+真实 WebUI 覆盖深色、浅色、数值校验、保存持久化、预览失效、重新加载及 390 × 844 窄屏。审查间隔 `0` 被拒绝，`6` 预览保存后重载仍保留，随后恢复默认 `5` 并移除覆盖值。专注配置草稿预览得到 2 个 Source、3 条读取路由、0 个操作，重新加载后恢复完整 15 个 Source、29 条读取路由、40 个操作；实际代码目录会话的预览为 2,380 个上下文字符。专注增强保持关闭。
+
+390 像素页面中，宿主导航后仅剩 98 像素。插件入口通过 DSH 公开弹窗打开完整表单，内容区为 286 像素；表单与页面均无横向溢出。长表单的标题、关闭按钮保持可见，基础设置的保存与放弃栏始终可达。返回后重开保留基础展示设置草稿，放弃修改恢复原值；Escape 仅关闭插件弹窗并恢复焦点。验收后恢复原有“跟随系统”主题与桌面视口。
+
+最终 `pnpm verify` 通过 80 个文件中的 845 项根测试、全部插件检查和构建，以及 Headless、包内容、公开入口与包规范检查。定向测试覆盖预览与保存校验、只读字段、多行列表编辑、窄屏焦点和基础草稿保留。新增 9 张截图如上，检查日志保存在独立服务目录。

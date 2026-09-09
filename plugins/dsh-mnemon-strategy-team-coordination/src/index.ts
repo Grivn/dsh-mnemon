@@ -5,7 +5,7 @@ import { defineWorkspacePolicy } from 'dsh-mnemon-strategy-workspace/extension-s
 export const name = 'dsh-mnemon-strategy-team-coordination'
 export const inject = ['mnemonMemory']
 const instruction = "Before editing shared project files, inspect and declare file reservations. Use directed messages and explicit team membership. Report job receipts and current presence; wake idle sessions only as part of an authorized task. Attribute reviewer and teammate messages to their actual sender."
-export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Team coordination', 'zh-CN': '团队协作' }, description: { en: 'Team coordination through the workspace Strategy.', 'zh-CN': '通过工作区策略提供团队协作。' }, roles: ['strategy-extension'], provides: [{ id: 'strategy-extension' }], requires: ['strategy.workspace'] })
+export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Team coordination', 'zh-CN': '团队协作' }, description: { en: 'Guide shared-file coordination and messages between team members.', 'zh-CN': '提示协调共享文件和会话消息，保留成员身份。' }, roles: ['strategy-extension'], provides: [{ id: 'strategy-extension' }], requires: ['strategy.workspace'] })
 export const memoryStrategyConfiguration = defineMemoryStrategyConfiguration({
  kind: 'strategy-extension', typeId: 'team-coordination', label: memoryPlugin.label, description: memoryPlugin.description,
  fields: [{ key: 'instruction', label: { en: 'Guidance', 'zh-CN': '指导说明' }, input: 'textarea', defaultValue: instruction, maximum: 4000 }],

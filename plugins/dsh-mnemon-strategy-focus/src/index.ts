@@ -7,7 +7,7 @@ export const inject = ['mnemonMemory']
 export interface Config { sourceKeys?: string[]; writableSourceKeys?: string[]; maxProjectionCharacters?: number }
 export const memoryPlugin = defineMemoryPlugin({
   packageName: name, label: { en: 'Focused context', 'zh-CN': '专注上下文' },
-  description: { en: 'Choose Sources and reduce context for the current work.', 'zh-CN': '选择参与当前工作的 Source 并控制上下文长度。' },
+  description: { en: 'Limit context to selected sources and control write access.', 'zh-CN': '聚焦选定的信息来源，控制上下文长度与写入范围。' },
   roles: ['strategy-extension'], provides: [{ id: 'strategy.workspace.focus', exclusive: true }], requires: ['strategy.workspace'],
 })
 export function createFocusExtension(config: Config = {}) {
@@ -26,8 +26,8 @@ export function createFocusExtension(config: Config = {}) {
 export const memoryStrategyConfiguration = defineMemoryStrategyConfiguration({
   kind: 'strategy-extension', typeId: 'focus', label: memoryPlugin.label, description: memoryPlugin.description,
   fields: [
-    { key: 'sourceKeys', input: 'source-list', label: { en: 'Sources in priority order', 'zh-CN': '参与 Source（按优先顺序）' }, description: { en: 'Unset selects all installed Sources. An explicit empty list selects none.', 'zh-CN': '未设置时使用已安装的 Source；明确留空则不选择任何 Source。' } },
-    { key: 'writableSourceKeys', input: 'source-list', label: { en: 'Writable Sources', 'zh-CN': '允许写入的 Source' }, description: { en: 'Unset preserves permissions. An empty list makes the View read-only.', 'zh-CN': '未设置时保留原有权限；明确留空使 View 只读。' } },
+    { key: 'sourceKeys', input: 'source-list', label: { en: 'Sources in priority order', 'zh-CN': '参与来源（按优先顺序）' }, description: { en: 'Unset selects all installed Sources. An explicit empty list selects none.', 'zh-CN': '默认使用已安装的来源；手动选择后留空则不使用任何来源。' } },
+    { key: 'writableSourceKeys', input: 'source-list', label: { en: 'Writable Sources', 'zh-CN': '允许写入的来源' }, description: { en: 'Unset preserves permissions. An empty list makes the View read-only.', 'zh-CN': '默认保留原有权限；手动选择后留空则仅允许读取。' } },
     { key: 'maxProjectionCharacters', input: 'number', label: { en: 'Context character budget', 'zh-CN': '上下文字符预算' }, defaultValue: 8192, minimum: 1, maximum: 65536 },
   ], create: config => ({ plugin: memoryPlugin, strategyExtensions: [createFocusExtension(config as Config)] }),
 })

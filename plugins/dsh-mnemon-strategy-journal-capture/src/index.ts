@@ -5,7 +5,7 @@ import { defineWorkspacePolicy } from 'dsh-mnemon-strategy-workspace/extension-s
 export const name = 'dsh-mnemon-strategy-journal-capture'
 export const inject = ['mnemonMemory']
 const instruction = "Record meaningful outcomes and exact user feedback in the journal Source. Propose stable project facts through the owning Source; keep preferences in Runtime and reusable methods in Playbooks. Never duplicate a record or infer a preference from one occurrence."
-export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Journal capture', 'zh-CN': '日志记录' }, description: { en: 'Journal capture through the workspace Strategy.', 'zh-CN': '通过工作区策略提供日志记录。' }, roles: ['strategy-extension'], provides: [{ id: 'strategy-extension' }], requires: ['strategy.workspace'] })
+export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Journal capture', 'zh-CN': '日志记录' }, description: { en: 'Prompt progress updates and preserve exact user feedback.', 'zh-CN': '提示记录工作进展，并保留用户的原始反馈。' }, roles: ['strategy-extension'], provides: [{ id: 'strategy-extension' }], requires: ['strategy.workspace'] })
 export const memoryStrategyConfiguration = defineMemoryStrategyConfiguration({
  kind: 'strategy-extension', typeId: 'journal-capture', label: memoryPlugin.label, description: memoryPlugin.description,
  fields: [{ key: 'instruction', label: { en: 'Guidance', 'zh-CN': '指导说明' }, input: 'textarea', defaultValue: instruction, maximum: 4000 }],

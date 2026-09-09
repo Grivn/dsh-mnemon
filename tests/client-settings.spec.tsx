@@ -438,8 +438,8 @@ describe('MnemonSettingsCard', () => {
 
     render(<MnemonSettingsCard scope={scope} />)
 
-    const sidebar = screen.getByRole('radio', { name: 'Sidebar' }) as HTMLInputElement
-    const builtin = screen.getByRole('radio', { name: 'Builtin' }) as HTMLInputElement
+    const sidebar = screen.getByRole('radio', { name: '侧边栏' }) as HTMLInputElement
+    const builtin = screen.getByRole('radio', { name: '会话内' }) as HTMLInputElement
     const isBuiltin = displayMode === 'builtin' || displayMode === 'buildin'
     expect(sidebar.checked).toBe(!isBuiltin)
     expect(builtin.checked).toBe(isBuiltin)
@@ -689,8 +689,8 @@ describe('MnemonSettingsCard', () => {
     render(<MnemonSettingsCard scope={scope} />)
 
     expect((screen.getByRole('radio', { name: /^全局$/ }) as HTMLInputElement).disabled).toBe(true)
-    expect((screen.getByRole('radio', { name: 'Sidebar' }) as HTMLInputElement).disabled).toBe(true)
-    expect((screen.getByRole('radio', { name: 'Builtin' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('radio', { name: '侧边栏' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('radio', { name: '会话内' }) as HTMLInputElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText('当前部署的插件设置为只读。')).toBeTruthy()
   })

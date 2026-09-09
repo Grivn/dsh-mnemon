@@ -10,6 +10,10 @@ A Source owns its store, revisions, proposals, queries, mutations, lifecycle and
 
 `dsh-mnemon-workspace-kit` publishes reusable record, file, asset and DSH adapter utilities. Plugins declare these dependencies and import published exports. The Host authenticates and routes generic operations, owns shared budgets and renders registered Source pages. It has no new business-plugin allowlist. Unloading one Source removes its capabilities while retaining its data.
 
+## Composition settings
+
+Open **Settings → Memory System → Composition settings**. Choose the main Strategy, then use each enhancement’s row to change its switch or expand its parameters. Fields come from the installed package’s public descriptor. Preview shows source, read, action and context counts; expand a source only when its operation details are needed. Save applies the exact previewed draft. Any further edit requires a new preview. **Reload configuration** discards this editor’s draft.
+
 ## Capability map
 
 | Work | Owning component | Behavior |

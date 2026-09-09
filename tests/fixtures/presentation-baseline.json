@@ -42,12 +42,12 @@
   },
   "memorySpaceTerminology": {
     "zh": {
-      "keys": 970,
-      "sha256": "9695883ce974c8285af814e8fa74ee85eefd453bd07bf59e6de9708b69aa1cef"
+      "keys": 973,
+      "sha256": "42f0a304ac367c7856f65430692e128e05f80a5793fa148085adfca5a6845f54"
     },
     "en": {
-      "keys": 970,
-      "sha256": "0d053d62985459f373effb50f2d1edf9416e3df3f11302353bce8d2608c384e3"
+      "keys": 973,
+      "sha256": "74721331f8de61a3423161265d61a2ea6820c81fb5f94ce0af7a944b772e17ac"
     },
     "page": {
       "rules": 1067,
