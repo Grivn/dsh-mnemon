@@ -8,6 +8,7 @@ These are dated engineering records, not a gallery of current product features. 
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [Creation-time ordering](./issue-202-created-order/README.md) | Issue #202 Runtime/Documents ordering, real WebUI writes and retained screenshots |
 | [Electron npm CLI — issue #201](./issue-201-electron-cli/README.md) | Real Electron and Node Hosts, npm/native CLI paths, memory operations and version/update evidence |
 | [Documentation refresh](./documentation-refresh/README.md) | Historical v0.5.2 bilingual media and an explicitly failed 390px resize check |
 | [Architecture cleanup](./architecture-cleanup/README.md) | Public package boundaries, UI and independent artifact verification |
