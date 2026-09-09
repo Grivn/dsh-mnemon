@@ -78,7 +78,7 @@ describe('centralized storage roots', () => {
     const workspace = temporaryDirectory(), root = temporaryDirectory()
     try {
       vi.stubEnv('MNEMON_DATA_DIR', root)
-      expect(createStorageRoot({ storageScope: 'workspaces' }, workspace).effectiveDataDir()).toMatch(root + '/workspaces/')
+      expect(createStorageRoot({ storageScope: 'workspaces' }, workspace).effectiveDataDir()).toMatch(join(root, 'workspaces'))
       expect(createStorageRoot({ storageScope: 'workspaces', dataDir: '~/central' }, workspace).effectiveDataDir()).toMatch(join(homedir(), 'central', 'workspaces'))
       vi.stubEnv('MNEMON_DATA_DIR', '')
       expect(createStorageRoot({ storageScope: 'workspaces' }, workspace).effectiveDataDir()).toMatch(join(homedir(), '.mnemon', 'workspaces'))

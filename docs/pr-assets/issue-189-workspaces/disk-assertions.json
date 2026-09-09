@@ -1,0 +1,44 @@
+{
+  "date": "2026-09-09",
+  "implementationRevision": "fe405d3",
+  "data": "Synthetic records only; all absolute roots omitted.",
+  "configuration": {
+    "storageScope": "workspaces",
+    "runtimeUserScope": "global",
+    "dataDir": "<central-root>"
+  },
+  "workspaceA": {
+    "root": "<central-root>/workspaces/8ddcdd34b18e7d81c14f60d3e78ce5a2604b1731c58febdf1ac7c610f0592a3d",
+    "areas": [
+      "runtime",
+      "data",
+      "documents",
+      "state"
+    ],
+    "projectMemory": "Issue 189: workspace A project memory stays isolated.",
+    "activeDocuments": 1,
+    "holographicMapping": true
+  },
+  "workspaceB": {
+    "root": "<central-root>/workspaces/881cdbcb00ec77ac8d2832dfa8af9d999cce46c9ba30b541716b8e292cb96032",
+    "projectMemory": "Issue 189: workspace B uses its own project memory.",
+    "activeDocuments": 0,
+    "holographicMapping": false
+  },
+  "globalUser": {
+    "root": "<global-root>/runtime",
+    "content": "Issue 189: shared user profile prefers concise answers."
+  },
+  "assertions": {
+    "distinctWorkspaceRoots": true,
+    "projectMemoryIsolated": true,
+    "userMemoryOnlyAtGlobalRoot": true,
+    "documentsIsolated": true,
+    "providerStateIsolated": true,
+    "workspaceLocalDotMnemonAbsent": true,
+    "customAndDefaultRootsRetained": true
+  },
+  "limits": [
+    "Browser run creates a Holographic mapping but no Holographic fact; automated live-runtime coverage writes a durable fact through the real local provider."
+  ]
+}
