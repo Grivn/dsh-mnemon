@@ -90,6 +90,8 @@ The fixture prints a temporary workspace and loopback URL. It isolates `DSH_HOME
 
 Check Sidebar without a session, all primary/secondary tabs, Runtime add/edit/remove and branch clear, Documents create/search/read, Provider settings/discovery, activation, error states, dialog cancellation, Save-to-memory, layout switching, locale and restoration of chat interaction. Use a disposable real Provider or controlled fixture for write/read/forget; never test against personal memory.
 
+For an embedded Electron Host, pass `pnpm e2e:serve --electron=/absolute/path/to/electron` (on macOS, use `Electron.app/Contents/MacOS/Electron`). Supply a separately installed test Electron executable and an isolated npm prefix through `MNEMON_CLI_PATH` and `npm_config_prefix`. The fixture runs the published DSH Web stack in Electron's main process with no `ELECTRON_RUN_AS_NODE` on the Host. It exposes Node internals for the published Cordis loader, without rebuilding or modifying DSH packages. Stop with Ctrl-C as usual.
+
 Also switch `displayMode` live: Sidebar and Builtin must never mount together. Both use the same Source pages; Builtin follows its owning session for global/workspace/custom reads, writes and tasks, hides scope controls, and clears stale data and editors when the session changes. Check legacy `buildin` normalization and the collapsed icon under the native Sidebar skin as well as supported layout plugins.
 
 The [2026-09-04 main-rebase verification](../../pr-assets/main-rebase-20260904/README.md) records the exact v0.4.7/DSH rc.1 revisions, full registry and source-overlay suites, independent artifacts, plugin composition persistence and real shared-placement checks, including their limits.

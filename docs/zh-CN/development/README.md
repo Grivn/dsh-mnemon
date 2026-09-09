@@ -90,6 +90,8 @@ pnpm e2e:serve
 
 检查无会话 Sidebar、所有一级/二级页面、Runtime 增改删与清空分支、Documents 创建/搜索/读取、Provider 设置与发现、激活、故障态、取消弹窗、存入记忆、布局切换、locale、返回聊天后交互恢复。读写/删除使用临时 Provider 或受控夹具，不能对个人记忆做实验。
 
+验证内嵌 Electron Host 时，使用 `pnpm e2e:serve --electron=/absolute/path/to/electron`（macOS 指向 `Electron.app/Contents/MacOS/Electron`）。单独安装测试用 Electron，并通过 `MNEMON_CLI_PATH` 和 `npm_config_prefix` 指定隔离的 npm 安装。夹具将正式发布的 DSH Web 栈运行在 Electron 主进程内，Host 不设置 `ELECTRON_RUN_AS_NODE`。它为正式 Cordis loader 开放 Node internals，无需重新编译或修改 DSH 包。照常用 Ctrl-C 停止。
+
 另检查 `displayMode` 实时切换：Sidebar 与 Builtin 不得同时挂载，二者使用同一组 Source 页面。Builtin 的全局/工作区/自定义范围读写及任务遵循所属会话，隐藏范围控件，切换会话时清理旧数据与编辑器。验证旧 `buildin` 规范化，以及原生 Sidebar 皮肤和已支持布局插件下的折叠图标。
 
 [2026-09-04 main rebase 验证记录](../../pr-assets/main-rebase-20260904/README.md)列明精确的 v0.4.7/DSH rc.1 revision、registry 与源码覆盖完整测试、独立制品、插件组合重启持久化和真实双入口验证及其限制。
