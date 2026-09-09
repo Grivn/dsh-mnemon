@@ -27,3 +27,5 @@
   disabled: false
 - id: mnemon-source-review
   disabled: false
+- id: mnemon-source-collaboration
+  disabled: false

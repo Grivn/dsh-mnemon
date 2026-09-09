@@ -33,10 +33,23 @@ describe('public DSH adapter', () => {
   it('retains plugin provenance and does not wake a session by default', async () => {
     const inject = vi.fn(), followup = vi.fn(), steer = vi.fn()
     const agent = { status: 'idle', session: { header: { cwd: '/project' } }, inject, followup, steer }
-    const adapter = new DshWorkspaceAdapter({ sessionQuery: { observeSession: async () => ({ header: { cwd: '/project' }, [Symbol.dispose]() {} }) }, agents: { get: () => agent } } as any)
+    const adapter = new DshWorkspaceAdapter({ sessionQuery: { observeSession: async () => ({ header: { cwd: '/project' }, events: [], [Symbol.dispose]() {} }) }, agents: { get: () => agent } } as any)
     const scope = { storage: 'custom' as const, workspaceId: '/project' }
     await adapter.deliver('target', 'Context', scope, { plugin: 'reviewer' })
     expect(inject.mock.calls[0]?.[0].source).toEqual({ kind: 'plugin', plugin: 'reviewer', form: 'relay' }); expect(followup).not.toHaveBeenCalled()
     await adapter.deliver('target', 'Wake', scope, { plugin: 'team', wake: true }); expect(followup).toHaveBeenCalledTimes(1)
   })
+})
+
+it('restores recorded model options when concurrent deliveries resume a cold session', async () => {
+  const dispose=vi.fn(), followup=vi.fn(), scope={storage:'custom' as const,workspaceId:'/project'}
+  let loaded: any
+  const agent={status:'idle',session:{header:{cwd:'/project'}},followup}
+  const resume=vi.fn(async (_options: unknown)=>{ await Promise.resolve();loaded=agent;return{agent} })
+  const services={sessionQuery:{observeSession:async()=>({header:{cwd:'/project'},events:[{type:'request/header',data:{header:{config:{provider:'fixture',model:'fixture-model',reasoningEffort:'high',maxTokens:2048}}}}],[Symbol.dispose]:dispose})},agents:{get:()=>loaded,resume}}
+  const first=new DshWorkspaceAdapter(services as any),second=new DshWorkspaceAdapter(services as any)
+  await Promise.all([first.deliver('cold','One',scope,{plugin:'one',wake:true}),second.deliver('cold','Two',scope,{plugin:'two',wake:true})])
+  expect(resume).toHaveBeenCalledOnce()
+  expect(resume.mock.calls[0]?.[0]).toMatchObject({resumeSessionId:'cold',agentOptions:{provider:'fixture',model:'fixture-model',reasoningEffort:'high',maxTokens:2048}})
+  expect(followup).toHaveBeenCalledTimes(2);expect(dispose).toHaveBeenCalledTimes(2)
 })

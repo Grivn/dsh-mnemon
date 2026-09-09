@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { installMemorySourceUI, type MemorySourcePageProps, type MemorySourceUIContext } from 'dsh-mnemon/client'
-import { collectionStyles, createCollectionPage, LookupPanel, type LookupPanelOptions } from 'dsh-mnemon-workspace-kit/client'
+import { collectionStyles, createCollectionPage, LookupPanel, RecordActionPanel, type LookupPanelOptions, type RecordActionPanelOptions } from 'dsh-mnemon-workspace-kit/client'
 import type { MemoryJsonValue } from 'dsh-mnemon/contracts'
 export const inject = ['slots']
 const options: LookupPanelOptions = {
@@ -12,6 +12,7 @@ const options: LookupPanelOptions = {
     { key: 'sessionId', label: { en: 'Conversation id (optional)', 'zh-CN': '会话标识（可选）' }, type: 'text' },
   ],
   itemActions: [
+    { label: { en: 'Open conversation', 'zh-CN': '打开会话' }, operation: 'open-session', navigate: true, visible: item => !(item.provenance as { path?: string }).path, input: item => ({ sessionId: (item.provenance as { sessionId: string }).sessionId }) },
     { label: { en: 'Read surrounding messages', 'zh-CN': '阅读前后对话' }, operation: 'conversation', input(item) { const p = item.provenance as { sessionId: string; seq: number }; return { sessionId: p.sessionId, seq: p.seq, radius: 3 } } },
     { label: { en: 'Bookmark', 'zh-CN': '添加书签' }, operation: 'create', mutate: true, input(item) { const p = item.provenance as { sessionId: string; seq: number }; return { title: item.text.slice(0, 100), content: item.text, kind: 'bookmark', scope: 'project', data: { sessionId: p.sessionId, seq: p.seq } } } },
   ],
@@ -35,13 +36,14 @@ function SessionControls(props: MemorySourcePageProps) {
     </form>{notice && <pre role="status" style={{ whiteSpace: 'pre-wrap' }}>{notice}</pre>}
   </section>
 }
+const bookmarkActions: RecordActionPanelOptions = { title: { en: 'Open a saved conversation', 'zh-CN': '打开已保存的会话' }, filter: record => ['bookmark', 'alias'].includes(record.kind) && record.state === 'active', details: record => <p>{record.content}<br />{String(record.data.sessionId)} · #{String(record.data.seq ?? 0)}</p>, buttons: [{ operation: 'open-session', label: { en: 'Open conversation', 'zh-CN': '打开会话' }, openSession: record => String(record.data.sessionId), visible: record => !String(record.data.sessionId).startsWith('imported-') }] }
 export function Page(props: MemorySourcePageProps) {
   const [page, setPage] = useState('history'), zh = props.locale.startsWith('zh')
   return <section data-mnemon-collection><style>{collectionStyles}</style><div className="mc-toolbar">{[['history', '历史检索', 'History'], ['sessions', '会话列表', 'Sessions'], ['turns', '按轮次分叉', 'Fork by turn'], ['saved', '书签与别名', 'Bookmarks'], ['actions', '会话操作', 'Actions']].map(([key, cn, en]) => <button key={key} aria-pressed={page === key} onClick={() => setPage(key!)}>{zh ? cn : en}</button>)}</div>
     {page === 'history' && <LookupPanel {...props} options={options} />}
     {page === 'sessions' && <LookupPanel {...props} options={{ title: { en: 'Workspace conversations', 'zh-CN': '工作区会话' }, operation: 'list-sessions', fields: [{ key: 'active', label: { en: 'Live sessions only', 'zh-CN': '仅显示已加载会话' }, type: 'boolean' }], itemActions: [{ label: { en: 'Read messages', 'zh-CN': '阅读对话' }, operation: 'conversation', input(item) { return { sessionId: item.id } } }] }} />}
     {page === 'turns' && <LookupPanel {...props} options={{ title: { en: 'Completed conversation turns', 'zh-CN': '已完成的对话轮次' }, operation: 'conversation', defaults: { sessionId: props.sessionId ?? '', turns: true }, fields: [{ key: 'sessionId', label: { en: 'Source conversation id', 'zh-CN': '来源会话标识' }, type: 'text' }], itemActions: [{ label: { en: 'Fork through this turn', 'zh-CN': '从此轮次分叉' }, operation: 'session-fork', mutate: true, input(item) { const p = item.provenance as { sessionId: string; seq: number }; return { sessionId: p.sessionId, seq: p.seq } } }] }} />}
-    {page === 'saved' && <Saved {...props} />}{page === 'actions' && <SessionControls {...props} />}
+    {page === 'saved' && <><Saved {...props} /><RecordActionPanel {...props} options={bookmarkActions} /></>}{page === 'actions' && <SessionControls {...props} />}
   </section>
 }
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'sessions', pages: [{ id: 'sessions', label: '会话资料 / Conversations', order: 46, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'sessions', pages: [{ id: 'sessions', label: 'Conversations', localizedLabel: { en: 'Conversations', 'zh-CN': '会话资料' }, order: 46, component: Page, navigation: { group: 'sources', primary: true } }] }) }

@@ -49,4 +49,4 @@ export const Page = createCollectionPage({
     }
   ]
 })
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'project-context', pages: [{ id: 'records', label: '项目笔记 / Project notes', order: 41, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'project-context', pages: [{ id: 'records', label: 'Project notes', localizedLabel: { en: 'Project notes', 'zh-CN': '项目笔记' }, order: 41, component: Page, navigation: { group: 'sources', primary: true } }] }) }

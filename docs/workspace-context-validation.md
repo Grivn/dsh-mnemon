@@ -53,3 +53,19 @@ Review tests cover sticky due state, replay fencing, proposal/severity validatio
 Screenshots: `prompt-schedule.png`, `review-cycle.png`, `review-history.png`, `journal-capture.png`.
 
 提示词调度、独立审核和活动日志已组合运行。真实用户轮次消费一次提示词、生成可见对话日志并推进审核计数；自动审核后到期状态保留，显式完成与重置均保留历史。审核使用本地合成模型，仅验证流程，不评价模型审核质量。
+
+## Collaboration, native skills and suggestion transfer checkpoint
+
+Real WebUI checks created a project room, invited existing test sessions, sent directed messages with an explicit wake, read addressed history, inspected presence and reserved a real project file. Core integration tests also reject unauthorized delivery, non-member recipients, stale membership, conflicting reservations and malformed imported receipts. Closed room history is retained.
+
+The first cold-session wake exposed a missing model-options restoration: message delivery succeeded but the resumed agent failed during prompt assembly. The shared public DSH adapter now restores the last recorded model/reasoning configuration and serializes concurrent resume requests. A fresh UI test first observed another session as unloaded, sent an explicit wake and verified its new assistant response at 14:01. Delivery receipts describe message acceptance; they do not promise a successful model response.
+
+The skills page listed and edited a configured SKILL.md, and the native DSH registry returned its updated body. A synthetic review supplied a fact and a skill; each was explicitly transferred to its selected Source's pending queue. The skill was absent from the native catalog before approval, appeared after approval, and disappeared after disabling. Source-owned skill records and configured directory skills share the native discovery interface. A native `/feedback` command was captured with its exact quote, without expansion or guessed sentiment. Session search excluded injected collaboration text and opened a selected native session through public navigation.
+
+At this checkpoint the utility package has 13 passing tests, collaboration 4, playbooks 6, review 3, sessions 2 and the root Source-page integration 9. Root and all Source artifacts build. Full repository and isolated package verification remain part of final acceptance.
+
+Screenshots: [directed message](assets/workspace-context/collaboration-message.png), [file reservation](assets/workspace-context/file-reservation.png), [native skills](assets/workspace-context/native-skill-catalog.png), [skill editor](assets/workspace-context/skill-file-editor.png), [review transfer](assets/workspace-context/review-proposals.png), [pending fact](assets/workspace-context/project-review.png), [pending skill](assets/workspace-context/skill-proposal.png), [exact feedback](assets/workspace-context/journal-feedback.png), and [successful cold-session wake](assets/workspace-context/cold-session-resume.png). The initial failure is retained in `cold-session-resume-before.png` for comparison.
+
+真实页面已验证项目协作空间、成员邀请、定向消息、显式唤醒、历史阅读、在线状态与文件预约。首次唤醒未加载会话时发现模型配置未恢复，已在公开 DSH 适配层修复，并通过另一个未加载会话的新回复验证。投递回执仅表示消息被接收，不将其等同于模型成功完成。
+
+技能文件读取与编辑、原生目录加载、审核建议转入目标待审核队列，以及技能采纳和停用对原生目录的影响均已验证。原生反馈命令被逐字记录；会话检索排除注入的协作内容，并能打开选定的原生会话。截图保存于上述路径，最终整体验收仍在继续。

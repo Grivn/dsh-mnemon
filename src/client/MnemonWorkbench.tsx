@@ -32,6 +32,7 @@ export interface MnemonWorkbenchProps {
   t?: MnemonTranslate
   locale?: string
   onClose?: () => void
+  onOpenSession?: (sessionId: string) => Promise<void>
   sourcePageDirectory?: MemorySourcePageDirectory
   renderSlot?: PropsRenderSlots<'mnemon.source.page'>['renderSlot']
 }
@@ -135,6 +136,7 @@ function WorkspaceNavigation(props: { page: Page; onSelect(page: Page): void; so
     return <button key={item.id} type="button" role="tab" aria-selected={active} data-active={active ? '' : undefined} aria-label={disabled ? item.label + ' · ' + t('layers.disabledBadge') : undefined} data-layer-disabled={disabled ? '' : undefined} onClick={() => props.onSelect(item.page)}><span>{item.label}</span>{disabled && <em className={css.layerDisabledBadge}>{t('layers.disabledBadge')}</em>}</button>
   }
   return <div className={appearanceClass(css.topNavigation, sidebarCss.topNavigation)}>
+    {entries.length > 7 && <select aria-label={t('nav.aria')} value={props.page} onChange={event => props.onSelect(event.target.value as Page)} style={{maxWidth:180,flexShrink:0,background:'transparent',color:'inherit',border:'1px solid #555',borderRadius:6,padding:'6px 10px'}}>{entries.map(entry => <option key={entry.id} value={entry.page}>{entry.label}</option>)}</select>}
     <div className={appearanceClass(css.nav, sidebarCss.nav)} role="tablist" aria-label={t('nav.aria')}>{entries.filter(entry => entry.primary).map(button)}</div>
   </div>
 }
@@ -385,7 +387,7 @@ export function MnemonWorkbench(props: MnemonWorkbenchProps): JSX.Element {
   return <I18nContext.Provider value={t}><LocaleContext.Provider value={props.locale ?? 'zh'}><MnemonWorkspace {...props} /></LocaleContext.Provider></I18nContext.Provider>
 }
 
-function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, workspaceSelection, surface = 'sidebar', onClose, sourcePageDirectory = EMPTY_SOURCE_PAGE_DIRECTORY, renderSlot }: MnemonWorkbenchProps): JSX.Element {
+function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, workspaceSelection, surface = 'sidebar', onClose, onOpenSession, sourcePageDirectory = EMPTY_SOURCE_PAGE_DIRECTORY, renderSlot }: MnemonWorkbenchProps): JSX.Element {
   const t = useT()
   const locale = useLocale()
   const subscribeSettings = useCallback((listener: () => void) => settingsScope.subscribe(listener), [settingsScope])
@@ -455,7 +457,7 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
   }, [sourceInstances, sourcePageEntries])
   const sourceNavigationEntries = useMemo<SourceNavigationEntry[]>(() => [
     ...visibleSourcePages.map(entry => ({
-      id: entry.id, page: sourcePage(entry.id), sourceTypeId: entry.sourceTypeId, label: entry.label,
+      id: entry.id, page: sourcePage(entry.id), sourceTypeId: entry.sourceTypeId, label: entry.localizedLabel?.[locale.startsWith('zh') ? 'zh-CN' : 'en'] ?? entry.label,
       detail: entry.navigation?.detail ?? entry.sourceTypeId, group: entry.navigation?.group ?? 'sources',
       glyph: entry.navigation?.glyph ?? '◇', primary: entry.navigation?.primary ?? true,
     })),
@@ -463,7 +465,7 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
       id: 'management:' + sourceTypeId, page: managedSourcePage(sourceTypeId), sourceTypeId,
       label: instances[0]!.management.label, detail: sourceTypeId, group: 'sources' as const, glyph: '◇', primary: true,
     })),
-  ], [managedSourceTypes, visibleSourcePages])
+  ], [managedSourceTypes, visibleSourcePages, locale])
 
   useEffect(() => {
     if (sourceCatalog === null) return
@@ -558,6 +560,8 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
     return renderSlot('mnemon.source.page', {
       sourceTypeId, sourceInstanceKey: selected.sourceInstanceKey, sourceInstances: instances, writable: writeEnabled, locale,
       ...(management === undefined ? {} : { management }),
+      ...(sourcePageEntries.find(entry => entry.id === entryId)?.coordinateSources ? { managementDirectory: { sources: sourceInstances, client: (key: string) => sourceManagementClients.get(key) } } : {}),
+      ...(onOpenSession === undefined ? {} : { sessionNavigation: { open: onOpenSession } }),
       ...(sessionId === undefined ? {} : { sessionId }), ...(workspaceId === undefined ? {} : { workspaceId }),
       ...(navigationInput?.page === entryId ? { navigationInput: navigationInput.value } : {}),
       ...(preferences === undefined ? {} : { preferences }), onRefresh: mutate,

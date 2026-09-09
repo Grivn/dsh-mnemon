@@ -65,6 +65,6 @@ interface SnapshotStore<State> {
 export type MnemonClientContext = Context & {
   connection: ConnectionHandle
   locale: LocaleRuntime
-  sessions: { list: SnapshotStore<MnemonSessionListState> }
+  sessions: { list: SnapshotStore<MnemonSessionListState>; refresh?(): Promise<void>; open?(id: import('@deepseek-ai/dsh-session').SessionId): void }
   workspaces: { list: SnapshotStore<MnemonWorkspaceListState> }
 }

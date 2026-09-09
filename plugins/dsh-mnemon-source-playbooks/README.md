@@ -17,3 +17,9 @@ Enabled, approved skills are registered through DSH's public skill-provider inte
 Use `{{name}}` variables in prompts; `date`, `workspace` and `session` are supplied by the Source. Preview resolves required variables before use. Immediate use creates an attributed session message, with an explicit optional wake. Schedules freeze the approved text and variables for this session, accept a start round, interval and use count (`0` means continuous), persist usage and can be stopped. Disabling their playbook stops future scheduled use. Each admitted human round may inject at most eight prompts and 40000 characters; a reservation is persisted before entering the DSH step and is not replayed after a crash.
 
 已采纳并启用的技能接入 DSH 原生技能目录，按项目过滤；多个实例需配置不同的提供方名称。提示词支持变量预览、立即使用、下一轮或指定间隔/次数的会话调度，次数为 0 表示持续。调度固定已确认内容，记录使用次数，支持停止；停用原提示词会停止后续调用。每轮最多注入 8 条、共 40000 字符，带明确插件来源，不覆盖用户当前指令。
+
+## Configured skill directories
+
+`skillDirectories` adds explicit directories to the native DSH skill provider. Its public filesystem provider parses SKILL.md metadata; the Source also offers bounded Markdown browsing and editing in those directories. Reads resolve real paths, reject escaping symlinks and cap files at 256 KiB. Saving checks the observed digest, serializes cooperating writers across processes, writes atomically and preserves file permissions. Pending record suggestions remain separate from enabled skills. File edits invalidate the catalog; directory listings remain fresh even when initially empty.
+
+`skillDirectories` 可配置额外的原生技能目录，复用 DSH 公开文件系统技能提供方解析元数据。页面支持目录检索和 Markdown 文件编辑，限制真实路径和 256 KiB 文件大小。保存检查已读取的内容摘要，协调并发写入，以原子替换保留权限；过期编辑会提示重新读取。目录技能与待审核的技能建议分别遵循自己的启用流程。

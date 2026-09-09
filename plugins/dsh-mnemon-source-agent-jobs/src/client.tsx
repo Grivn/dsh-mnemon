@@ -71,4 +71,4 @@ export function Page(props: MemorySourcePageProps) {
   ] }), [adapters])
   return <><JobControls {...props} /><hr />{error && <p role="alert">{error}</p>}{adapters.length ? <Collection {...props} /> : <p>{zh ? '请在本插件配置中添加 CLI 适配器，然后刷新页面。' : 'Configure a CLI adapter in this plugin, then refresh the page.'}</p>}</>
 }
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'agent-jobs', pages: [{ id: 'jobs', label: '后台任务 / Jobs', order: 47, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'agent-jobs', pages: [{ id: 'jobs', label: 'Jobs', localizedLabel: { en: 'Jobs', 'zh-CN': '后台任务' }, order: 47, component: Page, navigation: { group: 'sources', primary: true } }] }) }

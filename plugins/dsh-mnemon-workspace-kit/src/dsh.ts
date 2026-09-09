@@ -6,6 +6,7 @@ import { isAppendSurfaceEvent, SessionId, SessionLogOffset, type SessionEvent, t
 import type { SessionQueryEngine } from '@deepseek-ai/dsh-session-query'
 import type { WorkspaceRegistry } from '@deepseek-ai/dsh-workspace'
 import type { MemoryOperationScope } from 'dsh-mnemon/contracts'
+import { withMemoryStorageLock } from 'dsh-mnemon/extension-sdk'
 
 export interface VisibleMessage { seq: number; role: 'user' | 'assistant'; text: string; at: string }
 /** Human transcript only: no replacement summaries, injected context, thoughts or tool blocks. */
@@ -51,10 +52,28 @@ export class DshWorkspaceAdapter {
   }
   async live(id: string, scope: MemoryOperationScope, signal?: AbortSignal): Promise<Agent> {
     const observation = await this.observe(id, scope, signal)
-    observation[Symbol.dispose]()
-    const current = this.services.agents.get(SessionId(id))
-    if (current) { assertSessionScope(current.session.header, scope); return current }
-    return (await this.services.agents.resume({ resumeSessionId: SessionId(id), ...(signal ? { signal } : {}) })).agent
+    let agentOptions: AgentOptions | undefined
+    try {
+      const header = observation.events.findLast(event => event.type === 'request/header')
+      if (header?.type === 'request/header') {
+        const config = header.data.header.config
+        agentOptions = { provider: config.provider, model: config.model,
+          ...(config.reasoningEffort !== undefined ? { reasoningEffort: config.reasoningEffort } : {}),
+          ...(config.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {}),
+        }
+      }
+    } finally { observation[Symbol.dispose]() }
+    // Two independent Sources may target the same cold session concurrently.
+    return withMemoryStorageLock('dsh-session-resume:' + id, async () => {
+      signal?.throwIfAborted()
+      const current = this.services.agents.get(SessionId(id))
+      if (current) { assertSessionScope(current.session.header, scope); return current }
+      const handle = await this.services.agents.resume({ resumeSessionId: SessionId(id),
+        ...(agentOptions ? { agentOptions } : {}), ...(signal ? { signal } : {}),
+      })
+      assertSessionScope(handle.agent.session.header, scope)
+      return handle.agent
+    })
   }
   async create(scope: MemoryOperationScope, options: { parentId?: string; throughSeq?: number; preset?: string; agentOptions?: AgentOptions; signal?: AbortSignal } = {}): Promise<AgentHandle> {
     if (!scope.workspaceId) throw new Error('Select a workspace before creating a session')

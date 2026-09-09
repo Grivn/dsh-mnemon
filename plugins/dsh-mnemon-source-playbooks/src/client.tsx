@@ -1,3 +1,4 @@
+import { SkillFiles } from './file-client.tsx'
 import { installMemorySourceUI, type MemorySourcePageProps, type MemorySourceUIContext } from 'dsh-mnemon/client'
 import { createCollectionPage, RecordActionPanel, type RecordActionPanelOptions } from 'dsh-mnemon-workspace-kit/client'
 export const inject = ['slots']
@@ -84,5 +85,5 @@ const invokeOptions: RecordActionPanelOptions = {
   result: (value, zh) => value && typeof value === 'object' && !Array.isArray(value) && typeof value.text === 'string' ? <pre style={{whiteSpace:'pre-wrap'}}>{value.text}</pre> : <p>{zh ? '已保存。刷新调度面板查看状态。' : 'Saved. Refresh schedules to see their status.'}</p>,
 }
 const scheduleOptions: RecordActionPanelOptions = { title: { en: 'Session schedules', 'zh-CN': '会话调度' }, filter: record => record.kind === 'schedule', buttons: [{ operation: 'stop-schedule', label: { en: 'Stop schedule', 'zh-CN': '停止调度' }, visible: record => record.data.status === 'scheduled' }], details: (record, zh) => <p>{zh ? '状态' : 'Status'}: {String(record.data.status)} · {zh ? '使用次数' : 'Uses'}: {String(record.data.uses)} · {zh ? '剩余次数' : 'Remaining'}: {record.data.continuous ? (zh ? '持续' : 'Continuous') : String(record.data.remaining)}<br />{typeof record.data.error === 'string' ? record.data.error : ''}</p> }
-export function Page(props: MemorySourcePageProps) { return <><LibraryPage {...props} /><hr /><RecordActionPanel {...props} options={invokeOptions} /><RecordActionPanel {...props} options={scheduleOptions} /></> }
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'playbooks', pages: [{ id: 'records', label: '工作方法 / Playbooks', order: 44, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function Page(props: MemorySourcePageProps) { return <><LibraryPage {...props} /><hr /><RecordActionPanel {...props} options={invokeOptions} /><RecordActionPanel {...props} options={scheduleOptions} /><SkillFiles {...props} /></> }
+export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'playbooks', pages: [{ id: 'records', label: 'Playbooks', localizedLabel: { en: 'Playbooks', 'zh-CN': '工作方法' }, order: 44, component: Page, navigation: { group: 'sources', primary: true } }] }) }

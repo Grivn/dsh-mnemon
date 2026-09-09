@@ -121,3 +121,6 @@
         - id: mnemon-source-review
           name: dsh-mnemon-source-review
           disabled: true
+        - id: mnemon-source-collaboration
+          name: dsh-mnemon-source-collaboration
+          disabled: true

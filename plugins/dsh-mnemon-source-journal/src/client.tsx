@@ -81,4 +81,4 @@ export const Page = createCollectionPage({
     }
   ]
 })
-export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'journal', pages: [{ id: 'records', label: '活动日志 / Activity journal', order: 42, component: Page, navigation: { group: 'sources', primary: true } }] }) }
+export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'journal', pages: [{ id: 'records', label: 'Activity journal', localizedLabel: { en: 'Activity journal', 'zh-CN': '活动日志' }, order: 42, component: Page, navigation: { group: 'sources', primary: true } }] }) }

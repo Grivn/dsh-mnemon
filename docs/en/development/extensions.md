@@ -196,3 +196,9 @@ Test at least: valid composition; missing/ambiguous dependencies; two instances;
 Run each plugin's `pnpm verify`. At repository level, `pnpm verify:plugins` packs all 17 artifacts, installs every plugin outside the workspace through ordinary semver manifests, then type-checks/tests/builds each and compiles the external consumer. No source aliases, manifest overrides or workspace links are permitted in that gate.
 
 For RSI, keep candidate inputs/artifacts reproducible, compare against a known composition, and promote only through an explicit installation/selection decision. Passing a Strategy replay does not sandbox arbitrary JavaScript or grant permission to trade, send messages or delete external data.
+
+### Human coordination between Source pages
+
+A Source page may declare `coordinateSources: true`. The Host then provides an optional `managementDirectory` containing only the current authenticated scope's Source metadata and individually bound management clients. The page must explicitly select its target instance and use that Source's normal read, confirmation and revision checks. It receives no raw transport, provider clients, server runtimes or stores. This allows review suggestions and explicit export/import workflows without adding a business registry to the Host or giving one Source runtime access to another.
+
+`localizedLabel` supplies English and Simplified Chinese navigation labels. An optional `sessionNavigation.open(id)` uses DSH's public session navigation. It does not grant session mutation authority. Pages remain usable when this navigation capability is absent.

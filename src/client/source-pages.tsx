@@ -49,6 +49,8 @@ export interface MemorySourcePageDefinition {
   label: string | (() => string)
   order?: number
   component: MemorySourcePageComponent
+  coordinateSources?: boolean
+  localizedLabel?: { en: string; 'zh-CN': string }
   navigation?: MemorySourcePageNavigation
 }
 
@@ -62,6 +64,8 @@ export interface MemorySourcePageEntry {
   sourceTypeId: string
   pageId: string
   label: string
+  coordinateSources?: boolean
+  localizedLabel?: { en: string; 'zh-CN': string }
   order: number
   navigation?: Omit<MemorySourcePageNavigation, 'detail'> & { detail?: string }
 }
@@ -105,7 +109,7 @@ export function installMemorySourceUI(
           id: entryId,
           order,
           label: page.label,
-        }, Object.assign((props: MemorySourcePageProps) => createElement(page.component, props), { mnemonNavigation: page.navigation })))
+        }, Object.assign((props: MemorySourcePageProps) => createElement(page.component, props), { mnemonNavigation: page.navigation, mnemonCoordinateSources: page.coordinateSources, mnemonLocalizedLabel: page.localizedLabel })))
       }
     } catch (error) {
       for (const dispose of disposers.reverse()) dispose()
@@ -140,7 +144,7 @@ export function createMemorySourcePageDirectory(ctx: MemorySourcePageDirectoryCo
         // Presentation metadata must fail locally; a broken label cannot take
         // down the canonical workspace or any Host/Headless memory behavior.
       }
-      const component = entry.component as { mnemonNavigation?: MemorySourcePageNavigation } | undefined
+      const component = entry.component as { mnemonNavigation?: MemorySourcePageNavigation; mnemonCoordinateSources?: boolean; mnemonLocalizedLabel?: { en: string; 'zh-CN': string } } | undefined
       const metadata = component?.mnemonNavigation
       let navigation: MemorySourcePageEntry['navigation']
       if (metadata !== undefined) {
@@ -151,6 +155,8 @@ export function createMemorySourcePageDirectory(ctx: MemorySourcePageDirectoryCo
       return [{
         id,
         sourceTypeId: id.slice(0, separator),
+        ...(component?.mnemonCoordinateSources ? { coordinateSources: true } : {}),
+        ...(component?.mnemonLocalizedLabel ? { localizedLabel: component.mnemonLocalizedLabel } : {}),
         pageId: id.slice(separator + 1),
         label: label?.trim() || id.slice(separator + 1),
         order: entry.options.order ?? 0,

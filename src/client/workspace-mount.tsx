@@ -1,3 +1,4 @@
+import type { SessionId } from '@deepseek-ai/dsh-session'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
@@ -146,6 +147,7 @@ export function MnemonWorkspaceHost(props: MnemonWorkspaceHostProps): JSX.Elemen
     {...(sessionId === undefined ? {} : { sessionId })}
     {...(resolvedSelectedId === undefined ? {} : { workspaceId: resolvedSelectedId })}
     workspaceSelection={selection}
+    {...(props.sessions.open === undefined ? {} : { onOpenSession: async (id: string) => { await props.sessions.refresh?.(); props.sessions.open!(id as SessionId); props.navigation?.close() } })}
     active={props.active ?? true}
     t={props.t}
     locale={locale.active}

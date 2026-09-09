@@ -96,10 +96,11 @@ describe('Source Client presentation conformance', () => {
   it('rejects duplicate page owners and lets a replacement install after unload', () => {
     const slots = new TestSlots()
     const owner = declareSourcePageSlot(slots)
-    const first = installMemorySourceUI({ slots } as never, { sourceTypeId: 'runtime', pages: [{ id: 'entries', label: 'First', component: Page }] })
+    const first = installMemorySourceUI({ slots } as never, { sourceTypeId: 'runtime', pages: [{ id: 'entries', label: 'First', localizedLabel: { en: 'First', 'zh-CN': '第一页' }, coordinateSources: true, component: Page }] })
     const directory = createMemorySourcePageDirectory({ slots } as never)
     expect(() => installMemorySourceUI({ slots } as never, { sourceTypeId: 'runtime', pages: [{ id: 'entries', label: 'Duplicate', component: Page }] })).toThrow()
     expect(directory.getSnapshot().map(entry => entry.label)).toEqual(['First'])
+    expect(directory.getSnapshot()[0]).toMatchObject({ coordinateSources: true, localizedLabel: { en: 'First', 'zh-CN': '第一页' } })
     first()
     const second = installMemorySourceUI({ slots } as never, { sourceTypeId: 'runtime', pages: [{ id: 'entries', label: 'Second', component: Page }] })
     expect(directory.getSnapshot().map(entry => entry.label)).toEqual(['Second'])
@@ -199,7 +200,7 @@ describe('Source Client presentation conformance', () => {
     page(); owner()
   })
 
-  it('routes one type-level page across authorized instances without exposing the raw transport', async () => {
+  it.each([false, true])('routes authorized instances with optional human coordination (%s) and no raw transport', async coordinateSources => {
     const calls: Array<{ channel: string; endpoint: string; payload: Record<string, unknown> }> = []
     const sourceCatalog = {
       generationId: 'generation:one',
@@ -224,7 +225,7 @@ describe('Source Client presentation conformance', () => {
       if (endpoint === 'source-management-mutate') return { ok: true, value: { revision: 'write-r2', value: { updated: true } } }
       return { ok: false, error: { code: 'bad-request', message: `unexpected ${endpoint}`, details: { issues: [] } } }
     }) } }
-    const directorySnapshot = [{ id: 'git/repository', sourceTypeId: 'git', pageId: 'repository', label: 'Repository', order: 1 }] as const
+    const directorySnapshot = [{ id: 'git/repository', sourceTypeId: 'git', pageId: 'repository', label: 'Repository', coordinateSources, order: 1 }] as const
     const directory = {
       getSnapshot: () => directorySnapshot,
       subscribe: () => () => {},
@@ -259,6 +260,12 @@ describe('Source Client presentation conformance', () => {
       sourceTypeId: 'git', sourceInstanceKey: 'source:git-work', sessionId: 'session-1', workspaceId: 'workspace-1', locale: 'en-US',
     })
     expect(lastProps).not.toHaveProperty('connection')
+    if (coordinateSources) {
+      expect(lastProps?.managementDirectory?.sources.map(source => source.sourceInstanceKey)).toEqual(['source:git-work', 'source:git-personal'])
+      expect(lastProps?.managementDirectory?.client('source:unknown')).toBeUndefined()
+      await lastProps?.managementDirectory?.client('source:git-personal')?.read('inspect', { ref: 'other' })
+      expect(calls.at(-1)?.payload).toMatchObject({ sourceInstanceKey: 'source:git-personal', sessionId: 'session-1', workspaceId: 'workspace-1' })
+    } else expect(lastProps).not.toHaveProperty('managementDirectory')
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Select Source instance' }), { target: { value: 'source:git-personal' } })
     await waitFor(() => expect(screen.getByTestId('selected-source').textContent).toBe('source:git-personal'))

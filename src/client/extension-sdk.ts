@@ -6,7 +6,7 @@ export {
   type MemorySourcePageComponent, type MemorySourcePageDefinition,
   type MemorySourcePageProps, type MemorySourceUIContribution, type MemorySourceUIContext, type MemorySourcePageNavigation,
 } from './source-pages.tsx'
-export type { MnemonSourceManagementClient, MemorySourcePageInstance } from './source-contracts.ts'
+export type { MnemonSourceManagementClient, MemorySourcePageInstance, MemorySourceManagementDirectory } from './source-contracts.ts'
 export * from './page-kit.tsx'
 export * from './page-client.tsx'
 export { MnemonDialog, type MnemonDialogProps } from './MnemonDialog.tsx'

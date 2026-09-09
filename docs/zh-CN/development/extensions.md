@@ -196,3 +196,9 @@ try {
 插件运行自己的 `pnpm verify`。仓库级 `pnpm verify:plugins` 打包全部 17 个制品，用正常 semver manifest 在工作区外逐个安装、检查、测试和构建，再编译外部消费者；禁止源码 alias、manifest override 和工作区软链接。
 
 RSI 应保存可复现候选输入/制品，对照已知组合评估，经明确安装/选择决策晋升。Strategy 回放通过，不代表任意 JavaScript 已被沙箱隔离，也不授予交易、发消息或删除外部数据的权限。
+
+### Source 页面之间的人工协调
+
+页面可声明 `coordinateSources: true`，由宿主提供当前认证作用域内的 `managementDirectory`。目录只有 Source 展示元数据及分别绑定的管理客户端；页面需显式选择目标实例，并遵循目标 Source 自身的读取、确认与版本检查。页面不获得原始传输、Provider 客户端、服务端运行时或存储句柄。这样可以实现审核建议转入待审核库、显式导出导入等工作流，无需在宿主增加业务注册表，也不赋予一个 Source 运行时访问另一个 Source 数据的能力。
+
+`localizedLabel` 提供中英文导航名称。可选的 `sessionNavigation.open(id)` 使用 DSH 公开会话导航能力，不授予会话修改权限；没有此能力时，页面的其他功能仍然可用。

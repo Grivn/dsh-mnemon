@@ -1,7 +1,7 @@
 {
-  "name": "dsh-mnemon-source-playbooks",
+  "name": "dsh-mnemon-source-collaboration",
   "version": "0.1.0",
-  "description": "Reusable skills and prompts, reviewed before activation.",
+  "description": "Project collaboration rooms, directed session messages, presence and file reservations.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -36,9 +36,7 @@
     "@deepseek-ai/dsh-session": "0.1.2-rc.1",
     "@deepseek-ai/dsh-session-query": "0.1.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill-filesystem": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-workspace": "0.1.2-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -57,10 +55,7 @@
     "@deepseek-ai/dsh-session": "0.1.2-rc.1",
     "@deepseek-ai/dsh-session-query": "0.1.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-skill-filesystem": "0.1.2-rc.1",
-    "@types/proper-lockfile": "^4.1.4"
+    "@deepseek-ai/dsh-workspace": "0.1.2-rc.1"
   },
   "publishConfig": {
     "access": "public",
@@ -69,9 +64,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/omdsh-dev/dsh-mnemon.git",
-    "directory": "plugins/dsh-mnemon-source-playbooks"
+    "directory": "plugins/dsh-mnemon-source-collaboration"
   },
-  "homepage": "https://github.com/omdsh-dev/dsh-mnemon/tree/main/plugins/dsh-mnemon-source-playbooks#readme",
+  "homepage": "https://github.com/omdsh-dev/dsh-mnemon/tree/main/plugins/dsh-mnemon-source-collaboration#readme",
   "bugs": {
     "url": "https://github.com/omdsh-dev/dsh-mnemon/issues"
   },
@@ -82,8 +77,7 @@
   },
   "dependencies": {
     "dsh-mnemon-workspace-kit": "0.1.0",
-    "schemastery": "^3.18.0",
-    "proper-lockfile": "^4.1.2"
+    "schemastery": "^3.18.0"
   },
   "dsh": {
     "client": {

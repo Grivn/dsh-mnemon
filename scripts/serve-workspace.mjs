@@ -37,9 +37,9 @@ const model = values.model === 'fixture' ? createServer(async (request, response
   const chunks = []; let bytes = 0
   for await (const chunk of request) { bytes += chunk.length; if (bytes <= 2 * 1024 * 1024) chunks.push(chunk) }
   if (bytes > 2 * 1024 * 1024) { response.writeHead(413); response.end('Fixture input limit exceeded'); return }
-  let review = false
-  try { review = JSON.parse(Buffer.concat(chunks).toString('utf8')).messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
-  const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: [] }) : 'The isolated workspace is ready. This is a deterministic local test response.'
+  let review = false, proposals = false
+  try { const body = JSON.parse(Buffer.concat(chunks).toString('utf8')); proposals = JSON.stringify(body.messages).includes('[proposals]'); review = body.messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
+  const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: proposals ? [{ kind: 'fact', title: '合成验收建议', content: '这是一条用于验证跨插件审核流程的合成建议。' }] : [], ...(proposals ? { skill: { slug: 'validation-checklist', title: '验收检查流程', content: '检查具体结果、测试证据与适用范围。此条目用于验证插件流程。' } } : {}) }) : 'The isolated workspace is ready. This is a deterministic local test response.'
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   for (const choice of [
     { index: 0, delta: { role: 'assistant', content }, finish_reason: null },
@@ -123,8 +123,14 @@ ${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspac
 `
   if (values['workspace-plugins']) patch += await readFile(join(root, 'scripts/workspace-plugins.patch.yml'), 'utf8')
   if (values['workspace-plugins']) patch += `- id: mnemon-source-agent-jobs\n  disabled: false\n  config:\n    adapters:\n      - id: local-fixture\n        label: Local validation\n        command: ${JSON.stringify(process.execPath)}\n        args: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}']\n        resumeArgs: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}', '{session}']\n        timeoutSeconds: 60\n`
+  if (values['workspace-plugins']) {
+    const skillDirectory = join(workspace, 'skills'), fixtureSkill = join(skillDirectory, 'fixture-validation')
+    await mkdir(fixtureSkill, { recursive: true })
+    try { await writeFile(join(fixtureSkill, 'SKILL.md'), '---\nname: fixture-validation\ndescription: A synthetic workflow used for plugin verification.\n---\n\nRead the expected result, run the check and report the observed outcome.\n', { flag: 'wx' }) } catch (error) { if (error.code !== 'EEXIST') throw error }
+    patch += `- id: mnemon-source-playbooks\n  config:\n    skillDirectories: [${JSON.stringify(skillDirectory)}]\n`
+  }
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), patch)
-  await writeFile(join(workspace, 'README.md'), '# Memory workspace validation\n\nSynthetic content used to validate local services and plugin composition.\n')
+  try { await writeFile(join(workspace, 'README.md'), '# Memory workspace validation\n\nSynthetic content used to validate local services and plugin composition.\n', { flag: 'wx' }) } catch (error) { if (error.code !== 'EEXIST') throw error }
   await writeFile(join(state, 'workspace.code-workspace'), JSON.stringify({ folders: [{ path: root }, { path: workspace }] }, null, 2) + '\n')
   await writeFile(join(state, 'instance.json'), JSON.stringify({ pid: process.pid, root, state, workspace, dshHome, memory, native, model: values.model, port: Number(values.port) }, null, 2) + '\n', { mode: 0o600 })
   console.log('Workspace state: ' + state)
