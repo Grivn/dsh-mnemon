@@ -41,7 +41,9 @@ const relativeReadmeImages = readmeFiles.flatMap((path) => {
 
 // Core/Host and the shared page kit only; Source/Provider implementations must
 // ship in their own artifacts. Keep a bounded budget, not the old monolith size.
-const maximumUnpackedBytes = 1_250_000
+// Built-in workspace routing and bilingual settings add about 7 KB to main's
+// 1,249,360-byte baseline, without adding package files or bundled Sources.
+const maximumUnpackedBytes = 1_260_000
 
 if (missing.length > 0 || unexpected.length > 0 || hostLeaks.length > 0 || relativeReadmeImages.length > 0 || pack.unpackedSize > maximumUnpackedBytes) {
   if (missing.length > 0) console.error(`Missing package files:\n${missing.map(path => `- ${path}`).join('\n')}`)

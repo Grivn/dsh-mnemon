@@ -35,6 +35,12 @@ Like a Spring Boot starter, the default distribution chooses dependencies and ex
 
 `ctx.mnemonMemory` is a real restricted service object, not the engine cast to a narrower type. It exposes one registration primitive, used through `installMemory`; Host execution stays internal. Provider modules follow the same principle inside their own Source, with only a bound `host.install` capability. Public test fixtures exercise these protocols without handing out their private owners.
 
+## Built-in storage scope
+
+Storage layout is part of the root package's Host infrastructure. The same resolver handles `global`, `workspace`, `custom` and `workspaces`; Core carries the selected operation scope and enforces View authority. Filesystem canonicalization, environment/home defaults and workspace directory hashes stay in Host code, without a storage contribution API or a separate package.
+
+The Host passes the resolved directory to each default Source. Sources continue to own their formats, transactions and Provider state; a layout change does not move their data. The opt-in global USER.md uses a separate global root while project data stays under the chosen workspace root. Settings and read-only inventory use the same layout resolver.
+
 ## Default plugin combination
 
 | Plugin | Memory authority | Default View contribution |

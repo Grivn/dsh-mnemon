@@ -1,10 +1,11 @@
-import { isDefaultSourceInstance } from './protocol.ts'
+import { isDefaultSourceInstance, isWorkspaceStorageScope } from './protocol.ts'
 import { resolve } from 'node:path'
 import type { ResolvedConfig } from './config.ts'
 import type { HostAgent, HostAgentsService, HostWorkspace, HostWorkspaceRegistry } from './dsh.ts'
 import { MnemonPackManager } from './pack.ts'
 import { StorageScopeInspector } from './storage-scope.ts'
 import { createStorageRoot } from './storage-root.ts'
+import { canonicalWorkspacePath } from './workspace-storage.ts'
 import { SourceSession } from './source-session.ts'
 import { MemoryRuntime } from '../core/runtime.ts'
 import type { MemoryGenerationHost } from '../core/generation.ts'
@@ -190,7 +191,7 @@ export class LiveMnemonRuntime implements MnemonAgentRuntimeSource {
     const parentSession = agent.session.header?.origin === 'subagent' ? agent.session.header.parentSession?.trim() : undefined
     const inherited = parentSession === undefined || parentSession === '' ? undefined : this.agentGraphs.get(parentSession)
     if (inherited !== undefined) return inherited.graph
-    if (this.current.config.storageScope !== 'workspace') return this.current
+    if (!isWorkspaceStorageScope(this.current.config.storageScope)) return this.current
     const cwd = agent.session.header?.cwd?.trim()
     if (cwd === undefined || cwd === '') throw new Error('the current DSH session has no workspace for Mnemon')
     return this.forWorkspacePath(cwd)
@@ -200,7 +201,7 @@ export class LiveMnemonRuntime implements MnemonAgentRuntimeSource {
   forWorkspaceId(workspaceId: string): MnemonRuntimeGraph {
     this.assertOpen()
     const workspace = this.requireWorkspace(workspaceId)
-    return this.current.config.storageScope === 'workspace' ? this.forWorkspacePath(workspace.path) : this.current
+    return isWorkspaceStorageScope(this.current.config.storageScope) ? this.forWorkspacePath(workspace.path) : this.current
   }
 
   /** Resolve a Web request, preferring its explicit inspection workspace. */
@@ -220,7 +221,7 @@ export class LiveMnemonRuntime implements MnemonAgentRuntimeSource {
       : this.requireWorkspace(request.workspaceId)
     const graph = selectedWorkspace === undefined
       ? effectiveAgent === undefined ? this.current : this.forAgent(effectiveAgent)
-      : this.current.config.storageScope === 'workspace' ? this.forWorkspacePath(selectedWorkspace.path) : this.current
+      : isWorkspaceStorageScope(this.current.config.storageScope) ? this.forWorkspacePath(selectedWorkspace.path) : this.current
     const effectiveGraph = effectiveAgent === undefined ? this.current : this.forAgent(effectiveAgent)
     const selectedRoot = resolve(graph.directory)
     const effectiveRoot = resolve(effectiveGraph.directory)
@@ -235,7 +236,7 @@ export class LiveMnemonRuntime implements MnemonAgentRuntimeSource {
   }
 
   private forWorkspacePath(workspaceRoot: string): MnemonRuntimeGraph {
-    const key = resolve(workspaceRoot)
+    const key = this.current.config.storageScope === 'workspaces' ? canonicalWorkspacePath(resolve(workspaceRoot)) : resolve(workspaceRoot)
     let graph = this.workspaceGraphs.get(key)
     if (graph === undefined) {
       graph = createRuntimeGraph(this.current.config, key, this.extensions)

@@ -118,7 +118,11 @@ export interface ClientSettingsScope<T> {
 
 export type SettingsOperation = { op: 'set'; path: string[]; value: unknown } | { op: 'unset'; path: string[] }
 
-export type StorageScopeKind = 'global' | 'workspace' | 'custom'
+export type StorageScopeKind = 'global' | 'workspace' | 'custom' | 'workspaces'
+
+export function isWorkspaceStorageScope(scope: string | undefined): boolean {
+  return scope === 'workspace' || scope === 'workspaces'
+}
 
 export interface MemoryLayerConfig {
   enabled?: boolean

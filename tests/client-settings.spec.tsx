@@ -477,7 +477,7 @@ describe('MnemonSettingsCard', () => {
     } satisfies ClientSettingsScope<Config> & { snapshot: typeof snapshot }
 
     render(<MnemonSettingsCard scope={scope} />)
-    fireEvent.click(screen.getByRole('radio', { name: /工作区/ }))
+    fireEvent.click(screen.getByRole('radio', { name: '工作区' }))
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => expect(set).toHaveBeenCalledWith('storageScope', 'workspace'))
@@ -508,7 +508,7 @@ describe('MnemonSettingsCard', () => {
 
     render(<MnemonSettingsCard scope={scope} />)
 
-    expect((screen.getByRole('radio', { name: /工作区/ }) as HTMLInputElement).checked).toBe(true)
+    expect((screen.getByRole('radio', { name: '工作区' }) as HTMLInputElement).checked).toBe(true)
     expect((screen.getByRole('radio', { name: /跟随记忆范围/ }) as HTMLInputElement).checked).toBe(true)
     fireEvent.click(screen.getByRole('radio', { name: /全局用户档案/ }))
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
@@ -1153,5 +1153,50 @@ describe('MnemonSettingsCard', () => {
       base64: 'cGFjaw==',
     }))
     expect(screen.getByText('已将 ZIP 安全合并到 /active/.mnemon。')).toBeTruthy()
+  })
+})
+
+describe('centralized workspace storage settings', () => {
+  function settings(value: Config, writable = true) {
+    const snapshot = { status: 'ready' as const, value, base: {}, user: {}, revision: 0, writable, mode: 'host' as const }
+    const mutate = vi.fn(async () => {})
+    const scope: ClientSettingsScope<Config> = {
+      getSnapshot: () => snapshot, subscribe: () => () => {},
+      set: vi.fn(), unset: vi.fn(), setPath: vi.fn(), unsetPath: vi.fn(), mutate,
+    }
+    return { scope, mutate }
+  }
+  it('saves the scope, central root and global profile together from the storage section', async () => {
+    const { scope, mutate } = settings({ storageScope: 'global' })
+    render(<MnemonSettingsCard scope={scope} />)
+    fireEvent.click(screen.getByRole('radio', { name: '集中存储 · 按工作区隔离' }))
+    const section = screen.getByRole('region', { name: '记忆范围' })
+    fireEvent.change(within(section).getByRole('textbox', { name: '集中根目录' }), { target: { value: '  /tmp/central-memory  ' } })
+    fireEvent.click(screen.getByRole('radio', { name: '全局用户档案' }))
+    expect(screen.queryByRole('radiogroup', { name: '全局数据位置' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith([
+      { op: 'set', path: ['storageScope'], value: 'workspaces' },
+      { op: 'set', path: ['runtimeUserScope'], value: 'global' },
+      { op: 'set', path: ['dataDir'], value: '/tmp/central-memory' },
+    ]))
+  })
+  it('rejects a relative central root and lets an empty value restore the default without changing scope', async () => {
+    const { scope, mutate } = settings({ storageScope: 'workspaces', dataDir: '/old-root' })
+    render(<MnemonSettingsCard scope={scope} t={translateEn} />)
+    const input = screen.getByRole('textbox', { name: 'Central root directory' })
+    fireEvent.change(input, { target: { value: 'relative' } })
+    expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('absolute')
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith([{ op: 'set', path: ['dataDir'], value: '' }]))
+  })
+  it('disables the new scope and its root when settings are read-only', () => {
+    const { scope, mutate } = settings({ storageScope: 'workspaces' }, false)
+    render(<MnemonSettingsCard scope={scope} />)
+    expect((screen.getByRole('radio', { name: '集中存储 · 按工作区隔离' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('textbox', { name: '集中根目录' }) as HTMLInputElement).disabled).toBe(true)
+    expect(mutate).not.toHaveBeenCalled()
   })
 })

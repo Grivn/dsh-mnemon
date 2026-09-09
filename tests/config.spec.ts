@@ -200,3 +200,17 @@ describe('Mnemon config and resolution', () => {
   })
 
 })
+
+describe('centralized workspace configuration', () => {
+  it('accepts default, home-relative and custom central roots with either USER.md scope', () => {
+    for (const runtimeUserScope of ['storage', 'global'] as const) {
+      for (const dataDir of [undefined, '', '~/central-memory', '/central-memory']) {
+        const input = { storageScope: 'workspaces' as const, runtimeUserScope, ...(dataDir === undefined ? {} : { dataDir }) }
+        expect(resolveConfig(Config(input))).toMatchObject({ storageScope: 'workspaces', runtimeUserScope })
+      }
+    }
+    expect(() => resolveConfig({ storageScope: 'workspaces', dataDir: 'relative' })).toThrow('absolute')
+    expect(() => resolveConfig({ storageScope: 'workspaces', dataDir: '/root\0' })).toThrow('null byte')
+    expect(() => resolveConfig({ storageScope: 'unknown' as never })).toThrow('storageScope')
+  })
+})

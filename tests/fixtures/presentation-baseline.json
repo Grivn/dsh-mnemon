@@ -61,5 +61,15 @@
       "classes": 29,
       "classesSha256": "c2eeeb8d1e00063d29bfe2949339820184f3e8b22f631c362edd85aad8bfe573"
     }
+  },
+  "centralizedWorkspaces": {
+    "en": {
+      "keys": 977,
+      "sha256": "ee02f8169a503bd28d28ef60ea4cfeb0f9c396e01e7ee45a638ca91bad64796c"
+    },
+    "zh": {
+      "keys": 977,
+      "sha256": "00725a3de722df41e269a43dca686c2cc0981762e36bcfdc05c73cc55936db4b"
+    }
   }
 }

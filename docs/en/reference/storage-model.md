@@ -59,6 +59,9 @@ Use `global` for a common local root, `custom` for an explicitly agreed root, or
 
 `storageScope` determines the entire root, not just the Mnemon databases. The `workspace` scope resolves an independent `<workspace>/.mnemon` for every registered DSH workspace. The opt-in `runtimeUserScope=global` is the sole split-root exception: Runtime reads USER.md from the global root while MEMORY.md and every other component remain under the selected root. Workbench tasks use the inspected workspace; conversation tools and lifecycle hooks use their owning session's cwd and pinned View. `state/memory-providers.json` stores third-party endpoints, target URIs, identities, and optional credentials. Its mode is `0600`; the Host returns configured field names, never saved credential values.
 
+The `workspaces` layout keeps all four areas under `<central-root>/workspaces/<workspace-path-hash>/`; Host path resolution never creates files or changes old roots. Only explicit `runtimeUserScope: global` places USER.md outside that workspace subtree.
+
+
 ## Runtime Memory
 
 ### Semantics
@@ -133,7 +136,7 @@ User profiles, ordinary conversation, temporary progress, raw large logs, and se
 
 The physical sharing scope of Documents is determined by `storageScope`:
 
-- `workspace`: normally isolated with the project;
+- `workspace` / `workspaces`: normally isolated with the project;
 - `global` / `custom`: multiple workspaces may share the same `documents/index.json`.
 
 Therefore, “Project Documents” describes the content type and does not guarantee physical isolation by workspace. The current session workspace constrains only `sourcePaths` on new writes.

@@ -1,4 +1,4 @@
-import { isDefaultSourceInstance } from './protocol.ts'
+import { isDefaultSourceInstance, isWorkspaceStorageScope } from './protocol.ts'
 import type { HostConnectionHandle, HostRpcAuthority, HostRpcHandler, RpcResult } from './dsh.ts'
 import type { MnemonLifecycle } from './lifecycle.ts'
 import type { LiveMnemonRuntime } from './runtime.ts'
@@ -216,7 +216,7 @@ export function createReadHandler(input: LiveMnemonRuntime, lifecycle?: MnemonLi
           return success({
             ...status,
             ...(versions === undefined ? {} : { dshMnemonVersion: versions.currentDshMnemonVersion }),
-            ...(lifecycle === undefined ? {} : { lifecycle: lifecycle.snapshot(runtime.scope.sessionId, runtime.graph.config.storageScope === 'workspace' ? runtime.scope.workspaceId : undefined) }),
+            ...(lifecycle === undefined ? {} : { lifecycle: lifecycle.snapshot(runtime.scope.sessionId, isWorkspaceStorageScope(runtime.graph.config.storageScope) ? runtime.scope.workspaceId : undefined) }),
             ...(documents === undefined ? {} : { documents }),
             memorySystem: composition,
             storage: runtime.graph.storage.catalog(runtime.scope.workspaceId),
