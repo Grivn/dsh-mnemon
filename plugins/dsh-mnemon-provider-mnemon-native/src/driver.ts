@@ -223,13 +223,32 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
   }
 
   async rememberMany(body: MemorySpace, requests: readonly RememberRequest[], signal?: AbortSignal): Promise<JsonValue[]> {
+    if (requests.length === 0) return []
+    // Bulk archival preserves exact committed facts. Native's normal semantic
+    // deduplication can skip a distinct configuration or correction that merely
+    // resembles an earlier entry. Reuse only byte-identical persisted content,
+    // and import the remaining originals without semantic replacement.
+    const existing = new Map((await this.allNativeInsights(body, signal, true)).map(entry => [entry.content, entry]))
+    const ordered = new Array<JsonValue>(requests.length)
+    const pending = new Map<string, { request: RememberRequest; indexes: number[] }>()
+    for (const [index, request] of requests.entries()) {
+      const exact = existing.get(request.content)
+      if (exact !== undefined) ordered[index] = { action: 'skipped', id: exact.id, content: exact.content }
+      else {
+        const group = pending.get(request.content)
+        if (group === undefined) pending.set(request.content, { request, indexes: [index] })
+        else group.indexes.push(index)
+      }
+    }
+    const batch = [...pending.values()]
+    if (batch.length === 0) return ordered
     const temporary = mkdtempSync(join(tmpdir(), 'dsh-mnemon-runtime-archive-'))
     const draftPath = join(temporary, 'memory-draft.json')
     try {
       writeFileSync(draftPath, JSON.stringify({
         schema_version: '1',
         source: 'dsh-mnemon-runtime-archive',
-        insights: requests.map(request => ({
+        insights: batch.map(({ request }) => ({
           content: request.content,
           category: request.category,
           importance: request.importance,
@@ -238,7 +257,7 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
           ...(request.entities === undefined ? {} : { entities: request.entities }),
         })),
       }), { encoding: 'utf8', mode: 0o600 })
-      const payload = await this.runner.runJson(['import', draftPath], { ...(signal === undefined ? {} : { signal }), store: body.id })
+      const payload = await this.runner.runJson(['import', draftPath, '--no-diff'], { ...(signal === undefined ? {} : { signal }), store: body.id })
       const summary = record(payload)
       const rows = Array.isArray(summary?.results) ? summary.results : undefined
       const errors = number(summary?.errors)
@@ -248,21 +267,24 @@ export class MnemonNativeProvider implements MemoryProviderAdapter {
       const invalid = () => new Error(`Mnemon runtime archive import returned an invalid or partial result for Memory Space ${body.id}`)
       if (errors !== 0 || imported === undefined || updated === undefined || skipped === undefined || rows === undefined
         || ![imported, updated, skipped].every(value => Number.isInteger(value) && value >= 0)
-        || imported + updated + skipped !== requests.length || rows.length !== requests.length) {
+        || imported !== batch.length || updated !== 0 || skipped !== 0 || rows.length !== batch.length) {
         throw invalid()
       }
-      const ordered = new Array<JsonValue>(requests.length)
+      const seen = new Set<number>()
       for (const candidate of rows) {
         const row = record(candidate)
         const index = number(row?.index)
         const action = text(row?.action)?.trim().toLocaleLowerCase()
-        if (index === undefined || !Number.isInteger(index) || index < 0 || index >= requests.length || ordered[index] !== undefined) {
+        if (index === undefined || !Number.isInteger(index) || index < 0 || index >= batch.length || seen.has(index)) {
           throw invalid()
         }
-        if (row?.content !== requests[index]!.content || (action !== 'added' && action !== 'updated' && action !== 'skipped')) {
+        if (row?.content !== batch[index]!.request.content || action !== 'added') {
           throw invalid()
         }
-        ordered[index] = row
+        seen.add(index)
+        for (const [offset, originalIndex] of batch[index]!.indexes.entries()) {
+          ordered[originalIndex] = offset === 0 ? row : { ...row, action: 'skipped' }
+        }
       }
       return ordered
     } finally {

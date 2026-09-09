@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { StringDecoder } from 'node:string_decoder'
 
 export interface ProcessResult {
   stdout: string
@@ -36,6 +37,8 @@ export const runProcess: ProcessRunner = (command, args, options) => new Promise
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES
   let stdout = ''
   let stderr = ''
+  const stdoutDecoder = new StringDecoder('utf8')
+  const stderrDecoder = new StringDecoder('utf8')
   let outputBytes = 0
   let settled = false
   let killTimer: NodeJS.Timeout | undefined
@@ -67,8 +70,8 @@ export const runProcess: ProcessRunner = (command, args, options) => new Promise
       finish(new Error(`${label} output exceeded ${maxOutputBytes} bytes`))
       return
     }
-    if (target === 'stdout') stdout += chunk.toString('utf8')
-    else stderr += chunk.toString('utf8')
+    if (target === 'stdout') stdout += stdoutDecoder.write(chunk)
+    else stderr += stderrDecoder.write(chunk)
   }
 
   child.stdout.on('data', (chunk: Buffer) => { append('stdout', chunk) })
@@ -76,7 +79,11 @@ export const runProcess: ProcessRunner = (command, args, options) => new Promise
   child.on('error', (error) => {
     finish(new Error(`failed to launch ${label} (${JSON.stringify(command)}): ${error.message}`))
   })
-  child.on('close', (exitCode) => { finish(null, { stdout, stderr, exitCode }) })
+  child.on('close', (exitCode) => {
+    stdout += stdoutDecoder.end()
+    stderr += stderrDecoder.end()
+    finish(null, { stdout, stderr, exitCode })
+  })
 
   const timeout = setTimeout(() => {
     stop()

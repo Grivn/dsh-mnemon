@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_MEMORY_VIEW_BUDGET, type MemoryAvailableSource, type MemoryStrategyContribution, type MemoryViewRequest } from 'dsh-mnemon/contracts'
 import { DEFAULT_THREE_TIER_VIEW_STRATEGY as strategy } from '../src/index.ts'
-import { validateThreeTierExtension } from '../src/extension-sdk.ts'
+import { threeTierActionWorkflow, validateThreeTierExtension } from '../src/extension-sdk.ts'
 
 const request: MemoryViewRequest = { scope: { storage: 'custom' }, scenario: 'test', budget: { ...DEFAULT_MEMORY_VIEW_BUDGET } }
 const roles = ['working-context', 'narrative', 'durable-evidence']
@@ -15,6 +15,13 @@ function contribution(slot: string, value: MemoryStrategyContribution['value']):
 }
 
 describe('three-tier owned extension contracts', () => {
+  it('owns only the Runtime capacity workflow of the selected default Strategy', () => {
+    expect(threeTierActionWorkflow('default-three-tier', 'runtime', 'mutate')).toBe('runtime-capacity')
+    expect(threeTierActionWorkflow('custom', 'runtime', 'mutate')).toBeUndefined()
+    expect(threeTierActionWorkflow('default-three-tier', 'external-source', 'mutate')).toBeUndefined()
+    expect(threeTierActionWorkflow('default-three-tier', 'runtime', 'import')).toBeUndefined()
+    expect(threeTierActionWorkflow('default-three-tier', 'documents', 'create')).toBeUndefined()
+  })
   it('retains default composition exactly when no extension is active', () => {
     const facts = sources()
     expect(strategy.compose(request, facts)).toEqual(strategy.compose(request, facts, []))

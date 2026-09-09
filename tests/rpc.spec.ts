@@ -4,6 +4,7 @@ import type { HostConnectionHandle, HostRpcHandler } from '../src/host/dsh.ts'
 import type { MnemonLifecycle } from '../src/host/lifecycle.ts'
 import { createActivationHandler, createPackHandler, createReadHandler, createWriteHandler, MNEMON_ACTIVATION_CHANNEL, MNEMON_PACK_CHANNEL, MNEMON_READ_CHANNEL, MNEMON_WRITE_CHANNEL, registerRpc } from '../src/host/rpc.ts'
 import type { LiveMnemonRuntime, MnemonRuntimeGraph } from '../src/host/runtime.ts'
+import { MnemonSubagentCoordinator } from '../src/host/subagent.ts'
 import type { VersionUpdateManager } from '../src/host/version-updates.ts'
 import { compositionFixture } from './fixtures/composition.ts'
 import openviking from 'dsh-mnemon-provider-openviking'
@@ -105,7 +106,8 @@ describe('Mnemon RPC Source boundaries', () => {
 
   it('preserves explicit empty branch scope through Host assistance without a session', async () => {
     const f = await fixture()
-    const write = createWriteHandler(f.live, lifecycle())
+    const coordinator = new MnemonSubagentCoordinator({} as never, f.live)
+    const write = createWriteHandler(f.live, lifecycle({ manageSource: coordinator.manageSource.bind(coordinator) }))
     const sourceInstanceKey = 'source:mnemon-source-runtime'
     const assist = async (input: unknown) => {
       const sources = await f.graph.memoryComposition.current()!.managementCatalog({ storage: 'custom' })
@@ -204,16 +206,22 @@ describe('Host assistance and channels', () => {
     expect(await createWriteHandler(f.runtime, lifecycle())('source-assistance', { sourceInstanceKey: 'source:mnemon-source-runtime', operation: 'mutate', input: {}, expectedRevision: 'old', confirmed: true })).toMatchObject({ ok: false })
   })
 
-  it('routes Runtime semantic writes through the bound Agent, direct writes through the inspected Source', async () => {
+  it('routes all Runtime writes through the selected scope, independently of session alignment', async () => {
     const f = protocolFixture()
-    const mutate = vi.fn(async () => ({ success: true }))
-    const write = createWriteHandler(f.runtime, lifecycle({ runtime: mutate }))
+    Object.assign(f.sources.runtime!, { identity: async () => ({ sourceInstanceKey: 'source:mnemon-source-runtime' }) })
+    Object.assign(f.generation, { managementRevision: async () => 'r1' })
+    const mutate = vi.fn(async () => ({ revision: 'r2', value: { success: true } }))
+    const write = createWriteHandler(f.runtime, lifecycle({ manageSource: mutate }))
     await write('runtime-memory', { sessionId: 's1', action: 'replace', target: 'memory', old_text: 'before', content: 'after' })
-    expect(mutate).toHaveBeenCalledWith('s1', expect.objectContaining({ oldText: 'before', content: 'after' }), undefined)
+    expect(mutate).toHaveBeenCalledWith(f.graph, expect.objectContaining({
+      scope: expect.objectContaining({ workspaceId: '/fixture/workspace', sessionId: 's1' }),
+      input: expect.objectContaining({ oldText: 'before', content: 'after' }), expectedRevision: 'r1', confirmed: true,
+    }))
     f.route.aligned = false
     await write('runtime-memory', { sessionId: 's1', action: 'add', target: 'memory', content: 'inspect' })
-    expect(f.sources.runtime!.mutate).toHaveBeenCalledWith('mutate', expect.objectContaining({ content: 'inspect' }), undefined)
-    expect(mutate).toHaveBeenCalledOnce()
+    expect(mutate).toHaveBeenLastCalledWith(f.graph, expect.objectContaining({ input: expect.objectContaining({ content: 'inspect' }) }))
+    expect(f.sources.runtime!.mutate).not.toHaveBeenCalled()
+    expect(mutate).toHaveBeenCalledTimes(2)
   })
 
   it('keeps Tab reads deterministic while delegating semantic writes', async () => {

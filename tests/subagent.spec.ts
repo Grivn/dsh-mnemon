@@ -190,6 +190,7 @@ function managedSession(client: MemoryTestManagementClient) {
   return {
     read: vi.fn(async <T,>(operation: string, input: unknown = null): Promise<T> => (await client.read(operation, input as MemoryJsonValue)).value as T),
     mutate: vi.fn(async <T,>(operation: string, input: unknown): Promise<T> => (await client.mutate(operation, input as MemoryJsonValue, { confirmed: true })).value as T),
+    mutateResult: vi.fn(async (operation: string, input: unknown) => client.mutate(operation, input as MemoryJsonValue, { confirmed: true })),
   } as unknown as SourceSession
 }
 
@@ -255,6 +256,9 @@ function runtimeSource(
       operation === 'mutate' ? operations!.mutate(input) : operations!.compactAndMutate(input.revision, input.mutation, input.compacted, input.maxBytes, input.lineage),
     action: async (_operation: string, input: RuntimeMemoryMutation) => ({ details: await operations!.mutate(input) }),
   }
+  if (!('mutateResult' in runtimeSession)) Object.assign(runtimeSession, {
+    mutateResult: async (...args: Parameters<SourceSession['mutate']>) => ({ revision: 'committed-revision', value: await (runtimeSession as unknown as SourceSession).mutate(...args) }),
+  })
   const documentSession = documents ?? { forTurn: (turn: ComposableMemoryTurn) => ({ route: (operation: string, input: MemoryJsonValue, signal: AbortSignal) => {
     if (!turn.view.readGrants.some(grant => grant.id === 'doc-grant')) turn.view.readGrants.push({ id: 'doc-grant', sourceInstanceKey: 'docs', schema: 'dsh-mnemon.documents/v1' } as never)
     return policyFor(turn).query({ route: { id: 'docs/search', sourceInstanceKey: 'docs', sourceRouteId: operation, readGrantId: 'doc-grant' } as never, input, signal }, async () => ({ id: 'docs', viewId: turn.view.id, routeId: 'docs/search', sourceInstanceKey: 'docs', observedAt: 'now', items: [], truncated: false }))
@@ -1828,7 +1832,7 @@ describe('Mnemon memory subagent coordinator', () => {
 })
 
 describe('Mnemon root/child tool split', () => {
-  it('routes root/child Recall through the coordinator and child mutations through offered Source actions', async () => {
+  it('routes root and child reads and Runtime writes through the shared coordinator', async () => {
     const f = await compositionFixture()
     releases.push(f.dispose)
     const registered: ToolDefinition[] = []
@@ -1847,7 +1851,7 @@ describe('Mnemon root/child tool split', () => {
     await hot.execute({ action: 'add', target: 'user', content: 'Concise' } as never, { agent: root, signal })
     expect(coordinator.runtime).toHaveBeenCalledWith(root, { action: 'add', target: 'user', content: 'Concise' }, signal)
     await hot.execute({ action: 'add', target: 'memory', content: 'Child fact' } as never, { agent: child, signal })
-    expect(await f.graph.source('runtime').read('snapshot')).toMatchObject({ entries: [expect.objectContaining({ content: 'Child fact' })] })
+    expect(coordinator.runtime).toHaveBeenCalledWith(child, { action: 'add', target: 'memory', content: 'Child fact' }, signal)
     const recall = registered.find(tool => tool.name === 'mnemon_recall')!
     await recall.execute({ query: 'root query' } as never, { agent: root, signal })
     await recall.execute({ query: 'child query', memoryBodyIds: ['project'] } as never, { agent: child, signal })

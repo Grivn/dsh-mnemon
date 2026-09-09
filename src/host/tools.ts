@@ -96,8 +96,7 @@ export function registerTools(ctx: HostContextShape, runtimeSource: MnemonAgentR
       presentationMeta: memoryWritePresentation(undefined, 'view-action', 'offerId') },
     execute: (args: { offerId: string; input: MemoryJsonValue }, exec: ToolExecution) => {
       if (!config.writeEnabled) throw new Error('dsh-mnemon is configured read-only (writeEnabled: false)')
-      const { manager, turn } = composableTurn(exec)
-      return manager.executeAction(turn.turnId, args.offerId, args.input, offer => offer.authority === undefined, exec.signal)
+      return coordinator.action(requireAgent(exec), args.offerId, args.input, exec.signal)
     },
     presentCall: (args: { offerId: string }) => ({ card: 'generic', title: 'Apply composable memory action', kind: 'edit', rawInput: args.offerId }),
     presentResult: () => ({ card: 'generic', title: 'Composable memory receipt ready' }),
@@ -289,6 +288,7 @@ export function registerTools(ctx: HostContextShape, runtimeSource: MnemonAgentR
     execute: (args: { action: 'add' | 'replace' | 'remove'; target: RuntimeMemoryTarget; content?: string; old_text?: string; importance?: RuntimeMemoryImportance; branches?: string[] }, exec: ToolExecution) => {
       if (!config.writeEnabled) throw new Error('dsh-mnemon is configured read-only (writeEnabled: false)')
       requireSource(exec, 'runtime', 'write')
+      composableTurn(exec)
       const request = {
         action: args.action,
         target: args.target,
@@ -297,7 +297,7 @@ export function registerTools(ctx: HostContextShape, runtimeSource: MnemonAgentR
         ...(args.importance === undefined ? {} : { importance: args.importance }),
         ...(args.branches === undefined ? {} : { branches: args.branches }),
       }
-      return isSubagent(exec.agent) ? sourceAction(exec, 'runtime', 'mutate', request) : coordinator.runtime(requireAgent(exec), request, exec.signal)
+      return coordinator.runtime(requireAgent(exec), request, exec.signal)
     },
     presentCall: (args: { action: string; target: string }) => ({ card: 'generic', title: `${args.action} runtime ${args.target} memory`, kind: 'edit' }),
     presentResult: () => ({ card: 'generic', title: 'Runtime memory updated' }),

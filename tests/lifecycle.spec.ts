@@ -366,6 +366,22 @@ describe('Mnemon DSH lifecycle integration', () => {
     expect(value.lifecycle.snapshot()).toMatchObject({ activeAgents: 1, taskAgentAvailable: true })
   })
 
+  it.each([false, true])('runs Runtime maintenance with clean workspace ownership and disposes it on failure=%s', async failed => {
+    const value = fixture()
+    const operation = vi.fn(async (agent: HostAgent) => {
+      expect(agent).not.toBe(value.agent)
+      expect(agent.session.header?.cwd).toBe('/tmp/workspace-two')
+      expect(agent.session.events).toEqual([])
+      if (failed) throw new Error('model unavailable')
+      return 'maintained'
+    })
+    const result = value.lifecycle.runRuntimeMaintenanceTask({ storage: 'workspace', workspaceId: '/tmp/workspace-two', sessionId: 'unrelated-session' }, new AbortController().signal, operation)
+    if (failed) await expect(result).rejects.toThrow('model unavailable')
+    else await expect(result).resolves.toBe('maintained')
+    expect(value.createTaskAgent).toHaveBeenCalledOnce()
+    expect(value.disposedTaskAgents).toHaveLength(1)
+  })
+
   it('uses a fixed Provider and model for independent task Agents when configured', async () => {
     const value = fixture(resolveConfig({
       cliPath: '/fake/mnemon',
