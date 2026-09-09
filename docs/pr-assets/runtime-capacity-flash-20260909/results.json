@@ -1,0 +1,760 @@
+{
+  "date": "2026-09-09",
+  "baseCommit": "583842c2847bfb1f0bf4423cc41c261fd4b941d9",
+  "environment": {
+    "platform": "macOS arm64",
+    "node": "v25.1.0",
+    "dsh": "0.1.2-rc.1",
+    "nativeCli": "0.2.7",
+    "model": "deepseek-v4-flash",
+    "thinking": "disabled",
+    "endpoint": "https://api.deepseek.com/chat/completions"
+  },
+  "sourceSha256": {
+    "tests/runtime-capacity-flash-stress.spec.ts": "8873e780e590deab30ade1a1c176e2c6cf92bda8eb953246e7e6fed05365d5f3",
+    "tests/host-process.spec.ts": "34b972dc74f6eeffd9850a55d534bffea1e44ae982964022c416d95fcbf0fc7f",
+    "src/host/process.ts": "536f1fbed2057b753d251d59f2a4690bc66822af830be1d456aa90bb2b993edd",
+    "src/host/subagent.ts": "9724e7b91f912111db513a42100b87a4fc3c4ea426c53a97439a1a250be966f8",
+    "src/host/lifecycle.ts": "861eef8b93af71417edf7a7a7b203397fd9069fdcc2bd2fa1474a4bd783c9af6",
+    "plugins/dsh-mnemon-source-memory-spaces/src/providers/process.ts": "536f1fbed2057b753d251d59f2a4690bc66822af830be1d456aa90bb2b993edd",
+    "plugins/dsh-mnemon-source-memory-spaces/tests/process.spec.ts": "5fed51f8c737817226c6f7cf586bf32702836a264f189240a02667f239020edd",
+    "plugins/dsh-mnemon-provider-mnemon-native/src/driver.ts": "904e407aefe3720a61130cf875b52fc9b5265086c99745d501092de79947282d",
+    "plugins/dsh-mnemon-provider-mnemon-native/tests/provider.spec.ts": "eff4b661b6890d2fb87f5aa4571f9a693c3aadc2ade2e8c77cfdd51adcaf98da",
+    "plugins/dsh-mnemon-source-memory-spaces/tests/service.spec.ts": "0a71c47d2200aa1b75b0ddd3515b03506ffe37331ca68658cd03eb741d9c6925"
+  },
+  "mainRun": [
+    {
+      "scenario": "four-roots-single-space",
+      "model": "deepseek-v4-flash",
+      "thinking": "disabled",
+      "promptFormat": "record-elements",
+      "writers": 4,
+      "memoryLimitBytes": 10240,
+      "plannedFacts": 96,
+      "submittedBytes": 65392,
+      "successfulWrites": 96,
+      "archiveCycles": 16,
+      "routerFallbacks": 0,
+      "maxHotBytes": 10235,
+      "finalHotFacts": 11,
+      "finalColdFacts": 94,
+      "missingFacts": [],
+      "changedFacts": [],
+      "toolErrors": [],
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "modelInputDrift": [],
+      "misroutedFacts": [],
+      "duplicateColdFacts": 0,
+      "unexpectedActions": [],
+      "maxConcurrentModels": 4,
+      "maxConcurrentWrites": 4,
+      "waves": [
+        {
+          "round": 0,
+          "hotBytes": 8204,
+          "coldFacts": 0
+        },
+        {
+          "round": 1,
+          "hotBytes": 8879,
+          "coldFacts": 20
+        },
+        {
+          "round": 2,
+          "hotBytes": 9590,
+          "coldFacts": 31
+        },
+        {
+          "round": 3,
+          "hotBytes": 6820,
+          "coldFacts": 47
+        },
+        {
+          "round": 4,
+          "hotBytes": 7515,
+          "coldFacts": 58
+        },
+        {
+          "round": 5,
+          "hotBytes": 8210,
+          "coldFacts": 69
+        },
+        {
+          "round": 6,
+          "hotBytes": 9582,
+          "coldFacts": 79
+        },
+        {
+          "round": 7,
+          "hotBytes": 7497,
+          "coldFacts": 94
+        }
+      ],
+      "taskAgentsCreated": 0,
+      "taskAgentsRemaining": 0,
+      "elapsedMs": 67467,
+      "status": "passed",
+      "configuredRounds": 8,
+      "completedWaves": 8,
+      "modelUsage": {
+        "calls": 80,
+        "inputTokens": 113805,
+        "outputTokens": 24358,
+        "purposes": {
+          "conversation": 80
+        }
+      },
+      "toolWriteLatencyMs": {
+        "samples": 96,
+        "p50": 4,
+        "p95": 834,
+        "max": 871
+      }
+    },
+    {
+      "scenario": "four-children-four-spaces",
+      "model": "deepseek-v4-flash",
+      "thinking": "disabled",
+      "promptFormat": "record-elements",
+      "writers": 4,
+      "memoryLimitBytes": 10240,
+      "plannedFacts": 96,
+      "submittedBytes": 65392,
+      "successfulWrites": 96,
+      "archiveCycles": 16,
+      "routerFallbacks": 0,
+      "maxHotBytes": 10229,
+      "finalHotFacts": 13,
+      "finalColdFacts": 95,
+      "missingFacts": [],
+      "changedFacts": [],
+      "toolErrors": [],
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "modelInputDrift": [],
+      "misroutedFacts": [
+        "flashstress-operations-020",
+        "flashstress-operations-021",
+        "flashstress-android-000",
+        "flashstress-android-001",
+        "flashstress-android-002",
+        "flashstress-android-017",
+        "flashstress-android-011",
+        "flashstress-android-010",
+        "flashstress-backend-006",
+        "flashstress-frontend-020"
+      ],
+      "duplicateColdFacts": 3,
+      "unexpectedActions": [],
+      "maxConcurrentModels": 4,
+      "maxConcurrentWrites": 4,
+      "waves": [
+        {
+          "round": 0,
+          "hotBytes": 8204,
+          "coldFacts": 0
+        },
+        {
+          "round": 1,
+          "hotBytes": 8897,
+          "coldFacts": 20
+        },
+        {
+          "round": 2,
+          "hotBytes": 6836,
+          "coldFacts": 35
+        },
+        {
+          "round": 3,
+          "hotBytes": 8192,
+          "coldFacts": 45
+        },
+        {
+          "round": 4,
+          "hotBytes": 8905,
+          "coldFacts": 56
+        },
+        {
+          "round": 5,
+          "hotBytes": 6820,
+          "coldFacts": 74
+        },
+        {
+          "round": 6,
+          "hotBytes": 7533,
+          "coldFacts": 85
+        },
+        {
+          "round": 7,
+          "hotBytes": 8887,
+          "coldFacts": 95
+        }
+      ],
+      "taskAgentsCreated": 80,
+      "taskAgentsRemaining": 0,
+      "elapsedMs": 244035,
+      "status": "passed",
+      "configuredRounds": 8,
+      "completedWaves": 8,
+      "modelUsage": {
+        "calls": 165,
+        "inputTokens": 254715,
+        "outputTokens": 46376,
+        "purposes": {
+          "conversation": 165
+        }
+      },
+      "toolWriteLatencyMs": {
+        "samples": 96,
+        "p50": 9323,
+        "p95": 14157,
+        "max": 14715
+      }
+    },
+    {
+      "scenario": "no-session-four-spaces",
+      "model": "deepseek-v4-flash",
+      "thinking": "disabled",
+      "promptFormat": "record-elements",
+      "writers": 4,
+      "memoryLimitBytes": 10240,
+      "plannedFacts": 48,
+      "submittedBytes": 32656,
+      "successfulWrites": 48,
+      "archiveCycles": 6,
+      "routerFallbacks": 0,
+      "maxHotBytes": 10237,
+      "finalHotFacts": 12,
+      "finalColdFacts": 45,
+      "missingFacts": [],
+      "changedFacts": [],
+      "toolErrors": [],
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "modelInputDrift": [],
+      "misroutedFacts": [],
+      "duplicateColdFacts": 0,
+      "unexpectedActions": [],
+      "maxConcurrentModels": 1,
+      "maxConcurrentWrites": 0,
+      "waves": [
+        {
+          "round": 0,
+          "hotBytes": 8204,
+          "coldFacts": 0
+        },
+        {
+          "round": 1,
+          "hotBytes": 8204,
+          "coldFacts": 21
+        },
+        {
+          "round": 2,
+          "hotBytes": 8204,
+          "coldFacts": 33
+        },
+        {
+          "round": 3,
+          "hotBytes": 8208,
+          "coldFacts": 45
+        }
+      ],
+      "taskAgentsCreated": 30,
+      "taskAgentsRemaining": 0,
+      "elapsedMs": 76488,
+      "status": "passed",
+      "configuredRounds": 8,
+      "completedWaves": 4,
+      "modelUsage": {
+        "calls": 30,
+        "inputTokens": 72708,
+        "outputTokens": 6497,
+        "purposes": {
+          "conversation": 30
+        }
+      },
+      "toolWriteLatencyMs": null
+    }
+  ],
+  "quotedJsonDiagnostic": [
+    {
+      "scenario": "four-roots-single-space",
+      "model": "deepseek-v4-flash",
+      "thinking": "disabled",
+      "promptFormat": "json-strings",
+      "writers": 4,
+      "memoryLimitBytes": 10240,
+      "plannedFacts": 96,
+      "submittedBytes": 65392,
+      "successfulWrites": 96,
+      "archiveCycles": 17,
+      "routerFallbacks": 0,
+      "maxHotBytes": 9646,
+      "finalHotFacts": 11,
+      "finalColdFacts": 94,
+      "missingFacts": [],
+      "changedFacts": [],
+      "toolErrors": [],
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "modelInputDrift": [
+        {
+          "id": "flashstress-backend-000",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-000",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-001",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-001",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-000",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-001",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-002",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-000",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-001",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-002",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-002",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-002",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-003",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-003",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-004",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-003",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-004",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-005",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-003",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-004",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-004",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-005",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-005",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-005",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-006",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-006",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-006",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-007",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-008",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-007",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-007",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-006",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-007",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-008",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-008",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-008",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-009",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-009",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-010",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-010",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-009",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-010",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-011",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-009",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-010",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-011",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-011",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-011",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-012",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-012",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-012",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-013",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-014",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-012",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-013",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-013",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-014",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-013",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-014",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-014",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-015",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-015",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-015",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-016",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-017",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-016",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-016",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-015",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-016",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-017",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-017",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-017",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-018",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-018",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-019",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-019",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-018",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-019",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-020",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-018",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-019",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-020",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-020",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-020",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-021",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-021",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-021",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-022",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-frontend-023",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-021",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-022",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-022",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-operations-023",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-022",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-backend-023",
+          "kind": "surrounding-quotes"
+        },
+        {
+          "id": "flashstress-android-023",
+          "kind": "surrounding-quotes"
+        }
+      ],
+      "misroutedFacts": [],
+      "duplicateColdFacts": 0,
+      "unexpectedActions": [],
+      "maxConcurrentModels": 4,
+      "maxConcurrentWrites": 4,
+      "waves": [
+        {
+          "round": 0,
+          "hotBytes": 8228,
+          "coldFacts": 0
+        },
+        {
+          "round": 1,
+          "hotBytes": 9600,
+          "coldFacts": 19
+        },
+        {
+          "round": 2,
+          "hotBytes": 7533,
+          "coldFacts": 34
+        },
+        {
+          "round": 3,
+          "hotBytes": 8931,
+          "coldFacts": 44
+        },
+        {
+          "round": 4,
+          "hotBytes": 6858,
+          "coldFacts": 59
+        },
+        {
+          "round": 5,
+          "hotBytes": 8234,
+          "coldFacts": 69
+        },
+        {
+          "round": 6,
+          "hotBytes": 9628,
+          "coldFacts": 79
+        },
+        {
+          "round": 7,
+          "hotBytes": 7537,
+          "coldFacts": 94
+        }
+      ],
+      "taskAgentsCreated": 0,
+      "taskAgentsRemaining": 0,
+      "elapsedMs": 65523,
+      "status": "passed",
+      "configuredRounds": 8,
+      "completedWaves": 8,
+      "modelUsage": {
+        "calls": 96,
+        "inputTokens": 114271,
+        "outputTokens": 24946,
+        "purposes": {
+          "conversation": 96
+        }
+      },
+      "toolWriteLatencyMs": {
+        "samples": 96,
+        "p50": 4,
+        "p95": 824,
+        "max": 864
+      }
+    }
+  ]
+}

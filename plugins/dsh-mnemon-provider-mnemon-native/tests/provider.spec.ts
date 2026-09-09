@@ -38,12 +38,61 @@ describe('independent Native Provider', () => {
     const { body } = createMemorySpaceProviderFixture(descriptor, {}, { dataDir: '/unused' })
     let draftPath = ''
     const runJson = vi.fn<MemorySpaceNativeRunner['runJson']>(async args => {
+      if (args[0] === '--readonly') return []
       draftPath = args[1]!
+      expect(args[2]).toBe('--no-diff')
       expect(JSON.parse(readFileSync(draftPath, 'utf8')).insights[0].content).toBe('Keep exact content')
       return { imported: 0, updated: 0, skipped: 0, errors: 1, results: [] }
     })
     const provider = new MnemonNativeProvider({ runJson, runText: vi.fn() })
     await expect(provider.rememberMany(body, [{ content: 'Keep exact content' }])).rejects.toThrow('invalid or partial result')
     expect(existsSync(draftPath)).toBe(false)
+  })
+
+  it('archives similar facts exactly while reusing identical persisted and in-batch content', async () => {
+    const { body } = createMemorySpaceProviderFixture(descriptor, {}, { dataDir: '/unused', memoryBodyId: 'work' })
+    const old = 'Backend order retry limit is 3; preserve this independent decision.'
+    const next = 'Backend order retry limit is 4; preserve this independent decision.'
+    const another = 'Frontend order retry limit is 3; preserve this independent decision.'
+    let persisted = [{ id: 'old', content: old }]
+    const runJson = vi.fn<MemorySpaceNativeRunner['runJson']>(async (args, options) => {
+      expect(options?.store).toBe('work')
+      if (args[0] === '--readonly') return persisted
+      expect(args).toEqual(['import', expect.any(String), '--no-diff'])
+      const draft = JSON.parse(readFileSync(args[1]!, 'utf8')) as { insights: Array<{ content: string }> }
+      expect(draft.insights.map(entry => entry.content)).toEqual([next, another])
+      const results = draft.insights.map((entry, index) => ({ index, id: 'new-' + index, action: 'added', content: entry.content }))
+      persisted = [...persisted, ...results]
+      return { imported: 2, updated: 0, skipped: 0, errors: 0, results: results.toReversed() }
+    })
+    const provider = new MnemonNativeProvider({ runJson, runText: vi.fn() })
+    const requests = [old, next, another, next].map(content => ({ content }))
+    await expect(provider.rememberMany(body, requests)).resolves.toMatchObject([
+      { action: 'skipped', id: 'old', content: old }, { action: 'added', id: 'new-0', content: next },
+      { action: 'added', id: 'new-1', content: another }, { action: 'skipped', id: 'new-0', content: next },
+    ])
+    await expect(provider.rememberMany(body, requests)).resolves.toMatchObject(requests.map(({ content }) => ({ action: 'skipped', content })))
+    expect(runJson.mock.calls.filter(([args]) => args[0] === 'import')).toHaveLength(1)
+    expect(persisted.find(entry => entry.id === 'old')?.content).toBe(old)
+  })
+
+  it('does not import when the readonly exact-content snapshot fails', async () => {
+    const { body } = createMemorySpaceProviderFixture(descriptor, {}, { dataDir: '/unused', memoryBodyId: 'work' })
+    const runJson = vi.fn<MemorySpaceNativeRunner['runJson']>().mockRejectedValue(new Error('snapshot unavailable'))
+    const provider = new MnemonNativeProvider({ runJson, runText: vi.fn() })
+    await expect(provider.rememberMany(body, [{ content: 'Preserve the existing store' }])).rejects.toThrow('snapshot unavailable')
+    expect(runJson).toHaveBeenCalledOnce()
+    expect(runJson.mock.calls[0]?.[0][0]).toBe('--readonly')
+  })
+
+  it.each(['updated', 'skipped'])('rejects a %s receipt for a forced exact import', async action => {
+    const { body } = createMemorySpaceProviderFixture(descriptor, {}, { dataDir: '/unused' })
+    const content = 'A distinct fact must be inserted exactly'
+    const runJson = vi.fn<MemorySpaceNativeRunner['runJson']>()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ imported: 0, updated: action === 'updated' ? 1 : 0, skipped: action === 'skipped' ? 1 : 0,
+        errors: 0, results: [{ index: 0, id: 'other', action, content }] })
+    const provider = new MnemonNativeProvider({ runJson, runText: vi.fn() })
+    await expect(provider.rememberMany(body, [{ content }])).rejects.toThrow('invalid or partial result')
   })
 })
