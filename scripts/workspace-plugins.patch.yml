@@ -31,3 +31,8 @@
   disabled: false
 - id: mnemon-source-canvas
   disabled: false
+
+- id: mnemon-source-sync
+  disabled: false
+  config:
+    allowLocalRemotes: true

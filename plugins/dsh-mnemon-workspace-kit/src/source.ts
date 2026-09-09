@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { COMPOSABLE_MEMORY_API_VERSION, type MemoryJsonValue, type MemoryOperationScope, type MemorySourceActionManifest, type MemorySourceDefinition, type MemorySourceManagementRequest, type MemorySourceRuntimeContext } from 'dsh-mnemon/contracts'
 import { createMemoryMutationReceipt, defineMemorySource, memoryInputInteger, memoryInputRecord, memoryInputText, truncateMemoryText } from 'dsh-mnemon/extension-sdk'
 import { digest, json, RecordStore, recordScope, reviseRecord, validateRecord, visibleRecord, type RecordScope, type RecordSnapshot, type RecordValue } from './records.ts'
+import { recordTransferTracks, exportRecordTrack, importRecordTrack } from './transfer.ts'
 
 export interface RecordSourceConfig { dataDir?: string }
 export function sourceRecordDirectory(typeId: string, context: MemorySourceRuntimeContext, config: RecordSourceConfig = {}): string {
@@ -19,6 +20,8 @@ export interface RecordSourceOptions {
   kinds: readonly string[]
   scopes: readonly RecordScope[]
   defaultScope: RecordScope
+  /** Opt into portable human export/import. Session state is never transferred. */
+  transfer?: boolean
   scopeForKind?: Readonly<Record<string, RecordScope>>
   modelWrites?: 'proposal' | 'append'
   /** Memory-only operations handled by mutate. Existing records must belong to the pinned View. */
@@ -133,6 +136,10 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
             }
             return
           }
+          if (operation === 'transfer-import' && options.transfer) {
+            importRecordTrack(records, input.snapshot, recordTransferTracks(options.scopes), scope, item => { if (!options.kinds.includes(item.kind)) throw new Error('Unsupported record kind'); options.validate(item) })
+            return
+          }
           if (['update', 'approve', 'archive', 'reject', 'restore', 'delete'].includes(operation)) {
             const id = memoryInputText(input.id, 'id', 100)!
             const record = records.find(value => value.id === id && visibleRecord(value, scope))
@@ -210,11 +217,19 @@ export function createRecordSource(options: RecordSourceOptions, config: RecordS
           if (request.mode === 'read') {
             const snapshot = managed(await store.read(request.signal), request.scope)
             if (request.operation === 'snapshot' || request.operation === 'export') return { revision: snapshot.revision, value: json(snapshot) }
+            if (options.transfer && request.operation === 'transfer-catalog') return { revision: snapshot.revision, value: json({ format: 'mnemon-source-transfer/v1', tracks: recordTransferTracks(options.scopes) }) }
+            if (options.transfer && request.operation === 'transfer-export') {
+              const track = memoryInputText(input.track, 'track', 100)!
+              if (!recordTransferTracks(options.scopes).some(item => item.id === track)) throw new Error('Unsupported transfer track')
+              if (track === 'project' && !request.scope.workspaceId) throw new Error('Select a workspace')
+              return { revision: snapshot.revision, value: json(exportRecordTrack(snapshot.records, track, request.scope)) }
+            }
             if (options.read) return { revision: snapshot.revision, value: await options.read(request.operation, input, { snapshot, scope: request.scope, ...(request.signal ? { signal: request.signal } : {}) }) }
             throw new Error('Unsupported management read: ' + request.operation)
           }
           if (!request.confirmed || request.expectedRevision === undefined) throw new Error('A confirmed, revision-fenced management request is required')
           const snapshot = await change(request.operation, input, request.scope, request.expectedRevision, request.signal)
+          if (request.operation === 'transfer-import' && options.transfer) return { revision: snapshot.revision, value: json(exportRecordTrack(snapshot.records, String(memoryInputRecord(input.snapshot!, 'transfer snapshot').track), request.scope)) }
           return { revision: snapshot.revision, value: json(managed(snapshot, request.scope)) }
         },
         async mutate(request) {

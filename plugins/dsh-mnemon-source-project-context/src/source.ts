@@ -7,6 +7,7 @@ export async function currentBranch(workspaceId?: string): Promise<string> {
   try { return (await execute('git', ['-C', workspaceId, 'branch', '--show-current'], { timeout: 1000, maxBuffer: 4096 })).stdout.trim() } catch { return '' }
 }
 export const sourceOptions: RecordSourceOptions = {
+  transfer: true,
   typeId: 'project-context', role: 'project-context', label: 'Project notes', description: 'Branch-aware facts, decisions and working notes.',
   kinds: ['fact', 'decision', 'note'], scopes: ['project', 'session'], defaultScope: 'project',
   validate(record) {

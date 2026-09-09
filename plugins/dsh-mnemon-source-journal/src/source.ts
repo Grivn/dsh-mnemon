@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import type { RecordSourceOptions } from 'dsh-mnemon-workspace-kit'
 const execute = promisify(execFile)
 export const sourceOptions: RecordSourceOptions = {
+  transfer: true,
   typeId: 'journal', role: 'activity-log', label: 'Activity journal', description: 'Project and daily activity with timestamps, feedback and branch provenance.',
   kinds: ['progress', 'feedback', 'result'], scopes: ['project', 'daily'], defaultScope: 'project', modelWrites: 'append',
   validate(record) {

@@ -23,6 +23,31 @@ async function fixture(overrides: Partial<RecordSourceOptions> = {}) {
 }
 
 describe('scoped record Source', () => {
+  it('transfers portable records across workspace paths while retaining local revisions and rejecting authority fields', async () => {
+    const { runner, scope, source } = await fixture({ transfer: true })
+    try {
+      const client = await runner.managementClient('source:notes', scope)
+      await client.mutate('create', { title: 'Portable note', content: 'before' }, { confirmed: true })
+      const exported = await client.read('transfer-export', { track: 'project' })
+      const portable = structuredClone(exported.value) as any
+      expect(JSON.stringify(portable)).not.toContain(scope.workspaceId)
+      expect(portable.entries[0].value.history).toBeUndefined()
+      await runner.mount(source, { instanceId: 'copy' })
+      const copied = await runner.managementClient('source:copy', { ...scope, workspaceId: '/second-device-checkout' })
+      await copied.mutate('transfer-import', { snapshot: portable }, { confirmed: true })
+      expect(((await copied.read('snapshot')).value as unknown as RecordSnapshot).records[0]!.workspaceId).toBe('/second-device-checkout')
+      const other = await runner.managementClient('source:notes', { ...scope, workspaceId: '/other' })
+      await expect(other.mutate('transfer-import', { snapshot: portable }, { confirmed: true })).rejects.toThrow('another scope')
+      portable.entries[0].value.content = 'after'
+      const imported = await client.mutate('transfer-import', { snapshot: portable }, { confirmed: true })
+      expect(imported.value).toEqual(portable)
+      expect(((await client.read('snapshot')).value as unknown as RecordSnapshot).records[0]!.history[0]!.content).toBe('before')
+      const repeated = await client.mutate('transfer-import', { snapshot: portable }, { confirmed: true })
+      expect(repeated.revision).toBe(imported.revision)
+      portable.entries[0].value.workspaceId = '/another'
+      await expect(client.mutate('transfer-import', { snapshot: portable }, { confirmed: true })).rejects.toThrow('local authority')
+    } finally { await runner.dispose() }
+  })
   it('imports approved exports with explicit conflict decisions and scope checks', async () => {
     const { runner, scope } = await fixture()
     try {

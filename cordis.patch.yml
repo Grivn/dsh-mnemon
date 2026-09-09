@@ -133,3 +133,7 @@
         - id: mnemon-source-canvas
           name: dsh-mnemon-source-canvas
           disabled: true
+
+        - id: mnemon-source-sync
+          name: dsh-mnemon-source-sync
+          disabled: true

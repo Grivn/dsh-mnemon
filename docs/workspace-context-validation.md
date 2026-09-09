@@ -95,3 +95,17 @@ Root client checks passed 52 tests, alongside root type checking/build, Focus te
 素材画布已通过文件边界、作用域、并发版本、持久化、附件完整性和真实 Core 组合测试。WebUI 实测了便签、实时文件和上传副本，拖动与尺寸修改，平移缩放的刷新保留，跨会话视角，归档恢复，以及真实音视频播放。文件更新可以重读，文件缺失保留卡片，上传副本不依赖原文件。窄屏下没有页面横向溢出；截图保留在上述路径。
 
 通用策略配置界面根据独立插件声明展示字段，无业务插件白名单。默认预览含 14 个 Source；启用“专注上下文”并仅选择任务、画布及空写入集合后，预览变为 2 个 Source、3 条读取路由、0 个操作。保存与恢复完整组合均成功。Host 的预算同时约束预览和实际轮次，并保留旧轮次的原预算；默认值保持不变。服务主机打开文件功能没有在本轮测试中执行，模型读取二进制素材返回元信息，人类页面负责媒体展示。
+
+## Reviewed synchronization checkpoint
+
+The independent Sync Source passed seven integration tests: real divergent Git histories and three conflict decisions, persisted plans, stale/configuration/scope rejection, malformed records and destinations, explicit tombstones, an interrupted receipt after a successful ref update, foreign project identity rejection, and real Core composition with independent instances. It exposes no model routes or actions. Workspace utilities passed 19 tests and Runtime passed 41, including transfer scope rebinding, history preservation, idempotency, separate user storage, capacity rejection and Source-wide revision fencing.
+
+The real WebUI created a project target with notes, tasks, journal and playbooks. The first local commit left the remote empty until the separate reviewed push. A synthetic second device then changed three records in the local bare remote. The page displayed the common/local/remote values; notes kept both versions, tasks kept the local value and feedback adopted the remote value. Actual Source pages confirmed both notes and retained history. The pushed merge has both the previous local commit and fetched remote commit as parents. The development code branch was unchanged.
+
+A second UI target selected six global tracks. Its next import changed working memory and user preferences and added personal tasks, daily tasks and a daily journal entry. All six tracks returned receipts; the Runtime page displayed the imported content and both prior Runtime documents were retained in the transfer-history directory. Git independently confirmed a separate global branch with a two-parent merge. Destinations were local synthetic repositories; no account or production remote was contacted.
+
+Screenshots: [three-way conflicts](assets/workspace-context/sync-conflicts.png), [both note versions](assets/workspace-context/sync-merged-notes.png), [global import receipts](assets/workspace-context/sync-global-receipts.png).
+
+独立同步 Source 已通过真实 Git 分叉历史、三种冲突决策、计划持久化、作用域和版本拒绝、格式与地址校验、墓碑记录、中断恢复及真实 Core 多实例测试。它不提供模型动作；记录工具包与 Runtime 的同步校验分别包含在 19 项和 41 项测试中。
+
+WebUI 实测了四类项目数据的首次快照，确认应用不会自动推送，再分别对笔记、任务与反馈使用两者保留、采用本机、采用远端。导入结果保留本机历史，Git 合并提交具有两个父提交，代码分支保持原样。另一个全局目标实测六条轨道，导入工作记忆、用户偏好、个人任务、每日任务和每日日志，回执全部完成，Runtime 旧内容保留于恢复目录。远端仅为本机合成裸仓库；没有向正式仓库发送数据。

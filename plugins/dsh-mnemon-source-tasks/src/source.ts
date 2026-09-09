@@ -1,5 +1,6 @@
 import { recordScope, reviseRecord, today, visibleRecord, type RecordSourceOptions } from 'dsh-mnemon-workspace-kit'
 export const sourceOptions: RecordSourceOptions = {
+  transfer: true,
   typeId: 'tasks', role: 'task-context', label: 'Tasks', description: 'Scoped tasks, priorities, deadlines and completion history.',
   kinds: ['personal', 'work', 'project', 'daily'], scopes: ['global', 'project', 'daily'], defaultScope: 'project',
   scopeForKind: { personal: 'global', work: 'global', project: 'project', daily: 'daily' },

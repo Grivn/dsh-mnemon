@@ -173,7 +173,8 @@
     "dsh-mnemon-source-collaboration": "0.1.0",
     "dsh-mnemon-source-notifications": "0.1.0",
     "dsh-mnemon-strategy-focus": "0.1.0",
-    "dsh-mnemon-source-canvas": "0.1.0"
+    "dsh-mnemon-source-canvas": "0.1.0",
+    "dsh-mnemon-source-sync": "0.1.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
