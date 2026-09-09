@@ -2,8 +2,8 @@ import { accessSync, constants, existsSync, readFileSync, readdirSync, realpathS
 import { homedir } from 'node:os'
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findMnemonCommand, mnemonNpmLauncher } from 'dsh-mnemon-source-memory-spaces/native-cli'
-import { runProcess, type ProcessResult, type ProcessRunner } from './process.ts'
+import { findMnemonCommand, mnemonNpmLauncher, nodeLauncherEnvironment } from 'dsh-mnemon-source-memory-spaces/native-cli'
+import { runProcess, type ProcessOptions, type ProcessResult, type ProcessRunner } from './process.ts'
 import type { VersionComponentId, VersionComponentStatus, VersionInstallMode, VersionPackageId, VersionPackageStatus, VersionStatus, VersionUpdateResult } from "./protocol.ts"
 
 export type { VersionComponentId, VersionComponentStatus, VersionInstallMode, VersionStatus, VersionUpdateResult } from "./protocol.ts"
@@ -29,6 +29,7 @@ interface MnemonInstall {
   hint?: string
   updateCommand?: string
   updateArgs?: string[]
+  updateEnv?: NodeJS.ProcessEnv
 }
 
 export interface VersionUpdateDependencies {
@@ -238,7 +239,7 @@ function inspectDshInstall(packageManifestPath: string, dshHome: string): DshIns
   return profileFromAncestor(packageManifestPath) ?? linkedProfile(packageManifestPath, dshHome) ?? { mode: 'manual', locationDir: resolve(dirname(packageManifestPath)) }
 }
 
-async function resultOrThrow(runner: ProcessRunner, command: string, args: readonly string[], timeoutMs: number, options: { cwd?: string } = {}): Promise<ProcessResult> {
+async function resultOrThrow(runner: ProcessRunner, command: string, args: readonly string[], timeoutMs: number, options: Pick<ProcessOptions, 'cwd' | 'env'> = {}): Promise<ProcessResult> {
   const result = await runner(command, args, { timeoutMs, maxOutputBytes: MAX_UPDATE_OUTPUT_BYTES, ...options })
   if (result.exitCode !== 0) {
     const detail = result.stderr.trim() || result.stdout.trim() || `exit ${String(result.exitCode)}`
@@ -319,12 +320,12 @@ export class VersionUpdateManager {
     return parsed !== undefined && parsed.prerelease.length === 0 ? version : undefined
   }
 
-  private npmInvocation(): { command: string; args: string[] } | undefined {
+  private npmInvocation(): { command: string; args: string[]; env?: NodeJS.ProcessEnv } | undefined {
     const npm = this.executable('npm')
     if (npm === undefined) return undefined
     if (!/\.cmd$/i.test(npm)) return { command: npm, args: [] }
     const cli = join(dirname(npm), 'node_modules/npm/bin/npm-cli.js')
-    return existsSync(cli) ? { command: process.execPath, args: [cli] } : undefined
+    return existsSync(cli) ? { command: process.execPath, args: [cli], env: nodeLauncherEnvironment() } : undefined
   }
 
   private async inspectMnemon(): Promise<{ install: MnemonInstall; current?: string }> {
@@ -334,7 +335,8 @@ export class VersionUpdateManager {
     const launcher = mnemonNpmLauncher(command)
     let current: string | undefined
     try {
-      current = versionFrom((await resultOrThrow(this.processRunner, launcher === undefined ? command : process.execPath, launcher === undefined ? ['--version'] : [launcher, '--version'], CHECK_TIMEOUT_MS)).stdout)
+      current = versionFrom((await resultOrThrow(this.processRunner, launcher === undefined ? command : process.execPath, launcher === undefined ? ['--version'] : [launcher, '--version'], CHECK_TIMEOUT_MS,
+        launcher === undefined ? {} : { env: nodeLauncherEnvironment() })).stdout)
     } catch {
       return { install: { mode: launcher === undefined ? 'manual' : 'npm', command, hint: 'cli-unreadable' } }
     }
@@ -344,11 +346,12 @@ export class VersionUpdateManager {
       if (npm === undefined) install.hint = 'npm-missing'
       else {
         try {
-          const globalRoot = (await resultOrThrow(this.processRunner, npm.command, [...npm.args, 'root', '--global'], CHECK_TIMEOUT_MS)).stdout.trim()
+          const globalRoot = (await resultOrThrow(this.processRunner, npm.command, [...npm.args, 'root', '--global'], CHECK_TIMEOUT_MS, { env: npm.env })).stdout.trim()
           if (isAbsolute(globalRoot) && samePath(dirname(dirname(launcher)), join(globalRoot, MNEMON_NPM_PACKAGE))) {
             install.hint = 'npm'
             install.updateCommand = process.execPath
             install.updateArgs = [launcher, 'update']
+            install.updateEnv = nodeLauncherEnvironment()
           }
         } catch { /* Keep npm provenance, but do not offer an unverified update target. */ }
       }
@@ -493,7 +496,7 @@ export class VersionUpdateManager {
       if (latest === undefined) throw new Error('Unable to verify the latest Mnemon release')
       if (compareVersions(before.current, latest) >= 0) return { component, previousVersion: before.current, currentVersion: before.current, updated: false, restartRequired: false }
       if (before.install.updateCommand === undefined || before.install.updateArgs === undefined) throw new Error('This Mnemon installation cannot be updated automatically')
-      const output = await resultOrThrow(this.processRunner, before.install.updateCommand, before.install.updateArgs, UPDATE_TIMEOUT_MS)
+      const output = await resultOrThrow(this.processRunner, before.install.updateCommand, before.install.updateArgs, UPDATE_TIMEOUT_MS, { env: before.install.updateEnv })
       const after = await this.inspectMnemon()
       if (after.current === undefined || compareVersions(after.current, latest) < 0) throw new Error(`Mnemon update did not activate version ${latest}; found ${after.current ?? 'no executable version'}`)
       const outputText = updateOutput(output)
