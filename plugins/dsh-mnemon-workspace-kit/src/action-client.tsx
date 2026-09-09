@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { MemoryJsonValue } from 'dsh-mnemon/contracts'
 import type { MemorySourcePageProps } from 'dsh-mnemon/client'
 import type { RecordSnapshot, RecordValue } from './records.ts'
@@ -39,9 +39,20 @@ export function RecordActionPanel({
     [result, setResult] = useState<MemoryJsonValue>(null),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false)
+  const scopeKey = JSON.stringify([props.sourceInstanceKey, props.workspaceId, props.sessionId])
+  const scope = useRef({ key: scopeKey }), latestLoad = useRef(0)
+  if (scope.current.key !== scopeKey) scope.current = { key: scopeKey }
+  useEffect(() => {
+    if (scope.current.key !== scopeKey) scope.current = { key: scopeKey }
+    const current = scope.current
+    setSnapshot({ revision: '', records: [] }); setSelected(''); setFields({}); setResult(null); setError(''); setBusy(false)
+    return () => { if (scope.current === current) scope.current = { key: '' } }
+  }, [scopeKey])
   const load = useCallback(async () => {
     if (!props.management) return
+    const current = scope.current, sequence = ++latestLoad.current
     const value = (await props.management.read('snapshot')).value as unknown as RecordSnapshot
+    if (scope.current !== current || latestLoad.current !== sequence) return
     setSnapshot(value)
     setSelected((previous) =>
       value.records.some((record) => record.id === previous && options.filter(record))
@@ -50,7 +61,8 @@ export function RecordActionPanel({
     )
   }, [props.management, options])
   useEffect(() => {
-    void load().catch((reason) => setError(managementError(reason, zh)))
+    const current = scope.current
+    void load().catch((reason) => { if (scope.current === current) setError(managementError(reason, zh)) })
   }, [load, zh])
   const choices = snapshot.records.filter(options.filter),
     titleCounts = new Map<string, number>()
@@ -62,6 +74,7 @@ export function RecordActionPanel({
   const record = choices.find((value) => value.id === selected)
   async function execute(button: RecordActionPanelOptions['buttons'][number]) {
     if (!props.management || !record) return
+    const current = scope.current
     setBusy(true)
     setError('')
     setResult(null)
@@ -86,13 +99,14 @@ export function RecordActionPanel({
             confirmed: true,
             expectedRevision: snapshot.revision,
           })
+      if (scope.current !== current) return
       setResult(response.value)
       await load()
-      props.onRefresh?.()
+      if (scope.current === current) props.onRefresh?.()
     } catch (reason) {
-      setError(managementError(reason, zh))
+      if (scope.current === current) setError(managementError(reason, zh))
     } finally {
-      setBusy(false)
+      if (scope.current === current) setBusy(false)
     }
   }
   return (

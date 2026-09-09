@@ -82,6 +82,16 @@ const model = values.model === 'fixture' ? createServer(async (request, response
     }
     await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check: 'job:' + jobCheck[2], offeredTools: tools, dispatched: !planResult && toolCall ? 'job-plan' : toolCall?.name ?? null }) + '\n', { mode: 0o600 })
   }
+  const sessionCheck = [...fullText.matchAll(/\[workspace-check:create-session:([a-zA-Z0-9-]{1,100})\]/g)].at(-1)?.[1]
+  if (!toolCall && !review && sessionCheck && !completedChecks.has('session:' + sessionCheck) && tools.includes('mnemon_view_action')) {
+    const envelopes = [...fullText.matchAll(/^MNEMON VIEW ROUTES .*?: (\[.*\])$/gm)]
+    let source
+    try { source = JSON.parse(envelopes.at(-1)?.[1] ?? '[]').find(value => value.source.includes('sessions')) } catch {}
+    const action = source?.actions.find(action => action.description.startsWith('Create one ordinary workspace conversation'))
+    completedChecks.add('session:' + sessionCheck)
+    if (action) toolCall = { id: 'workspace-session-create-' + sessionCheck, name: 'mnemon_view_action', args: { offerId: action.id, input: { requestId: sessionCheck, preset: 'workspace-validation', text: 'Synthetic teammate startup: confirm your standard preset is available. This is a local orchestration check.', wake: true } } }
+    await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check: 'session:' + sessionCheck, offeredTools: tools, dispatched: toolCall?.name ?? null }) + '\n', { mode: 0o600 })
+  }
   if (!toolCall && !review && tools.length && check && !completedChecks.has(check)) {
     const args = { file_path: join(workspace, 'coordination-output.txt'), content: 'Successful workspace write check: ' + check + '\n' }
     const read = body.messages?.some(message => message.role === 'tool' && message.tool_call_id === 'workspace-read-' + check)

@@ -4,8 +4,26 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import type { MemorySourcePageProps, MnemonSourceManagementClient } from 'dsh-mnemon/client'
 import { createCollectionPage } from '../src/client.tsx'
+import { RecordActionPanel } from '../src/action-client.tsx'
 vi.mock('dsh-mnemon/client', () => ({ MemorySourcePageFrame: ({children}: {children:ReactNode}) => children }))
 afterEach(cleanup)
+it('keeps action forms and results bound to the selected scope during pending mutations', async () => {
+  let finish!: (value: unknown) => void
+  const first = { sourceInstanceKey: 'source:notes', revision: 'first', read: vi.fn(async () => result('First')), mutate: vi.fn(() => new Promise(resolve => { finish = resolve })) } as unknown as MnemonSourceManagementClient
+  const second = { ...first, read: vi.fn(async () => result('Second')) } as unknown as MnemonSourceManagementClient
+  const options = { title: { en: 'Actions', 'zh-CN': '操作' }, filter: () => true, fields: [{ key: 'text', label: { en: 'Message', 'zh-CN': '消息' }, type: 'text' as const }], buttons: [{ operation: 'send', label: { en: 'Send', 'zh-CN': '投递' } }] }
+  const view = render(<RecordActionPanel {...props(first, '/first')} options={options} />)
+  await screen.findByRole('heading', { name: 'First' })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Old message' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+  await waitFor(() => expect(first.mutate).toHaveBeenCalledOnce())
+  view.rerender(<RecordActionPanel {...props(second, '/second')} options={options} />)
+  await screen.findByRole('heading', { name: 'Second' })
+  await act(async () => { finish({ revision: 'old', value: { result: 'Old delivery' } }) })
+  expect((screen.getByRole('textbox', { name: 'Message' }) as HTMLInputElement).value).toBe('')
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(screen.queryByRole('heading', { name: 'First' })).toBeNull()
+})
 const record = (title: string) => ({ id:title, title, content:'', kind:'note', scope:'project', workspaceId:'/project', state:'active', data:{}, signals:1,version:1,history:[],createdAt:'2026-09-09T00:00:00Z',updatedAt:'2026-09-09T00:00:00Z' })
 const result = (title: string) => ({revision:title,value:{revision:title,records:[record(title)]}})
 const Page=createCollectionPage({title:{en:'Records','zh-CN':'记录'},description:{en:'Scoped','zh-CN':'范围'},kinds:[{value:'note',label:{en:'Note','zh-CN':'笔记'}}],scopes:['project'],defaultScope:'project'})

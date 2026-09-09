@@ -23,3 +23,9 @@ Run `pnpm verify` for type checking, project isolation/import tests and client/s
 可选配置为 `dataDir`、`historyRoots` 和 `rgPath`。未设置历史目录时，不扫描外部应用数据。会话创建、分叉和消息投递通过带确认与版本检查的管理操作执行；已完成轮次才可成为分叉边界，并继承工作目录、预设与模型配置。
 
 投递的消息始终保留插件来源；默认等待目标会话下一次运行，可显式选择唤醒或最近一步接收。常规 DSH 工具继续负责获得授权的模型会话操作。
+
+Ordinary session actions require explicit native session authority. Each request ID records a durable claim before creating, forking, renaming or delivering; interrupted claims must be inspected before a new request is issued. Presets are mounted before session publication, and cold sessions recover their recorded model configuration. The model and preset routes expose native display metadata only.
+
+Bookmarks open an exact Source-owned message reader with neighboring visible text and a native fork action. Old anchors are located before applying output limits; missing anchors fail explicitly. This does not replace the native conversation renderer.
+
+普通会话动作需要明确授权，并在执行前留存请求回执。预设在会话发布前挂载；恢复会话继承自身已记录的模型配置。模型目录仅返回原生展示信息。书签在 Source 自己的阅读区精确定位消息，并提供按完成轮次分叉；不存在的锚点明确报错，不替换宿主的对话渲染器。

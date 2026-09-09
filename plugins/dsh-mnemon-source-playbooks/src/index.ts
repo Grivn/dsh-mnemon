@@ -11,7 +11,7 @@ import { agentMemoryScope, DshWorkspaceAdapter, installAgentHooks } from 'dsh-mn
 import { sourceOptions } from './source.ts'
 import { advanceSchedules, makeSchedule, renderPrompt } from './schedule.ts'
 export const name = 'dsh-mnemon-source-playbooks'
-export const inject = ['mnemonMemory', 'agents', 'sessionQuery', 'workspaceRegistry', 'skills']
+export const inject = ['mnemonMemory', 'agentPresets', 'agents', 'sessionQuery', 'workspaceRegistry', 'skills']
 export interface Config extends RecordSourceConfig { providerName?: string; skillDirectories?: string[] }
 export const Config = z.object({ dataDir: z.string(), providerName: z.string().default('workspace-playbooks'), skillDirectories: z.array(z.string()).default([]) }) as z<Config>
 export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Playbooks', 'zh-CN': '工作方法' }, description: { en: 'Reviewed skills, reusable prompts and explicit session schedules.', 'zh-CN': '经过审核的技能、可复用提示词与显式会话调度。' }, roles: ['source'], provides: [{ id: 'source' }, { id: 'source.instruction-library' }] })
@@ -107,6 +107,6 @@ export function apply(ctx: Context, config: Config = {}): void {
       return record ? { ...candidate, content: record.content } : undefined
     } }
   })
-  installMemory(ctx, { plugin: memoryPlugin, sources: [createPlaybooksSource(config, { ctx, attach(value) { store = value; invalidate?.() }, changed() { invalidate?.() }, adapter: new DshWorkspaceAdapter({ sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry }) })] }, { effectiveDigest: memoryConfigurationDigest(config) })
+  installMemory(ctx, { plugin: memoryPlugin, sources: [createPlaybooksSource(config, { ctx, attach(value) { store = value; invalidate?.() }, changed() { invalidate?.() }, adapter: new DshWorkspaceAdapter({ agentPresets: ctx.agentPresets, sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry }) })] }, { effectiveDigest: memoryConfigurationDigest(config) })
 }
 export { sourceOptions }

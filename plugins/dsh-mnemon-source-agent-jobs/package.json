@@ -37,7 +37,8 @@
     "@deepseek-ai/dsh-session-query": "0.1.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -57,7 +58,8 @@
     "@deepseek-ai/dsh-session-query": "0.1.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1"
   },
   "publishConfig": {
     "access": "public",

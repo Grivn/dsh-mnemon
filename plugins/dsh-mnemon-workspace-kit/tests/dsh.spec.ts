@@ -14,6 +14,28 @@ const events = [
   { seq: 5, time: 6, type: 'user/message', surfaceOp: { op: 'replace', start: 1, end: 3 }, data: plugin },
 ] as unknown as SessionEvent[]
 describe('public DSH adapter', () => {
+  it('locates old exact messages and completed turns before truncating, never substitutes another event', async () => {
+    const late = { seq: 99, time: 8, type: 'assistant/message', surfaceOp: 'append', data: { message: createAssistantMessage({ content: [{ type: 'text', text: 'x'.repeat(210000) }], source: { provider: 'test', model: 'test' } }) } }
+    const adapter = new DshWorkspaceAdapter({ sessionQuery: { observeSession: async () => ({ events: [...events, late], header: { cwd: '/project' }, [Symbol.dispose]() {} }) } } as any)
+    const scope = { storage: 'custom' as const, workspaceId: '/project' }
+    expect((await adapter.transcript('parent', scope)).messages).toHaveLength(0)
+    expect(await adapter.conversationWindow('parent', scope, 1, 1)).toMatchObject({ targetSeq: 1, throughSeq: 4, turn: 1, messages: [{ seq: 1 }, { seq: 3 }] })
+    expect((await adapter.conversationWindow('parent', scope, 4, 0)).targetSeq).toBe(3)
+    await expect(adapter.conversationWindow('parent', scope, 2)).rejects.toThrow('exact visible message')
+    await expect(adapter.conversationWindow('parent', scope, 88)).rejects.toThrow('exact visible message')
+    expect((await adapter.conversationWindow('parent', scope, 99, 0)).messages[0]?.text).toHaveLength(4000)
+  })
+  it('mounts a preset during unpublished create and cold resume setup', async () => {
+    const mount = vi.fn(async () => undefined), create = vi.fn(async (options: any) => { await options.setup({ created: true }); return { agent: { session: { id: options.sessionId } } } }), resume = vi.fn(async (options: any) => { await options.setup({ resumed: true }); return { agent: { session: { header: { cwd: '/project' } } } } })
+    const adapter = new DshWorkspaceAdapter({ agentPresets: { resolve: async (id: string) => { if (id === 'missing') throw new Error('Unknown preset'); return { id: id ?? 'standard' } }, mount }, sessionQuery: { observeSession: async () => ({ events: [], header: { cwd: '/project', agentPreset: 'saved' }, [Symbol.dispose]() {} }) }, agents: { get: () => undefined, create, resume } } as any)
+    const scope = { storage: 'custom' as const, workspaceId: '/project' }
+    await adapter.create(scope, { preset: 'standard' })
+    expect(mount).toHaveBeenCalledWith({ created: true }, 'standard')
+    await adapter.live('cold', scope)
+    expect(mount).toHaveBeenCalledWith({ resumed: true }, 'saved')
+    await expect(adapter.create(scope, { preset: 'missing' })).rejects.toThrow('Unknown preset')
+    expect(create).toHaveBeenCalledOnce()
+  })
   it('extracts only visible original user and assistant text', () => {
     const transcript = visibleMessages(events)
     expect(transcript.messages.map(message => message.text)).toEqual(['Visible user request', 'Visible assistant answer'])

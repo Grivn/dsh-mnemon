@@ -9,7 +9,7 @@ import { JobEngine, preparePlan, terminalStates, validateJobConfig, type Executi
 import { contextCaptures, type JobInputs } from './inputs.ts'
 export type { CliAdapter, ExecutionPlan, JobConfig } from './engine.ts'
 export const name = 'dsh-mnemon-source-agent-jobs'
-export const inject = ['mnemonMemory', 'sessionQuery', 'agents', 'workspaceRegistry', 'attachments']
+export const inject = ['mnemonMemory', 'agentPresets', 'sessionQuery', 'agents', 'workspaceRegistry', 'attachments']
 export type Config = JobConfig
 export const Config = z.object({ dataDir: z.string(), maxParallel: z.number().default(2), attachmentRoots: z.array(z.string()).default([]), attachmentUrlOrigins: z.array(z.string()).default([]), retentionDays: z.number().default(90), notifyOwner: z.boolean().default(true),
   adapters: z.array(z.object({ id: z.string(), label: z.string(), command: z.string(), args: z.array(z.string()), resumeArgs: z.array(z.string()), input: z.union(['argument', 'stdin']), attachmentArgs: z.array(z.string()), supportsImages: z.boolean(), supportsUrls: z.boolean(), models: z.array(z.string()), defaultModel: z.string(), timeoutSeconds: z.number() })).default([]),
@@ -141,7 +141,7 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
   } }
 }
 export function apply(ctx: Context, config: Config = {}): void {
-  const adapter = new DshWorkspaceAdapter({ sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry, attachments: ctx.attachments })
+  const adapter = new DshWorkspaceAdapter({ agentPresets: ctx.agentPresets, sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry, attachments: ctx.attachments })
   installMemory(ctx, { plugin: memoryPlugin, sources: [createAgentJobsSource(config, { sessionImage: (id, scope, signal) => adapter.readSessionImage(id, scope, signal), async completed(event) {
     ctx.emit('mnemon-jobs/completed', event)
     ctx.emit('mnemon-workspace/activity', { eventKey: event.record.id + '/completed', sourceInstanceKey: event.sourceInstanceKey, scope: event.scope, kind: 'job-completed', title: 'Background job: ' + event.record.title.slice(0, 280), summary: String(event.record.data.output ?? event.record.data.error ?? event.record.data.status).slice(-6000), level: event.record.data.status === 'succeeded' ? 'info' : 'warning', recordId: event.record.id })

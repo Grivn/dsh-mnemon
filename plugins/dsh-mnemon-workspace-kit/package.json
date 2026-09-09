@@ -40,7 +40,9 @@
     "@deepseek-ai/dsh-session-query": "0.1.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
@@ -61,7 +63,9 @@
     "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
     "@types/proper-lockfile": "^4.1.4",
     "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
-    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1"
+    "@deepseek-ai/dsh-attachment": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-session-title": "0.1.2-rc.1"
   },
   "publishConfig": {
     "access": "public",
@@ -96,6 +100,12 @@
       "optional": true
     },
     "@deepseek-ai/dsh-attachment": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent-presets": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session-title": {
       "optional": true
     }
   },

@@ -37,7 +37,7 @@ import {
   validateCollaborationRecord,
 } from './rooms.ts'
 export const name = 'dsh-mnemon-source-collaboration'
-export const inject = ['mnemonMemory', 'sessionQuery', 'agents', 'workspaceRegistry', 'fs', 'attachments']
+export const inject = ['mnemonMemory', 'agentPresets', 'sessionQuery', 'agents', 'workspaceRegistry', 'fs', 'attachments']
 export interface Config extends CoordinationConfig {
   dataDir?: string
   attachmentRoots?: string[]
@@ -505,7 +505,7 @@ export function createCollaborationSource(config: Config, port: CollaborationPor
   }
 }
 export function apply(ctx: Context, config: Config = {}) {
-  const adapter = new DshWorkspaceAdapter({
+  const adapter = new DshWorkspaceAdapter({ agentPresets: ctx.agentPresets,
     sessionQuery: ctx.sessionQuery,
     agents: ctx.agents,
     workspaceRegistry: ctx.workspaceRegistry,
