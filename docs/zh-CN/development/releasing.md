@@ -15,6 +15,8 @@
 
 凡 PR 会改变发布制品，都使用 `pnpm changeset` 添加发布意图；`pnpm release:status` 可预览版本变化，已有的 source CI job 会把 PR 与其精确 base revision 比较，并拒绝任何已变化却未出现在新增 changeset 中的发布包。专用发布 PR 运行 `pnpm release:version`，一次性应用意图、同步 Starter 与外部 fixture 的精确依赖、更新 Provider 中生成的版本声明并刷新 lockfile。workspace peer 与开发关系使用 minor 线兼容范围，因此未变化包的 manifest 也保持不变。`pnpm release:check` 是只读检查，验证完整的混合版本组合、内部兼容范围、Starter 精确版本、仓库元数据和每个包的 npm 通道。
 
+功能 PR 可以在任何已有包尚未升级时引入新插件，此时为新插件和 Starter 添加 changeset。只要任一已有包的版本变化，CI 就按版本发布处理，要求 changeset 已被消费、版本前进，以及 Starter 固定组合同步更新。
+
 手动触发的 npm workflow 接收完整 commit SHA，且该 SHA 必须已经等于 `main`。它从 Git 历史确定上一个发布 revision，只选择版本发生增长的包。在取得 npm 凭证前，workflow 会运行完整 workspace 与独立插件验证，只打包选中的插件和 Starter，并记录完整组合、两个 revision、字节数与 SHA-512 integrity。受保护的 `npm-release` Environment 是 Registry 写入门禁。批准后，变化的插件在依赖安全的层内并发发布；一层在 Registry 可读后才进入依赖它的下一层。随后通过冻结的本地 Starter 安装完整混合版本组合，最后发布 Starter、验证干净 Registry 安装并运行真实升级，之后才创建 GitHub Release。
 
 中断的流程可以恢复：Registry 中已有的选中版本只有在 integrity 与冻结 tarball 完全一致时才能复用；同版本内容不同会立即终止。正式包使用 `latest`，预发布显式使用 `alpha`、`beta` 或 `rc` 通道。未变化的包必须已存在于 Registry，并通过完整 Starter 安装接受验证，但不会再次打包或发布。

@@ -1,8 +1,8 @@
 # Issue #189: centralized workspace storage / 集中工作区存储
 
-Captured on 2026-09-09 with the implementation at `fe405d3`, rebased onto `main` at `a1c500a`. All retained screenshots use that build. DSH `0.1.2-rc.1`, Starter/storage plugin `0.5.5`, Node `25.1.0`, pnpm `11.19.0`; default browser viewport 1280 × 720, plus a 390 × 844 responsive check. The last commit only adds evidence and makes a test path assertion portable.
+Captured on 2026-09-09 with the implementation at `fe405d3`, rebased onto `main` at `a1c500a`. All retained screenshots use that build. DSH `0.1.2-rc.1`, Starter/storage plugin `0.5.5`, Node `25.1.0`, pnpm `11.19.0`; default browser viewport 1280 × 720, plus a 390 × 844 responsive check. Subsequent commits add evidence, a portable test assertion and release-intent validation; the Host, Source and UI implementation remains at the tested revision.
 
-截图日期为 2026-09-09，实现为 `fe405d3`，已 rebase 到 `main` 的 `a1c500a`。保留截图全部来自该构建。版本和视口如上；最后一次提交只补充验收记录，并修正一处测试路径断言的跨平台写法。
+截图日期为 2026-09-09，实现为 `fe405d3`，已 rebase 到 `main` 的 `a1c500a`。保留截图全部来自该构建。版本和视口如上；后续提交补充验收记录、跨平台测试断言和发布意图校验，Host、Source 与 UI 实现保持为已验收版本。
 
 ## Setup / 环境
 
@@ -19,13 +19,15 @@ Captured on 2026-09-09 with the implementation at `fe405d3`, rebased onto `main`
 | Scope routing / 范围路由 | PASS: Sidebar follows the inspected registered workspace and displays the session mismatch; Align to conversation restores A. Builtin follows each owning session and hides the picker. / Sidebar 跟随查看工作区并提示与会话不一致；对齐会话恢复 A。Builtin 跟随所属会话，不显示选择器。 |
 | Persistence / 持久化 | PASS: custom/default root switching and two Host restarts retain configuration and existing data. Disk assertions confirm all four areas under A's hash, separate B data, global USER, and no project-local `.mnemon`. / 集中根切换及两次 Host 重启后配置和数据保留；磁盘断言确认 A 的四个 area、B 独立数据、全局 USER，项目内没有 `.mnemon`。 |
 | Local Provider / 本地 Provider | PASS: the browser enables Holographic and resolves its mapping under A's `state/`. Automated live-runtime tests also write a durable Holographic fact with both USER scopes. / 浏览器启用 Holographic，映射指向 A 的 `state/`；真实运行图测试在两种 USER 范围下另行写入持久事实。 |
-| Full verification / 完整验证 | PASS: 820 root tests and 319 plugin tests, type checks, deterministic builds, Headless activation, public entries and package lint. Two opt-in tests are skipped in the aggregate command; the Native one passes separately below. / 根包 820 项、插件 319 项，类型、确定性构建、Headless、公开入口和包检查通过；汇总命令跳过两项可选测试，其中 Native 单独补测通过。 |
+| Full verification / 完整验证 | PASS: 823 root tests and 320 plugin tests, type checks, deterministic builds, Headless activation, public entries and package lint. The final Node 22 run enables Native CLI coverage and skips only the Windows smoke test. / 根包 823 项、插件 320 项，类型、确定性构建、Headless、公开入口和包检查通过；最终 Node 22 全量运行启用 Native CLI 测试，只跳过 Windows 专用测试。 |
 | Independent artifacts / 独立制品 | PASS: 17 independent plugin repositories and 18 packed artifacts, public SDK consumer, real DSH Starter activation and three optional Strategy plugins together. / 17 个独立插件仓库、18 个发布制品、公开 SDK 消费方、真实 DSH Starter 激活及三个可选 Strategy 同时启用通过。 |
-| Runtime compatibility / 运行时兼容 | PASS: all 820 root tests on Node `22.19.0` with pnpm `10.13.1`. / Node `22.19.0`、pnpm `10.13.1` 下根包 820 项全部通过。 |
+| Runtime compatibility / 运行时兼容 | PASS: full verification on Node `22.19.0` with pnpm `10.13.1`. / Node `22.19.0`、pnpm `10.13.1` 下完整验证全部通过。 |
 | Native CLI / 原生 CLI | PASS: installed Mnemon `0.2.7` creates a space, writes, lists, recalls and forgets in a disposable root. Windows-only smoke is not run on macOS. / 本机 Mnemon `0.2.7` 在临时根完成创建空间、写入、列举、召回与删除；macOS 未运行 Windows 专用测试。 |
 | Presentation / 界面 | PASS: Chinese/Dark and English/Light; the long English storage option now occupies a full row. Sidebar Runtime remains usable at 390px with the sidebar collapsed. / 中文深色和英文浅色通过，新模式英文名称整行完整显示；收起侧栏后 390px 的 Sidebar 运行时页面可正常浏览。 |
 
 [Sanitized disk assertions / 脱敏磁盘断言](./disk-assertions.json)
+
+Release-intent validation also passes for the Starter and new storage plugin. Three regression tests cover new-plugin changesets, consumed release intents, Starter advancement and version-regression rejection. / Starter 与新插件的发布意图校验通过；三项回归覆盖新增插件 changeset、正式发布意图消费、Starter 升级及版本回退拒绝。
 
 ## Limits / 限制
 
@@ -43,7 +45,7 @@ No browser errors were observed during the feature checks; connection-retry warn
 pnpm install --frozen-lockfile
 pnpm run verify
 node scripts/verify-plugin-artifacts.mjs --skip-build
-npx --yes --package=node@22.19.0 --package=pnpm@10.13.1 --call 'pnpm run test:root'
+MNEMON_NATIVE_TEST_CLI=/absolute/path/to/mnemon npx --yes --package=node@22.19.0 --package=pnpm@10.13.1 --call 'pnpm run verify'
 MNEMON_NATIVE_TEST_CLI=/absolute/path/to/mnemon pnpm --filter dsh-mnemon-source-memory-spaces exec vitest run tests/native-integration.spec.ts
 pnpm e2e:serve
 ```

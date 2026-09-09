@@ -17,7 +17,7 @@ import {
   writeReleaseManifest,
 } from '../scripts/release.mjs'
 import { syncReleaseMetadata } from '../scripts/sync-release-metadata.mjs'
-import { assertReleaseIntentCoverage } from '../scripts/check-release-intent.mjs'
+import { assertReleaseIntentCoverage, assertVersionedReleaseIntent, createReleaseIntentPlan } from '../scripts/check-release-intent.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const revision = '1'.repeat(40)
@@ -185,6 +185,42 @@ describe('selective, channel-safe official release', () => {
       { name: 'dsh-mnemon', type: 'patch' },
       { name: 'dsh-mnemon-provider-example', type: 'patch' },
     ])).not.toThrow()
+  })
+
+  it('requires changeset coverage when a feature PR introduces an unversioned storage plugin', () => {
+    const packages = fixture()
+    const baseVersions = previousVersions(packages)
+    const storage = item('/storage', 'dsh-mnemon-storage-workspaces', '0.5.0', {
+      peerDependencies: { 'dsh-mnemon': '^0.5.0' },
+    })
+    packages.push(storage)
+    packages[0].manifest.dependencies[storage.manifest.name] = storage.manifest.version
+    const plan = createReleaseIntentPlan(packages, baseVersions)
+    expect(plan.selectionComputed).toBe(false)
+    const changed = publicationInputsChanged(plan, ['package.json', 'plugins/dsh-mnemon-storage-workspaces/src/index.ts'])
+    expect(changed).toEqual(new Set(['dsh-mnemon', storage.manifest.name]))
+    expect(() => assertReleaseIntentCoverage(changed, [{ name: 'dsh-mnemon', type: 'patch' }])).toThrow(storage.manifest.name)
+    expect(() => assertReleaseIntentCoverage(changed, [...changed].map(name => ({ name, type: 'patch' })))).not.toThrow()
+  })
+
+  it('selects new plugins once release versions advance and requires consumed changesets', () => {
+    const packages = fixture({ secondProviderVersion: '0.5.0' })
+    const baseVersions = previousVersions(packages, { 'dsh-mnemon': '0.5.1' })
+    baseVersions.delete('dsh-mnemon-provider-second')
+    const plan = createReleaseIntentPlan(packages, baseVersions)
+    expect(plan.selectionComputed).toBe(true)
+    expect(plan.releasePackages.map(item => item.manifest.name)).toEqual(['dsh-mnemon-provider-second', 'dsh-mnemon'])
+    const paths = ['package.json', 'plugins/dsh-mnemon-provider-second/src/index.ts']
+    expect(() => assertVersionedReleaseIntent(plan, paths, {}, ['pending-plugin.md'])).toThrow('pending changesets')
+    expect(() => assertVersionedReleaseIntent(plan, paths, {}, [])).not.toThrow()
+  })
+
+  it('keeps Starter advancement and version-regression guards in intent validation', () => {
+    const packages = fixture()
+    expect(() => createReleaseIntentPlan(packages, previousVersions(packages, { 'dsh-mnemon-provider-example': '0.5.0' })))
+      .toThrow('Starter version must advance')
+    expect(() => createReleaseIntentPlan(packages, previousVersions(packages, { 'dsh-mnemon': '0.5.3' })))
+      .toThrow('version must advance')
   })
 
   it('packs only selected versions and freezes the full mixed-version composition', async () => {

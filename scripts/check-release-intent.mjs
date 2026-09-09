@@ -40,6 +40,14 @@ export function assertVersionedReleaseIntent(plan, paths, options, pendingChange
   return new Set(plan.releasePackages.map(item => item.manifest.name))
 }
 
+export function createReleaseIntentPlan(packages, baseVersions) {
+  // A new plugin in a feature PR still needs a changeset, not consumed release
+  // versions. Once any existing package changes version, retain all release gates.
+  const versioned = packages.some(({ manifest }) => baseVersions.has(manifest.name)
+    && baseVersions.get(manifest.name) !== manifest.version)
+  return createReleasePlan(packages, versioned ? { baseVersions } : {})
+}
+
 async function readChangesetStatusSince(baseRevision) {
   const directory = await mkdtemp(join(tmpdir(), 'mnemon-changeset-status-'))
   const output = join(directory, 'status.json')
@@ -68,11 +76,11 @@ async function main() {
 
   const packages = await readReleasePackages()
   const baseVersions = await readReleaseVersionsAtRevision(packages, baseRevision)
-  const plan = createReleasePlan(packages, { baseVersions })
+  const plan = createReleaseIntentPlan(packages, baseVersions)
   const paths = await readChangedPaths(baseRevision, revision)
   const ignoredPackageJson = await devOnlyManifestChanges(plan, paths, baseRevision, revision)
   const changedPackages = publicationInputsChanged(plan, paths, { ignoredPackageJson })
-  if (plan.releasePackages.length > 0) {
+  if (plan.selectionComputed && plan.releasePackages.length > 0) {
     const covered = assertVersionedReleaseIntent(plan, paths, { ignoredPackageJson }, await readPendingChangesets())
     console.log(`Verified consumed changesets and version coverage for release packages: ${[...covered].sort().join(', ')}.`)
     return
