@@ -1,5 +1,6 @@
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { promptActions, promptOperation } from './actions.ts'
+import { libraryFields } from './library.ts'
 import { createMemoryMutationReceipt } from 'dsh-mnemon/extension-sdk'
 import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
@@ -21,7 +22,7 @@ export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en:
 interface Integration { ctx?: Context; attach?(store: RecordStore): void; changed?(): void; adapter?: DshWorkspaceAdapter }
 export function createPlaybooksSource(config: Config = {}, integration: Integration = {}): MemorySourceDefinition {
   const base = createRecordSource(sourceOptions, config)
-  return { ...base, manifest: { ...base.manifest, actions: [...base.manifest.actions ?? [], ...promptActions] }, create(context) {
+  return { ...base, manifest: { ...base.manifest, routes: (base.manifest.routes ?? []).map(route => ({ ...route, inputSchema: { ...(route.inputSchema as object), properties: { ...((route.inputSchema as { properties: object }).properties), ...libraryFields } } })), actions: [...base.manifest.actions ?? [], ...promptActions] }, create(context) {
     const runtime = base.create(context), store = new RecordStore(sourceRecordDirectory('playbooks', context, config))
     integration.attach?.(store)
     const stop = integration.ctx ? installAgentHooks(integration.ctx, { async beforeStep(input) {
@@ -91,11 +92,12 @@ export function createPlaybooksSource(config: Config = {}, integration: Integrat
         const action = promptActions.find(action => action.id === request.offer.sourceActionId)
         if (!action) { const result = await runtime.mutate!(request); integration.changed?.(); return result }
         if (request.offer.authority !== action.authority) throw new Error('Explicit prompt authority is required')
-        const input = memoryInputRecord(request.input, 'prompt action'), snapshot = await store.read(request.signal), operation = promptOperation[action.id as keyof typeof promptOperation]
+        const input = { ...memoryInputRecord(request.input, 'prompt action') }, snapshot = await store.read(request.signal), operation = promptOperation[action.id as keyof typeof promptOperation]
         if (operation !== 'create') {
           const record = snapshot.records.find(value => value.id === input.id && visibleRecord(value, request.view.scope))
           if (!record || record.version !== input.version) throw new Error('Prompt version changed; read the current record before retrying')
           if (operation === 'update' && record.kind !== 'prompt') throw new Error('Only reusable prompts can be updated through this action')
+          if (operation === 'update' && input.data !== undefined) input.data = { ...record.data, ...memoryInputRecord(input.data, 'prompt data') }
         }
         const result = await enhanced.manage!({ sourceInstanceKey: context.sourceInstanceKey, scope: request.view.scope, mode: 'mutate', operation, input: { ...input, ...(operation === 'create' ? { kind: 'prompt' } : {}) }, expectedRevision: snapshot.revision, confirmed: true, ...(request.signal ? { signal: request.signal } : {}) })
         const records = (result.value as unknown as { records: import('dsh-mnemon-workspace-kit').RecordValue[] }).records

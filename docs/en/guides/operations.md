@@ -265,3 +265,7 @@ Activity score, latest checkpoint, and retry state are not persisted. Host resta
 ### Versions and internationalization
 
 There is no formal fixed DSH / Mnemon support matrix. The main Web interface is bilingual, while commands, tool cards, compatibility metadata, and some errors remain partially untranslated.
+
+## Optional workspace services
+
+See [Composable workspace services](workspace-services.md) for independent Sources, policies, activation, data ownership and retained acceptance evidence.

@@ -1,4 +1,6 @@
 import { reviseRecord, visibleRecord, type RecordSourceOptions } from 'dsh-mnemon-workspace-kit'
+import { memoryInputText } from 'dsh-mnemon/extension-sdk'
+import { filterLibrary } from './library.ts'
 export const sourceOptions: RecordSourceOptions = {
   transfer: true,
   typeId: 'playbooks', role: 'instruction-library', label: 'Playbooks', description: 'Approved reusable skills and prompts with progressive disclosure.',
@@ -15,12 +17,20 @@ export const sourceOptions: RecordSourceOptions = {
     if (record.data.category !== undefined && (typeof record.data.category !== 'string' || record.data.category.length > 100)) throw new Error('Invalid category')
   },
   visible(record) { return record.data.enabled !== false },
+  search: filterLibrary,
   project(records) { return 'Approved playbooks (read the full content before use):\n' + records.filter(record => record.kind !== 'schedule' && record.data.enabled !== false).map(record => `${record.id} · ${record.kind} · ${record.title}${record.data.category ? ' · ' + String(record.data.category) : ''}`).join('\n') + '\nSession prompt schedules: ' + records.filter(record => record.kind === 'schedule').map(record => `${record.id}: ${String(record.data.status)}, uses=${String(record.data.uses)}`).join('; ') },
   mutate(operation, input, { records, scope }) {
-    if (operation !== 'toggle') throw new Error('Unsupported playbook operation')
+    if (!['toggle', 'rename-category', 'clear-category'].includes(operation)) throw new Error('Unsupported playbook operation')
     const record = records.find(record => record.id === input.id && visibleRecord(record, scope))
     if (!record) throw new Error('Playbook not found')
     if (input.version !== undefined && input.version !== record.version) throw new Error('Playbook version changed')
+    if (operation !== 'toggle') {
+      const previous = record.data.category
+      if (!['prompt', 'skill'].includes(record.kind) || typeof previous !== 'string' || !previous) throw new Error('Choose a categorized playbook')
+      const category = operation === 'clear-category' ? '' : memoryInputText(input.category, 'category', 100)!
+      for (const item of records) if (['prompt', 'skill'].includes(item.kind) && item.state !== 'deleted' && item.scope === record.scope && item.workspaceId === record.workspaceId && item.sessionId === record.sessionId && item.data.category === previous && visibleRecord(item, scope)) { reviseRecord(item, operation); item.data.category = category }
+      return
+    }
     reviseRecord(record, 'toggle'); record.data.enabled = !record.data.enabled
   },
 }

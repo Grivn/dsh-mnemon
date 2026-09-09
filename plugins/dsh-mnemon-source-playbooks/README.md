@@ -33,3 +33,7 @@ Prompt summaries and tags aid discovery. Built-in `date` and `time` use UTC and 
 模型创建和编辑提示词需要 `instruction-update` 授权；立即使用、安排和停止需要 `session-instructions` 授权及精确条目版本。技能仍经过独立的建议审核。立即使用固定一次，显式唤醒会在运行中会话的下一步生效，或启动空闲会话。间隔为 0 也只使用一次；同一提示词在同一会话中不能重复创建活跃调度。变量展开失败保留失败记录，不阻塞其他调度。
 
 提示词支持简介与标签。内置 `date` 和 `time` 使用 UTC，在每次实际调用时展开；已确认模板和用户变量保持固定。一次调用完成后，剩余次数显示为 0。
+
+Name, exact category, tag and summary filters combine in the model route and human page. Categories come from saved records; creating with a new category adds it. Reviewed rename/removal affects only the selected category in its own scope and preserves text/history. Partial model metadata edits preserve unrelated fields.
+
+模型路由和人类页面支持名称、精确分类、标签与简介共同筛选。分类来自已存条目；新建条目可引入新分类。审核后的分类重命名或移除仅影响其自身作用域，保留正文和历史。模型局部修改元信息时保留其他字段。

@@ -108,6 +108,12 @@ export function MnemonBuiltinWorkspaceHost(props: MnemonBuiltinWorkspaceHostProp
 
 /** Shared workspace body; its DSH registration owns Source child-render authority. */
 export function MnemonWorkspaceHost(props: MnemonWorkspaceHostProps): JSX.Element {
+  const subscribeStorageMode = useCallback((listener: () => void) => props.settingsScope.subscribe(listener), [props.settingsScope])
+  const getStorageMode = useCallback(() => {
+    const config = props.settingsScope.getSnapshot().value
+    return config?.storageScope ?? (config?.dataDir?.trim() ? 'custom' : 'global')
+  }, [props.settingsScope])
+  const storageMode = useSyncExternalStore(subscribeStorageMode, getStorageMode, getStorageMode)
   const subscribeLocale = useCallback((listener: () => void) => props.localeRuntime.subscribe(listener), [props.localeRuntime])
   const getLocale = useCallback(() => props.localeRuntime.getSnapshot(), [props.localeRuntime])
   const subscribeSessions = useCallback((listener: () => void) => props.sessions.list.subscribe(listener), [props.sessions.list])
@@ -125,7 +131,9 @@ export function MnemonWorkspaceHost(props: MnemonWorkspaceHostProps): JSX.Elemen
     : workspaces.items.find(workspace => normalizePath(workspace.path) === normalizePath(currentCwd))
   const fallbackWorkspace = effectiveWorkspace ?? workspaces.items[0]
   const selectedExists = selectedWorkspaceId !== undefined && workspaces.items.some(workspace => String(workspace.workspaceId) === selectedWorkspaceId)
-  const resolvedSelectedId = selectedExists ? selectedWorkspaceId : fallbackWorkspace === undefined ? undefined : String(fallbackWorkspace.workspaceId)
+  // Only Workspace mode exposes a persistent inspection picker. Other modes
+  // follow the current conversation so an invisible old selection cannot win.
+  const resolvedSelectedId = storageMode === 'workspace' && selectedExists ? selectedWorkspaceId : fallbackWorkspace === undefined ? undefined : String(fallbackWorkspace.workspaceId)
 
   useEffect(() => {
     if (resolvedSelectedId !== selectedWorkspaceId) setSelectedWorkspaceId(resolvedSelectedId)

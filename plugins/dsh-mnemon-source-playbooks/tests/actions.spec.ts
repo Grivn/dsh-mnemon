@@ -17,8 +17,16 @@ it('gates prompt authoring and invocation, rejects stale versions and duplicate 
     const action = (id: string) => turn.view.actionOffers.find(value => value.sourceActionId === id)!.id
     await expect(turn.executeAction(action('create-prompt'), { title: 'Check', content: 'Inspect {{target}}', data: { tags: 'quality', summary: 'Check results' } }, () => false)).rejects.toThrow(/authoriz/i)
     const created = await turn.executeAction(action('create-prompt'), { title: 'Check', content: 'Inspect {{target}}', data: { tags: 'quality', summary: 'Check results' } }, () => true)
-    const book = created.details as { id: string; version: number }
+    let book = created.details as { id: string; version: number }
     expect(book.id).toBeTypeOf('string')
+    const updated = await turn.executeAction(action('update-prompt'), { id: book.id, version: book.version, data: { summary: 'Validate exact results', category: 'Quality' } }, () => true)
+    book = updated.details as { id: string; version: number }
+    const read = await runner.beginTurn({ scope: { storage: 'custom', workspaceId: '/project', sessionId: 'one' } })
+    const route = read.view.routes.find(route => route.sourceRouteId === 'search')!
+    const found = await read.executeRoute(route.id, { name: 'check', category: 'Quality', tag: 'quality', summary: 'exact' })
+    expect(found.items).toHaveLength(1)
+    expect(found.items[0]?.text).toContain('"enabled":true')
+    expect((await read.executeRoute(route.id, { name: 'check', category: 'Other' })).items).toHaveLength(0)
     await expect(turn.executeAction(action('use-prompt'), { id: book.id, version: 99 }, () => true)).rejects.toThrow('version changed')
     const scheduled = await turn.executeAction(action('schedule-prompt'), { id: book.id, version: book.version, variables: { target: 'tests' }, count: 0 }, () => true)
     await expect(turn.executeAction(action('schedule-prompt'), { id: book.id, version: book.version, variables: { target: 'tests' } }, () => true)).rejects.toThrow('active schedule')

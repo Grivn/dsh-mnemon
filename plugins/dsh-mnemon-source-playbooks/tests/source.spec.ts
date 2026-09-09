@@ -14,4 +14,16 @@ describe('playbooks', () => {
    await sourceOptions.mutate!('toggle', { id: record.id }, { records: [record], scope: { storage: 'custom', workspaceId: '/project-a' } })
    expect(record.data.enabled).toBe(false); expect(record.history[0]?.data.enabled).toBe(true)
  })
+ it('renames and removes categories within the selected scope while retaining content and prior metadata', async () => {
+   const first = value({ enabled: true, slug: 'first', category: 'Review' }), second = { ...value({ enabled: true, slug: 'second', category: 'Review' }), id: 'second' }
+   const global = { ...value({ enabled: true, slug: 'global', category: 'Review' }), id: 'global', scope: 'global' as const }, other = { ...value({ enabled: true, slug: 'other', category: 'Review' }), id: 'other', workspaceId: '/project-b' }
+   const records = [first, second, global, other], scope = { storage: 'custom' as const, workspaceId: '/project-a' }
+   await sourceOptions.mutate!('rename-category', { id: first.id, version: 1, category: 'Quality' }, { records, scope })
+   expect(records.map(record => record.data.category)).toEqual(['Quality', 'Quality', 'Review', 'Review'])
+   expect(first.history[0]?.data.category).toBe('Review')
+   expect(first.content).toBe('Content')
+   await expect(async () => sourceOptions.mutate!('clear-category', { id: first.id, version: 1 }, { records, scope })).rejects.toThrow('version changed')
+   await sourceOptions.mutate!('clear-category', { id: first.id, version: 2 }, { records, scope })
+   expect(records.map(record => record.data.category)).toEqual(['', '', 'Review', 'Review'])
+ })
 })

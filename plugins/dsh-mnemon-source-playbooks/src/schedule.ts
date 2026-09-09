@@ -1,7 +1,8 @@
 import type { MemoryJsonValue, MemoryOperationScope } from 'dsh-mnemon/contracts'
-import { newRecord, RecordStore, reviseRecord, today, visibleRecord, type RecordValue } from 'dsh-mnemon-workspace-kit'
+import { newRecord, RecordStore, reviseRecord, visibleRecord, type RecordValue } from 'dsh-mnemon-workspace-kit'
 export function renderPrompt(content: string, variables: Record<string, MemoryJsonValue>, scope: MemoryOperationScope): string {
-  const values = { ...variables, date: today(), time: new Date().toISOString().slice(11, 19) + 'Z', workspace: scope.workspaceId ?? '', session: scope.sessionId ?? '' }
+  const timestamp = new Date().toISOString()
+  const values = { ...variables, date: timestamp.slice(0, 10), time: timestamp.slice(11, 19) + 'Z', workspace: scope.workspaceId ?? '', session: scope.sessionId ?? '' }
   const rendered = content.replace(/\{\{\s*([a-zA-Z][a-zA-Z0-9_]*)\s*\}\}/g, (_whole, name: string) => {
     const value = values[name as keyof typeof values]
     if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') throw new Error('Missing prompt variable: ' + name)

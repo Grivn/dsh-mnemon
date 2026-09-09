@@ -145,3 +145,7 @@ pnpm verify:plugins
 ```
 
 使用 Node.js `^22.19.0 || >=24.0.0` 与 pnpm 10.13.1。各包可以独立验证；WebUI 素材来自临时数据和真实 DSH Host。机制测试不等于 LLM 准确度或真实云 Provider 一致性验证。[开发指南](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/development/README.md) · [素材来源](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/README.md)。
+
+## 可选工作区服务
+
+[可组合的工作区服务](docs/zh-CN/guides/workspace-services.md) 提供可独立安装的项目上下文、日志、任务、工作方法、文件、会话、协作、后台任务、审核、画布、通知与同步，通过明确选择的 Workspace 策略及独立增强插件组合。所有新增入口均按需启用。

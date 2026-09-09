@@ -145,3 +145,7 @@ pnpm verify:plugins
 ```
 
 Use Node.js `^22.19.0 || >=24.0.0` and pnpm 10.13.1. Package-level checks run independently; WebUI captures use disposable data and a real DSH Host. Tests of mechanics are not claims of LLM accuracy or live cloud-Provider conformance. [Development](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/development/README.md) · [Media provenance](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/assets/webui-v0.5.4/README.md).
+
+## Optional workspace services
+
+[Composable workspace services](docs/en/guides/workspace-services.md) adds independently installable project context, journals, tasks, playbooks, files, sessions, collaboration, jobs, review, canvas, notifications and synchronization, coordinated through an explicit Workspace Strategy and independent enhancements. These entries are opt-in.

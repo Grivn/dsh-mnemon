@@ -175,3 +175,17 @@ Screenshots: [moderate capacity](assets/workspace-context/context-capacity-moder
 日志通过持久计数、事件去重、子代理与纯插件轮次排除、作用域和实际写入清零测试。策略仅在同一 Source 确实提供写入动作时加入到期提醒。WebUI 实测了合成 35%、45% 和低用量下的提示变化；连续两个人类轮次未记录后保持到期，下一次原生请求仍含提醒，保存实际进展后清零。
 
 模型先读取已采纳提示词，再以版本 5 请求原生授权。批准一次后，回执确认保存，并在第五个人类轮次的下一步以插件来源注入；调度记录显示完成、使用 1 次、剩余 0 次，没有额外用户轮次或循环。相关截图保存在上述路径。固定模型用于检验编排，合成 token 用量不代表外部服务计费。
+
+## Project binding and library organization checkpoint
+
+The actual isolated code worktree was registered through DSH's native Add workspace UI. Its first conversation used the copied standard preset and completed a fixture response. Native session storage independently confirms the code checkout as `cwd`, `workspace-validation` as preset, and 42 tools including read/write/edit/bash/skill and both View tools.
+
+A real cross-project check exposed a hidden stale inspection selection in Global/Custom storage. Source records were scoped correctly on disk, but the sidebar sent its old inspection workspace. The host now follows the current conversation in those modes; Workspace mode keeps its visible inspection selector. Twenty-two sidebar tests passed, including both storage modes and preservation of explicit Workspace inspection. WebUI now shows zero project playbooks in the code checkout and the original two after returning to the synthetic project, with separate session schedules.
+
+Playbooks passed ten tests, including Core-authorized partial metadata updates, four combined query filters, scoped category rename/removal and stale-version rejection. WebUI updated summary/tags, rejected an outdated category edit without losing its draft, renamed the category after refresh, and matched exactly one prompt with name/category/tag/description together. Removing the category retained the prompt and history; the example category was then restored. The 390 × 844 page had equal document and scroll widths. Native DSH settings exposed model display names and capacity controls without a duplicate plugin configuration store.
+
+Screenshots: [isolated code conversation](assets/workspace-context/isolated-code-session.png), [project isolation](assets/workspace-context/workspace-project-isolation.png), [combined filters](assets/workspace-context/playbook-combined-filters.png), [mobile filters](assets/workspace-context/playbook-filters-mobile.png), [native model settings](assets/workspace-context/native-model-settings.png).
+
+通过 DSH 原生“添加工作区”加入了实际代码 worktree，新会话使用标准编码预设并完成回复。原生持久记录确认工作目录、预设及 42 个工具。跨项目页面测试发现全局/自定义存储下隐藏的旧检查对象会影响管理请求，现已改为跟随当前会话；工作区模式保留显式检查选择。22 项侧栏测试通过，WebUI 实测代码目录为 0 条项目方法，切回测试目录恢复 2 条，调度按会话隔离。
+
+方法库 10 项测试及真实页面验证涵盖局部元信息保留、四条件检索、过期修改拒绝、分类重命名/移除与历史。刷新后修改成功，删除分类保留方法正文；示例分类已恢复。窄屏无横向溢出。原生模型设置提供显示名称与容量入口，插件没有维护重复配置。

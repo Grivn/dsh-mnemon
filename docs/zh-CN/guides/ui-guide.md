@@ -228,3 +228,7 @@ Mnemon 自己的自定义目录、备份与迁移留在 Mnemon 专属折叠区�
 - 工作台默认从 Sidebar 打开，Builtin 将同一界面放入所属会话；本回合记忆和存入记忆仍作为对话内快捷入口。
 
 下一步：[能力地图](./capabilities.md) · [快速开始](./getting-started.md) · [Provider 指南](./memory-providers.md) · [配置参考](../reference/configuration.md)
+
+## 可选工作区服务
+
+独立 Source、策略、启用方式、数据职责及验收证据见[可组合的工作区服务](workspace-services.md)。
