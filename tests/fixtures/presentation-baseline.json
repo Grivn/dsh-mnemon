@@ -63,6 +63,14 @@
     }
   },
   "centralizedWorkspaces": {
+    "page": {
+      "rules": 1068,
+      "rulesSha256": "45b2036ac30794e47cb9b862e5d8f3f2c968567dc8a953167db5622d727ccd3a"
+    },
+    "sidebar": {
+      "rules": 286,
+      "rulesSha256": "66a37faa5c5875bc114a284b2711ce521e3cf5fab6f3b5c56fe1a15adaf86bdd"
+    },
     "en": {
       "keys": 977,
       "sha256": "ee02f8169a503bd28d28ef60ea4cfeb0f9c396e01e7ee45a638ca91bad64796c"

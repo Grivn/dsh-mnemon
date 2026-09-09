@@ -16,11 +16,11 @@ describe('default Source presentation migration', () => {
     expect(memoryPageStyles.primaryButton).toContain('primaryButton')
   })
 
-  it.each(['page', 'sidebar'] as const)('preserves the %s class map with the reviewed compact-header, version-maintenance, and memory space layout changes', kind => {
+  it.each(['page', 'sidebar'] as const)('preserves the %s class map with the reviewed layout changes', kind => {
     const filename = kind === 'page' ? 'src/client/MnemonView.module.css' : 'src/client/MnemonSidebarView.module.css'
     const files = [filename, ...sources.map(source => `plugins/dsh-mnemon-source-${source}/presentation/${kind}.module.css`)]
     // Rules include their container/media conditions. Browser checks cover cascade and layout.
-    const expected = { ...baseline[kind], ...baseline.memorySpaceTerminology[kind] }
+    const expected = { ...baseline[kind], ...baseline.memorySpaceTerminology[kind], ...baseline.centralizedWorkspaces[kind] }
     expect(presentationFingerprint(files.map(path => ({ filename: presentationNamespace(path), text: read(path) })))).toEqual(expected)
   })
 
