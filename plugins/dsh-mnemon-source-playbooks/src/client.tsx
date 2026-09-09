@@ -1,7 +1,7 @@
-import { installMemorySourceUI, type MemorySourceUIContext } from 'dsh-mnemon/client'
-import { createCollectionPage } from 'dsh-mnemon-workspace-kit/client'
+import { installMemorySourceUI, type MemorySourcePageProps, type MemorySourceUIContext } from 'dsh-mnemon/client'
+import { createCollectionPage, RecordActionPanel, type RecordActionPanelOptions } from 'dsh-mnemon-workspace-kit/client'
 export const inject = ['slots']
-export const Page = createCollectionPage({
+const LibraryPage = createCollectionPage({
   "title": {
     "en": "Playbooks",
     "zh-CN": "工作方法"
@@ -68,4 +68,21 @@ export const Page = createCollectionPage({
     }
   ]
 })
+const invokeOptions: RecordActionPanelOptions = {
+  title: { en: 'Use in this session', 'zh-CN': '在当前会话中使用' }, filter: record => record.kind !== 'schedule' && record.state === 'active' && record.data.enabled === true,
+  fields: [
+    { key: 'variables', label: { en: 'Variables (JSON)', 'zh-CN': '变量（JSON）' }, type: 'textarea', defaultValue: '{}' },
+    { key: 'count', label: { en: 'Uses (0 = continuous)', 'zh-CN': '次数（0 为持续使用）' }, type: 'number', defaultValue: 1 },
+    { key: 'interval', label: { en: 'Every N user rounds', 'zh-CN': '间隔用户轮数' }, type: 'number', defaultValue: 1 },
+    { key: 'startAfter', label: { en: 'Start after N user rounds', 'zh-CN': '从第几轮开始' }, type: 'number', defaultValue: 1 },
+    { key: 'wake', label: { en: 'Wake the current session for immediate use', 'zh-CN': '立即使用时唤醒当前会话' }, type: 'boolean', defaultValue: false },
+  ], buttons: [
+    { operation: 'prompt-preview', label: { en: 'Preview resolved prompt', 'zh-CN': '预览展开后的提示词' }, read: true },
+    { operation: 'use-now', label: { en: 'Use now', 'zh-CN': '立即使用' } },
+    { operation: 'schedule', label: { en: 'Schedule for this session', 'zh-CN': '安排会话调度' } },
+  ], details: (record, zh) => <p>{zh ? '累计使用：' : 'Uses: '}{String(record.data.uses ?? 0)}<br />{record.content}</p>,
+  result: (value, zh) => value && typeof value === 'object' && !Array.isArray(value) && typeof value.text === 'string' ? <pre style={{whiteSpace:'pre-wrap'}}>{value.text}</pre> : <p>{zh ? '已保存。刷新调度面板查看状态。' : 'Saved. Refresh schedules to see their status.'}</p>,
+}
+const scheduleOptions: RecordActionPanelOptions = { title: { en: 'Session schedules', 'zh-CN': '会话调度' }, filter: record => record.kind === 'schedule', buttons: [{ operation: 'stop-schedule', label: { en: 'Stop schedule', 'zh-CN': '停止调度' }, visible: record => record.data.status === 'scheduled' }], details: (record, zh) => <p>{zh ? '状态' : 'Status'}: {String(record.data.status)} · {zh ? '使用次数' : 'Uses'}: {String(record.data.uses)} · {zh ? '剩余次数' : 'Remaining'}: {record.data.continuous ? (zh ? '持续' : 'Continuous') : String(record.data.remaining)}<br />{typeof record.data.error === 'string' ? record.data.error : ''}</p> }
+export function Page(props: MemorySourcePageProps) { return <><LibraryPage {...props} /><hr /><RecordActionPanel {...props} options={invokeOptions} /><RecordActionPanel {...props} options={scheduleOptions} /></> }
 export function apply(ctx: MemorySourceUIContext): void { installMemorySourceUI(ctx, { sourceTypeId: 'playbooks', pages: [{ id: 'records', label: '工作方法 / Playbooks', order: 44, component: Page, navigation: { group: 'sources', primary: true } }] }) }

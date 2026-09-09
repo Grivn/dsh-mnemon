@@ -1,3 +1,4 @@
+import { managementError } from './action-client.tsx'
 import { collectionStyles as styles } from './collection-styles.ts'
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { MemorySourcePageFrame, type MemorySourcePageProps } from 'dsh-mnemon/client'
@@ -47,8 +48,8 @@ export function createCollectionPage(options: CollectionPageOptions): (props: Me
     const [data, setData] = useState<{ [key: string]: MemoryJsonValue }>({})
     const load = useCallback(async () => {
       if (!props.management) return
-      try { const result = await props.management.read('snapshot'); setSnapshot(result.value as unknown as RecordSnapshot); setError('') }
-      catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+      try { const result = await props.management.read('snapshot'); setSnapshot({ ...(result.value as unknown as RecordSnapshot), records: (result.value as unknown as RecordSnapshot).records.filter(record => options.kinds.some(kind => kind.value === record.kind)) }); setError('') }
+      catch (reason) { setError(managementError(reason, props.locale.startsWith('zh'))) }
     }, [props.management])
     useEffect(() => { void load() }, [load])
     useEffect(() => { setLimit(25) }, [filter, query])
@@ -57,10 +58,10 @@ export function createCollectionPage(options: CollectionPageOptions): (props: Me
       setBusy(true); setError(''); setNotice('')
       try {
         const result = await props.management.mutate(operation, input, { confirmed: true, expectedRevision: snapshot.revision })
-        setSnapshot(result.value as unknown as RecordSnapshot)
+        setSnapshot({ ...(result.value as unknown as RecordSnapshot), records: (result.value as unknown as RecordSnapshot).records.filter(record => options.kinds.some(kind => kind.value === record.kind)) })
         setNotice(t.saved)
         return true
-      } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return false }
+      } catch (reason) { setError(managementError(reason, props.locale.startsWith('zh'))); return false }
       finally { setBusy(false) }
     }
     const edit = (record: RecordValue | 'new') => {
@@ -118,3 +119,4 @@ export function createCollectionPage(options: CollectionPageOptions): (props: Me
 
 export { LookupPanel, type LookupPanelOptions } from './lookup-client.tsx'
 export { collectionStyles } from './collection-styles.ts'
+export { RecordActionPanel, managementError, type RecordActionPanelOptions } from './action-client.tsx'

@@ -34,10 +34,15 @@ const native = join(bin, 'mnemon')
 if (resolve(values.mnemon) !== native) await copyFile(resolve(values.mnemon), native)
 await chmod(native, 0o700)
 const model = values.model === 'fixture' ? createServer(async (request, response) => {
-  for await (const chunk of request) { /* Synthetic model: never persist conversation input. */ }
+  const chunks = []; let bytes = 0
+  for await (const chunk of request) { bytes += chunk.length; if (bytes <= 2 * 1024 * 1024) chunks.push(chunk) }
+  if (bytes > 2 * 1024 * 1024) { response.writeHead(413); response.end('Fixture input limit exceeded'); return }
+  let review = false
+  try { review = JSON.parse(Buffer.concat(chunks).toString('utf8')).messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
+  const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: [] }) : 'The isolated workspace is ready. This is a deterministic local test response.'
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   for (const choice of [
-    { index: 0, delta: { role: 'assistant', content: 'The isolated workspace is ready. This is a deterministic local test response.' }, finish_reason: null },
+    { index: 0, delta: { role: 'assistant', content }, finish_reason: null },
     { index: 0, delta: {}, finish_reason: 'stop' },
   ]) response.write(`data: ${JSON.stringify({ id: 'workspace-fixture', choices: [choice] })}\n\n`)
   response.end('data: [DONE]\n\n')

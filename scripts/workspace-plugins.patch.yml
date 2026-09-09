@@ -4,6 +4,9 @@
   disabled: false
 - id: mnemon-source-journal
   disabled: false
+  config:
+    captureTurns: true
+    captureFeedback: true
 - id: mnemon-source-tasks
   disabled: false
 - id: mnemon-source-playbooks
@@ -21,4 +24,6 @@
 - id: mnemon-source-files
   disabled: false
 - id: mnemon-source-sessions
+  disabled: false
+- id: mnemon-source-review
   disabled: false

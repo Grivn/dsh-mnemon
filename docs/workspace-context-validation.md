@@ -43,3 +43,13 @@ The independent Jobs Source passed four process integration tests: literal argv 
 The real WebUI created and saved a project job, displayed its complete execution plan, ran the local synthetic adapter, read its durable log and successful exit code, resumed the adapter's session reference, and cancelled a waiting process. A concurrent completion invalidated an editor revision; refreshing preserved the draft and allowed the save. Screenshots: `job-plan.png`, `job-completion.png`, `job-cancellation.png`. External model accuracy, account authentication and the model-initiated approval UI are not covered by this checkpoint.
 
 后台任务已通过进程集成测试，并在真实 WebUI 验证了保存、计划确认、运行日志、继续外部会话及取消。并发更新使过期保存被拒绝，刷新后原草稿可以继续保存。测试仅使用本地合成适配器，不代表任何第三方模型或账号已验证。
+
+## Prompt, review and journal checkpoint
+
+Prompt scheduling tests cover variable substitution, inactive-playbook rejection, session isolation, start/interval/count, duplicate-turn fencing and stopping a disabled playbook. The real WebUI scheduled a variable-expanded prompt for the next human round and verified exactly one use and zero remaining uses. The same real turn produced a Source-owned journal entry containing only visible user/assistant text.
+
+Review tests cover sticky due state, replay fencing, proposal/severity validation, separate persistent reviewer identity, scoped constraints, follow-up history and reset. WebUI verification exercised a manual reviewer question, enabled a one-round automatic review, observed two persisted review results, confirmed the due flag remained set, completed the cycle, and reset reviewer context while retaining both results. The model adapter returned explicit synthetic review output; these checks establish workflow behavior, not review accuracy.
+
+Screenshots: `prompt-schedule.png`, `review-cycle.png`, `review-history.png`, `journal-capture.png`.
+
+提示词调度、独立审核和活动日志已组合运行。真实用户轮次消费一次提示词、生成可见对话日志并推进审核计数；自动审核后到期状态保留，显式完成与重置均保留历史。审核使用本地合成模型，仅验证流程，不评价模型审核质量。

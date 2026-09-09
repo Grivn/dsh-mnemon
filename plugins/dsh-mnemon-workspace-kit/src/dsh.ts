@@ -101,3 +101,36 @@ export class DshWorkspaceAdapter {
     return { status: agent.status, delivery: options.steering ? 'steering' : options.wake ? 'followup' : 'context' }
   }
 }
+
+export interface AgentHooks {
+  beforeStep?(input: { agent: Agent; turn: number; step: number; messages: import('@deepseek-ai/dsh-llm').UserMessage[]; signal: AbortSignal }): Promise<import('@deepseek-ai/dsh-llm').UserMessage[]>
+  event?(agent: Agent, event: SessionEvent, signal: AbortSignal): Promise<void>
+  error?(error: unknown): void
+}
+/** Scoped public hooks, serialized per agent and drained on Source disposal. */
+export function installAgentHooks(ctx: import('@deepseek-ai/cordis').Context, hooks: AgentHooks): () => Promise<void> {
+  const controller = new AbortController(), owners = new Map<Agent, { stops: Array<() => unknown>; pending: Promise<void> }>()
+  const attach = (agent: Agent) => {
+    if (owners.has(agent) || controller.signal.aborted) return
+    const owner = { stops: [] as Array<() => unknown>, pending: Promise.resolve() }
+    owners.set(agent, owner)
+    owner.stops.push(agent.ctx.on('session/event', (session, event) => {
+      if (session !== agent.session || !hooks.event || controller.signal.aborted) return
+      owner.pending = owner.pending.then(() => hooks.event!(agent, event, controller.signal)).catch(error => { if (!controller.signal.aborted) hooks.error?.(error) })
+    }))
+    owner.stops.push(agent.ctx.on('agent/pre-step', async (payload, next) => {
+      const decision = await next()
+      if (decision.kind === 'reject' || controller.signal.aborted || payload.signal.aborted || !hooks.beforeStep) return decision
+      await owner.pending
+      const signal = AbortSignal.any([controller.signal, payload.signal])
+      const messages = await hooks.beforeStep({ ...payload, messages: decision.messages, signal })
+      signal.throwIfAborted()
+      return { ...decision, messages: [...decision.messages, ...messages] }
+    }))
+  }
+  const stopCreated = ctx.on('agent/created', ({ agent }) => attach(agent))
+  const stopDisposed = ctx.on('agent/disposed', ({ agent }) => { const owner = owners.get(agent); if (owner) { for (const stop of owner.stops) stop(); void owner.pending.finally(() => owners.delete(agent)) } })
+  for (const agent of ctx.agents.roots()) attach(agent)
+  return async () => { controller.abort(new Error('Source unloaded')); stopCreated(); stopDisposed(); for (const owner of owners.values()) for (const stop of owner.stops) stop(); await Promise.allSettled([...owners.values()].map(owner => owner.pending)); owners.clear() }
+}
+export const agentMemoryScope = (agent: Agent): MemoryOperationScope => ({ storage: 'custom', sessionId: String(agent.session.id), ...(agent.session.header.cwd ? { workspaceId: agent.session.header.cwd } : {}) })

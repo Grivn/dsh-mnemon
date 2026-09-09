@@ -168,7 +168,8 @@
     "zod": "^4.4.3",
     "dsh-mnemon-source-files": "0.1.0",
     "dsh-mnemon-source-sessions": "0.1.0",
-    "dsh-mnemon-source-agent-jobs": "0.1.0"
+    "dsh-mnemon-source-agent-jobs": "0.1.0",
+    "dsh-mnemon-source-review": "0.1.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

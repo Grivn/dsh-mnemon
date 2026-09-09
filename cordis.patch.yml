@@ -118,3 +118,6 @@
         - id: mnemon-source-agent-jobs
           name: dsh-mnemon-source-agent-jobs
           disabled: true
+        - id: mnemon-source-review
+          name: dsh-mnemon-source-review
+          disabled: true

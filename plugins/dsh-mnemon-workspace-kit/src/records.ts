@@ -133,3 +133,8 @@ export function reviseRecord(record: RecordValue, operation: string): void {
   record.version++
   record.updatedAt = new Date().toISOString()
 }
+
+export function newRecord(kind: string, title: string, content: string, scope: RecordScope, context: MemoryOperationScope, data: RecordValue['data'] = {}, state: RecordState = 'active'): RecordValue {
+  const at = new Date().toISOString()
+  return { id: randomUUID(), kind, title, content, ...recordScope(scope, context), state, data: structuredClone(data), signals: 1, version: 1, createdAt: at, updatedAt: at, history: [] }
+}

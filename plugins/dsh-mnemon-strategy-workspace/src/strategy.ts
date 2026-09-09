@@ -48,7 +48,7 @@ export const WORKSPACE_STRATEGY = defineMemoryStrategy({
       guidance: { system: policyText, routing: 'Search the Source that owns the requested information, then read the identified record. Project scope, branch filters and inactive proposals must be respected. External jobs, session messages and synchronization need their separate, explicit operator authority.' },
       sources: operations.map(({ source, routeIds, actionIds }) => {
         const characters = source.capabilities.includes('project') ? Math.floor(budget * weight(source.role) / total) : 0
-        return { sourceInstanceKey: source.sourceInstanceKey, required: false, ...(characters ? { projection: { mode: eager.has(source.role) ? 'eager' as const : 'routed' as const, maxCharacters: characters } } : {}), routeIds, actionIds }
+        return { sourceInstanceKey: source.sourceInstanceKey, required: false, ...(characters ? { projection: { mode: eager.has(source.role) || source.role === 'conversation-review' && source.hints && typeof source.hints === 'object' && !Array.isArray(source.hints) && source.hints.reviewDue === true ? 'eager' as const : 'routed' as const, maxCharacters: characters } } : {}), routeIds, actionIds }
       }),
     }
   },
