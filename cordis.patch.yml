@@ -81,3 +81,31 @@
         - id: mnemon-strategy-scoped
           name: dsh-mnemon-strategy-scoped
           disabled: true
+        # Optional workspace Sources and their explicit complete Strategy.
+        - id: mnemon-source-project-context
+          name: dsh-mnemon-source-project-context
+          disabled: true
+        - id: mnemon-source-journal
+          name: dsh-mnemon-source-journal
+          disabled: true
+        - id: mnemon-source-tasks
+          name: dsh-mnemon-source-tasks
+          disabled: true
+        - id: mnemon-source-playbooks
+          name: dsh-mnemon-source-playbooks
+          disabled: true
+        - id: mnemon-strategy-workspace
+          name: dsh-mnemon-strategy-workspace
+          disabled: true
+        - id: mnemon-strategy-journal-capture
+          name: dsh-mnemon-strategy-journal-capture
+          disabled: true
+        - id: mnemon-strategy-review-cycle
+          name: dsh-mnemon-strategy-review-cycle
+          disabled: true
+        - id: mnemon-strategy-prompt-schedule
+          name: dsh-mnemon-strategy-prompt-schedule
+          disabled: true
+        - id: mnemon-strategy-team-coordination
+          name: dsh-mnemon-strategy-team-coordination
+          disabled: true

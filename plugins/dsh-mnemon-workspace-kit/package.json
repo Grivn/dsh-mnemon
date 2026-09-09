@@ -1,0 +1,67 @@
+{
+  "name": "dsh-mnemon-workspace-kit",
+  "version": "0.1.0",
+  "description": "Scoped record persistence and page utilities for independent memory Sources.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/client.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsdown",
+    "test": "vitest run",
+    "verify": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "peerDependencies": {
+    "dsh-mnemon": "^0.5.5",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@types/node": "^22.0.0",
+    "dsh-mnemon": "^0.5.5",
+    "dsh-mnemon-strategy-default-three-tier": "^0.5.4",
+    "tsdown": "^0.22.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@testing-library/react": "^16.3.0",
+    "jsdom": "^26.0.0",
+    "react-dom": "^18.2.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omdsh-dev/dsh-mnemon.git",
+    "directory": "plugins/dsh-mnemon-workspace-kit"
+  },
+  "homepage": "https://github.com/omdsh-dev/dsh-mnemon/tree/main/plugins/dsh-mnemon-workspace-kit#readme",
+  "bugs": {
+    "url": "https://github.com/omdsh-dev/dsh-mnemon/issues"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

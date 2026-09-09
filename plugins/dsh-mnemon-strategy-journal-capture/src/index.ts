@@ -1,0 +1,14 @@
+import type { Context } from '@deepseek-ai/cordis'
+import type { MemoryJsonValue } from 'dsh-mnemon/contracts'
+import { defineMemoryPlugin, defineMemoryStrategyConfiguration, installMemory } from 'dsh-mnemon/extension-sdk'
+import { defineWorkspacePolicy } from 'dsh-mnemon-strategy-workspace/extension-sdk'
+export const name = 'dsh-mnemon-strategy-journal-capture'
+export const inject = ['mnemonMemory']
+const instruction = "Record meaningful outcomes and exact user feedback in the journal Source. Propose stable project facts through the owning Source; keep preferences in Runtime and reusable methods in Playbooks. Never duplicate a record or infer a preference from one occurrence."
+export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Journal capture', 'zh-CN': '日志记录' }, description: { en: 'Journal capture through the workspace Strategy.', 'zh-CN': '通过工作区策略提供日志记录。' }, roles: ['strategy-extension'], provides: [{ id: 'strategy-extension' }], requires: ['strategy.workspace'] })
+export const memoryStrategyConfiguration = defineMemoryStrategyConfiguration({
+ kind: 'strategy-extension', typeId: 'journal-capture', label: memoryPlugin.label, description: memoryPlugin.description,
+ fields: [{ key: 'instruction', label: { en: 'Guidance', 'zh-CN': '指导说明' }, input: 'textarea', defaultValue: instruction, maximum: 4000 }],
+ create: config => ({ plugin: memoryPlugin, strategyExtensions: [defineWorkspacePolicy({ typeId: 'journal-capture', packageName: name, slot: 'capture', contribute: () => ({ instruction: typeof config.instruction === 'string' ? config.instruction : instruction }) })] }),
+})
+export function apply(ctx: Context, config: Record<string, MemoryJsonValue> = {}): void { installMemory(ctx, memoryStrategyConfiguration.create(config)) }

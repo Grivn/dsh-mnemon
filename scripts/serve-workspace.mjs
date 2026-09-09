@@ -15,7 +15,9 @@ const { values } = parseArgs({ options: {
   port: { type: 'string', default: '0' },
   model: { type: 'string', default: 'fixture' },
   'workspace-plugins': { type: 'boolean', default: false },
+  help: { type: 'boolean', default: false },
 } })
+if (values.help) { console.log('Usage: node scripts/serve-workspace.mjs --state-dir /directory --mnemon /binary [--port 0] [--model fixture|configured] [--workspace-plugins]'); process.exit(0) }
 if (!values['state-dir'] || !values.mnemon) throw new Error('Required: --state-dir /absolute/directory --mnemon /absolute/binary')
 if (!['fixture', 'configured'].includes(values.model)) throw new Error('--model must be fixture or configured')
 if (!/^\d{1,5}$/.test(values.port) || Number(values.port) > 65535) throw new Error('Invalid port')
@@ -86,7 +88,8 @@ try {
   await run(native, ['--version'])
   await run(native, ['--data-dir', memory, 'status'])
   const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
-  const packages = Object.keys(manifest.dependencies).filter(name => name.startsWith('dsh-mnemon-'))
+  const legacyEnhancements = new Set(['dsh-mnemon-strategy-auto-capture', 'dsh-mnemon-strategy-light-context', 'dsh-mnemon-strategy-scoped'])
+  const packages = Object.keys(manifest.dependencies).filter(name => name.startsWith('dsh-mnemon-') && !legacyEnhancements.has(name))
   await run(process.execPath, [dshBin, 'plugin', '--profile', 'web', 'add', `link:${root}`,
     ...packages.map(name => `link:${join(root, 'plugins', name)}`)])
   const preset = join(dshHome, '.agent-presets/workspace-validation')
@@ -101,9 +104,17 @@ try {
     writeEnabled: true
     lifecycleEnabled: true
     displayMode: sidebar
+${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspace\n' : ''}
 - id: agent-presets
   config:
     default: workspace-validation
+- id: directory-picker
+  disabled: true
+- insert:
+    - id: workspace-directory-picker
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+    - id: workspace-directory-picker-ui
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
   if (values['workspace-plugins']) patch += await readFile(join(root, 'scripts/workspace-plugins.patch.yml'), 'utf8')
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), patch)
