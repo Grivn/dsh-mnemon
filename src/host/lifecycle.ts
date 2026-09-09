@@ -754,6 +754,14 @@ export class MnemonLifecycle {
     return this.coordinator.runtime(this.liveAgent(sessionId), request, signal)
   }
 
+  manageSource(graph: import('./runtime.ts').MnemonRuntimeGraph, request: import('../core/contracts/index.ts').MemorySourceManagementRequest) {
+    return this.coordinator.manageSource(graph, request)
+  }
+
+  runRuntimeMaintenanceTask<T>(scope: import('../core/contracts/index.ts').MemoryOperationScope, signal: AbortSignal, operation: (agent: HostAgent) => Promise<T>): Promise<T> {
+    return this.runTaskAgent('', scope.workspaceId, signal, operation)
+  }
+
   documents(sessionId: string) {
     return this.coordinator.documentsSnapshot(this.liveAgent(sessionId))
   }
