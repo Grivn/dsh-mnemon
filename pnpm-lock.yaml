@@ -24,7 +24,7 @@ importers:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-provider-mem0
       dsh-mnemon-provider-mnemon-native:
-        specifier: 0.5.4
+        specifier: 0.5.5
         version: link:plugins/dsh-mnemon-provider-mnemon-native
       dsh-mnemon-provider-openviking:
         specifier: 0.5.4
@@ -36,19 +36,19 @@ importers:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-provider-supermemory
       dsh-mnemon-source-documents:
-        specifier: 0.5.4
+        specifier: 0.5.5
         version: link:plugins/dsh-mnemon-source-documents
       dsh-mnemon-source-memory-spaces:
-        specifier: 0.5.4
+        specifier: 0.5.5
         version: link:plugins/dsh-mnemon-source-memory-spaces
       dsh-mnemon-source-runtime:
-        specifier: 0.5.4
+        specifier: 0.5.5
         version: link:plugins/dsh-mnemon-source-runtime
       dsh-mnemon-strategy-auto-capture:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-strategy-auto-capture
       dsh-mnemon-strategy-default-three-tier:
-        specifier: 0.5.4
+        specifier: 0.5.5
         version: link:plugins/dsh-mnemon-strategy-default-three-tier
       dsh-mnemon-strategy-light-context:
         specifier: 0.5.4
@@ -316,7 +316,7 @@ importers:
         specifier: ^22.0.0
         version: 22.20.1
       dsh-mnemon-source-memory-spaces:
-        specifier: ^0.5.4
+        specifier: ^0.5.5
         version: link:../dsh-mnemon-source-memory-spaces
       tsdown:
         specifier: ^0.22.0
@@ -422,7 +422,7 @@ importers:
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.31)
       dsh-mnemon:
-        specifier: ^0.5.4
+        specifier: ^0.5.6
         version: link:../..
       jsdom:
         specifier: ^26.0.0
@@ -471,7 +471,7 @@ importers:
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.31)
       dsh-mnemon:
-        specifier: ^0.5.4
+        specifier: ^0.5.6
         version: link:../..
       dsh-mnemon-provider-byterover:
         specifier: ^0.5.4
@@ -489,7 +489,7 @@ importers:
         specifier: ^0.5.4
         version: link:../dsh-mnemon-provider-mem0
       dsh-mnemon-provider-mnemon-native:
-        specifier: ^0.5.4
+        specifier: ^0.5.5
         version: link:../dsh-mnemon-provider-mnemon-native
       dsh-mnemon-provider-openviking:
         specifier: ^0.5.4
@@ -547,7 +547,7 @@ importers:
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.31)
       dsh-mnemon:
-        specifier: ^0.5.4
+        specifier: ^0.5.6
         version: link:../..
       jsdom:
         specifier: ^26.0.0
@@ -605,7 +605,7 @@ importers:
         specifier: ^22.0.0
         version: 22.20.1
       dsh-mnemon:
-        specifier: ^0.5.4
+        specifier: ^0.5.6
         version: link:../..
       tsdown:
         specifier: ^0.22.0
