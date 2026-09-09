@@ -44,6 +44,14 @@ The real WebUI created and saved a project job, displayed its complete execution
 
 后台任务已通过进程集成测试，并在真实 WebUI 验证了保存、计划确认、运行日志、继续外部会话及取消。并发更新使过期保存被拒绝，刷新后原草稿可以继续保存。测试仅使用本地合成适配器，不代表任何第三方模型或账号已验证。
 
+The later input checkpoint saved one native PNG and a Runtime Source export into job `92600232-788a-44d2-a6f9-4f0c8855c571`. WebUI displayed the image and the Source revision. The fixture model read the plan through the actual View route and requested its external-authority action; DSH paused for human approval. After allowing once, the process succeeded and printed the exact snapshot plus 1,158 image bytes with SHA-256 `d78f97f5cc60842d1e5e74c3e7116bc9184595e1d8dabc3a527cc3722b2d0332`, matching the retained native image. A separate request for job `91403d1c-f855-4cb4-b8c2-54bf7b24380d` was rejected in WebUI; the record remained a draft with no run id or log.
+
+Seven package tests passed, including real Core composition, stale-copy rejection, denied execution, immutable image/context inputs, tamper rejection, lifecycle cancellation and scoped 90-day cleanup. Integration testing found a capability mismatch after disabling raw execution-history import; the manifest and runtime facts now agree and a Core regression covers their composition. Cleanup was tested on synthetic expired records; current WebUI has zero eligible records, so its cleanup button remains disabled. Screenshots: [saved job inputs](assets/workspace-context/job-input-copies.png), [model approval](assets/workspace-context/job-model-approval.png), [retained-input execution log](assets/workspace-context/job-copied-input-result.png).
+
+后续验收已在页面保存原生图片和 Runtime Source 快照，再由模型通过真实 View 路由读取计划并触发 DSH 审批。允许一次后任务成功，进程打印的上下文、图片字节数及哈希与副本一致；另一任务拒绝审批后仍为草稿，没有执行编号或日志。7 项测试覆盖 Core 组合、版本冲突、拒绝授权、输入固定、损坏拒绝、取消和按项目清理。清理使用合成过期记录测试；当前页面没有到期记录，按钮正确禁用。
+
+The [job input mobile view](assets/workspace-context/job-input-mobile.png) was inspected at 390 × 844 with the saved context and image expanded. The document width and scroll width were both 390 pixels. 窄屏下快照内容正常折行，图片和操作按钮可达，页面没有横向溢出。
+
 ## Prompt, review and journal checkpoint
 
 Prompt scheduling tests cover variable substitution, inactive-playbook rejection, session isolation, start/interval/count, duplicate-turn fencing and stopping a disabled playbook. The real WebUI scheduled a variable-expanded prompt for the next human round and verified exactly one use and zero remaining uses. The same real turn produced a Source-owned journal entry containing only visible user/assistant text.

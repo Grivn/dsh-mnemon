@@ -37,7 +37,7 @@ await chmod(native, 0o700)
 const completedChecks = new Set()
 try {
   const history = await readFile(join(logs, 'workspace-checks.jsonl'), 'utf8')
-  for (const line of history.split('\n').filter(Boolean)) { const value = JSON.parse(line); if (typeof value.check === 'string' && value.dispatched !== 'read') completedChecks.add(value.check) }
+  for (const line of history.split('\n').filter(Boolean)) { const value = JSON.parse(line); if (typeof value.check === 'string' && !['read', 'job-plan'].includes(value.dispatched)) completedChecks.add(value.check) }
 } catch (error) { if (error.code !== 'ENOENT') throw error }
 const model = values.model === 'fixture' ? createServer(async (request, response) => {
   const deliveryFixture = request.url?.startsWith('/notification/') === true
@@ -57,7 +57,32 @@ const model = values.model === 'fixture' ? createServer(async (request, response
   try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); proposals = JSON.stringify(body.messages).includes('[proposals]'); review = body.messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
   const tools = (body.tools ?? []).map(tool => tool.function?.name), check = [...JSON.stringify(body.messages ?? []).matchAll(/\[workspace-check:file-write:([a-zA-Z0-9-]{1,100})\]/g)].at(-1)?.[1]
   let toolCall
-  if (!review && tools.length && check && !completedChecks.has(check)) {
+  const messageText = (value) => typeof value === 'string' ? value : Array.isArray(value) ? value.map(item => messageText(item.text ?? item.content ?? '')).join('\n') : ''
+  const fullText = (body.messages ?? []).map(message => messageText(message.content)).join('\n')
+  const jobCheck = [...fullText.matchAll(/\[workspace-check:run-job:([a-f0-9-]{36}):([a-zA-Z0-9-]{1,100})\]/g)].at(-1)
+  if (!review && jobCheck && !completedChecks.has('job:' + jobCheck[2]) && tools.includes('mnemon_view_route') && tools.includes('mnemon_view_action')) {
+    const [, jobId, nonce] = jobCheck, planResult = (body.messages ?? []).find(message => message.role === 'tool' && message.tool_call_id === 'workspace-job-plan-' + nonce)
+    const envelopes = [...fullText.matchAll(/^MNEMON VIEW ROUTES .*?: (\[.*\])$/gm)]
+    let source
+    try { source = JSON.parse(envelopes.at(-1)?.[1] ?? '[]').find(value => value.source.includes('agent-jobs')) } catch {}
+    if (!planResult) {
+      const route = source?.routes.find(route => route.description.includes('execution plan'))
+      if (route) toolCall = { id: 'workspace-job-plan-' + nonce, name: 'mnemon_view_route', args: { routeId: route.id, input: { id: jobId } } }
+    } else {
+      const findPlan = (value, depth = 0) => {
+        if (depth > 8 || value == null) return
+        if (typeof value === 'string') { try { return findPlan(JSON.parse(value), depth + 1) } catch { return } }
+        if (typeof value !== 'object') return
+        if (value.jobId === jobId && typeof value.digest === 'string' && Array.isArray(value.args)) return value
+        for (const child of Object.values(value)) { const found = findPlan(child, depth + 1); if (found) return found }
+      }
+      const plan = findPlan(planResult.content), action = source?.actions.find(action => action.description.startsWith('Start an approved draft'))
+      completedChecks.add('job:' + nonce)
+      if (plan && action) toolCall = { id: 'workspace-job-run-' + nonce, name: 'mnemon_view_action', args: { offerId: action.id, input: { id: jobId, plan } } }
+    }
+    await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check: 'job:' + jobCheck[2], offeredTools: tools, dispatched: !planResult && toolCall ? 'job-plan' : toolCall?.name ?? null }) + '\n', { mode: 0o600 })
+  }
+  if (!toolCall && !review && tools.length && check && !completedChecks.has(check)) {
     const args = { file_path: join(workspace, 'coordination-output.txt'), content: 'Successful workspace write check: ' + check + '\n' }
     const read = body.messages?.some(message => message.role === 'tool' && message.tool_call_id === 'workspace-read-' + check)
     if (tools.includes('read') && !read) toolCall = { name: 'read', args: { file_path: args.file_path } }
@@ -70,7 +95,7 @@ const model = values.model === 'fixture' ? createServer(async (request, response
   const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: proposals ? [{ kind: 'fact', title: '合成验收建议', content: '这是一条用于验证跨插件审核流程的合成建议。' }] : [], ...(proposals ? { skill: { slug: 'validation-checklist', title: '验收检查流程', content: '检查具体结果、测试证据与适用范围。此条目用于验证插件流程。' } } : {}) }) : 'The isolated workspace is ready. This is a deterministic local test response.'
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   for (const choice of [
-    { index: 0, delta: toolCall ? { role: 'assistant', tool_calls: [{ index: 0, id: 'workspace-' + toolCall.name + '-' + check, type: 'function', function: { name: toolCall.name, arguments: JSON.stringify(toolCall.args) } }] } : { role: 'assistant', content }, finish_reason: null },
+    { index: 0, delta: toolCall ? { role: 'assistant', tool_calls: [{ index: 0, id: toolCall.id ?? 'workspace-' + toolCall.name + '-' + check, type: 'function', function: { name: toolCall.name, arguments: JSON.stringify(toolCall.args) } }] } : { role: 'assistant', content }, finish_reason: null },
     { index: 0, delta: {}, finish_reason: toolCall ? 'tool_calls' : 'stop' },
   ]) response.write(`data: ${JSON.stringify({ id: 'workspace-fixture', choices: [choice] })}\n\n`)
   response.end('data: [DONE]\n\n')
@@ -153,7 +178,7 @@ ${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspac
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
   if (values['workspace-plugins']) patch += await readFile(join(root, 'scripts/workspace-plugins.patch.yml'), 'utf8')
-  if (values['workspace-plugins']) patch += `- id: mnemon-source-agent-jobs\n  disabled: false\n  config:\n    adapters:\n      - id: local-fixture\n        label: Local validation\n        command: ${JSON.stringify(process.execPath)}\n        args: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}']\n        resumeArgs: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}', '{session}']\n        timeoutSeconds: 60\n`
+  if (values['workspace-plugins']) patch += `- id: mnemon-source-agent-jobs\n  disabled: false\n  config:\n    adapters:\n      - id: local-fixture\n        label: Local validation\n        command: ${JSON.stringify(process.execPath)}\n        args: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}']\n        resumeArgs: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}', '{session}']\n        supportsImages: true\n        attachmentArgs: ['--image', '{attachment}']\n        timeoutSeconds: 60\n`
   if (values['workspace-plugins'] && model) patch += `- id: mnemon-source-notifications\n  disabled: false\n  config:\n    captureTurns: true\n    attachmentUrlOrigins: [http://127.0.0.1:${model.address().port}]\n    channels:\n      - id: local-inbox\n        label: Local inbox fixture\n        target: synthetic-inbox\n        endpoint: http://127.0.0.1:${model.address().port}/notification/inbox\n      - id: local-direct\n        label: Local direct fixture\n        target: synthetic-recipient\n        endpoint: http://127.0.0.1:${model.address().port}/notification/direct\n`
   if (values['workspace-plugins']) {
     const skillDirectory = join(workspace, 'skills'), fixtureSkill = join(skillDirectory, 'fixture-validation')

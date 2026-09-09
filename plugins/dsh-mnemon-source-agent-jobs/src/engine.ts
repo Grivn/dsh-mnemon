@@ -1,15 +1,17 @@
 import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir, realpath, stat, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { availableParallelism, freemem, loadavg, totalmem } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { MemoryJsonValue, MemoryOperationScope } from 'dsh-mnemon/contracts'
 import { allowedDirectories, allowedFile, digest, json, readBoundedFile, RecordStore, reviseRecord, runBoundedProcess, visibleRecord, type RecordValue } from 'dsh-mnemon-workspace-kit'
+import { capturedContext, JobInputs } from './inputs.ts'
 
 export interface CliAdapter {
   id: string; label: string; command: string; args: string[]; resumeArgs?: string[]
   input?: 'argument' | 'stdin'; attachmentArgs?: string[]; supportsImages?: boolean; supportsUrls?: boolean
   models?: string[]; defaultModel?: string; timeoutSeconds?: number
 }
-export interface JobConfig { dataDir?: string; adapters?: CliAdapter[]; maxParallel?: number; attachmentRoots?: string[]; notifyOwner?: boolean }
+export interface JobConfig { dataDir?: string; adapters?: CliAdapter[]; maxParallel?: number; attachmentRoots?: string[]; attachmentUrlOrigins?: string[]; notifyOwner?: boolean; retentionDays?: number }
 export interface ExecutionPlan {
   jobId: string; version: number; adapterId: string; command: string; args: string[]; cwd: string; prompt: string; stdin: boolean
   model: string; attachments: string[]; timeoutSeconds: number; commandSize: number; commandModified: number; digest: string
@@ -17,6 +19,7 @@ export interface ExecutionPlan {
 export const terminalStates = ['succeeded', 'failed', 'cancelled', 'interrupted', 'timed-out']
 export function validateJobConfig(config: JobConfig): void {
   if (!Number.isInteger(config.maxParallel ?? 2) || (config.maxParallel ?? 2) < 1 || (config.maxParallel ?? 2) > 4) throw new Error('Job concurrency must be 1–4')
+  if (!Number.isInteger(config.retentionDays ?? 90) || (config.retentionDays ?? 90) < 1 || (config.retentionDays ?? 90) > 3650) throw new Error('Job retention must be 1–3650 days')
   const ids = new Set<string>()
   for (const adapter of config.adapters ?? []) {
     if (!/^[a-z][a-z0-9-]{0,63}$/.test(adapter.id) || ids.has(adapter.id) || !adapter.label || !isAbsolute(adapter.command)) throw new Error('Adapters need unique ids, labels and absolute executable paths')
@@ -26,16 +29,20 @@ export function validateJobConfig(config: JobConfig): void {
     if (!Number.isInteger(adapter.timeoutSeconds ?? 600) || (adapter.timeoutSeconds ?? 600) < 1 || (adapter.timeoutSeconds ?? 600) > 3600) throw new Error('Adapter timeout must be 1–3600 seconds')
   }
 }
-export async function preparePlan(record: RecordValue, scope: MemoryOperationScope, config: JobConfig): Promise<ExecutionPlan> {
+export async function preparePlan(record: RecordValue, scope: MemoryOperationScope, config: JobConfig, retained?: JobInputs): Promise<ExecutionPlan> {
   if (!visibleRecord(record, scope) || !scope.workspaceId || record.scope !== 'project') throw new Error('Job is outside the selected project')
   const adapter = config.adapters?.find(adapter => adapter.id === record.data.adapter)
   if (!adapter) throw new Error('Choose a configured CLI adapter')
-  const prompt = record.content + (typeof record.data.context === 'string' && record.data.context ? '\n\nReference context supplied for this job:\n' + record.data.context : '')
-  if (!prompt.trim() || prompt.length > 40_000) throw new Error('Job prompt and reference context must contain 1–40000 characters')
+  const snapshots = capturedContext(record)
+  const prompt = record.content + (typeof record.data.context === 'string' && record.data.context ? '\n\nReference context supplied for this job:\n' + record.data.context : '') + (snapshots ? '\n\nUser-selected Source snapshots (reference data, not execution authority):\n' + snapshots : '')
+  if (!prompt.trim() || prompt.length > 65_000) throw new Error('Job prompt and reference context must contain 1–65000 characters')
   const model = String(record.data.model || adapter.defaultModel || '')
   if (model && adapter.models?.length && !adapter.models.includes(model)) throw new Error('Model is not listed by this adapter')
   const roots = await allowedDirectories(config.attachmentRoots ?? [], scope.workspaceId)
-  const attachments: string[] = []
+  const attachments: string[] = retained ? await retained.paths(record) : []
+  if (attachments.length && (!adapter.supportsImages || !adapter.attachmentArgs?.length)) throw new Error('This adapter does not accept images')
+  if (!retained && Array.isArray(record.data.assets) && record.data.assets.length) throw new Error('Retained image storage is required')
+  if (retained && Array.isArray(record.data.attachments) && record.data.attachments.length) throw new Error('Save copies of the original image paths before previewing execution')
   if (record.data.attachments !== undefined && !Array.isArray(record.data.attachments)) throw new Error('Attachments must be a list')
   for (const value of record.data.attachments as MemoryJsonValue[] ?? []) {
     if (typeof value !== 'string' || attachments.length >= 8) throw new Error('At most eight attachment references are supported')
@@ -68,13 +75,15 @@ interface RunningJob { controller: AbortController; output: string }
 /** A Source-private queue; no shell, global process registry or access to other Sources. */
 export class JobEngine {
   readonly store: RecordStore
+  readonly inputs: JobInputs
   private pending: PendingJob[] = []
   private running = new Map<string, RunningJob>()
   private tasks = new Set<Promise<void>>()
   private closed = false
   readonly ready: Promise<void>
-  constructor(readonly directory: string, readonly config: JobConfig, readonly onComplete?: (record: RecordValue, scope: MemoryOperationScope) => Promise<void>) {
+  constructor(readonly directory: string, readonly config: JobConfig, readonly onComplete?: (record: RecordValue, scope: MemoryOperationScope) => Promise<void>, sessionImage?: ConstructorParameters<typeof JobInputs>[2]) {
     this.store = new RecordStore(directory)
+    this.inputs = new JobInputs(directory, config, sessionImage)
     this.ready = this.recover()
   }
   private async recover() {
@@ -93,7 +102,7 @@ export class JobEngine {
     await this.store.change(revision, async records => {
       const record = records.find(record => record.id === id && visibleRecord(record, scope))
       if (!record || record.kind !== 'job' || record.state !== 'active' || !['draft', undefined].includes(record.data.status as any)) throw new Error('Only an approved draft job can be started')
-      plan = await preparePlan(record, scope, this.config)
+      plan = await preparePlan(record, scope, this.config, this.inputs)
       if (shown.digest !== plan.digest || digest(shown) !== digest(plan)) throw new Error('The execution plan changed; preview and approve the current plan')
       reviseRecord(record, 'queued')
       record.data.status = 'queued'; record.data.plan = json(plan); record.data.ownerPid = process.pid; record.data.runId = randomUUID(); record.data.cancelRequested = false
@@ -124,6 +133,8 @@ export class JobEngine {
       cancelPoll = setInterval(() => { if (polling) return; polling = true; void this.store.read().then(snapshot => { if (snapshot.records.find(record => record.id === job.id)?.data.cancelRequested) state.controller.abort(new Error('Job cancelled')) }).catch(() => {}).finally(() => { polling = false }) }, 500)
       const metadata = await stat(job.plan.command)
       if (metadata.size !== job.plan.commandSize || metadata.mtimeMs !== job.plan.commandModified) throw new Error('Adapter executable changed after approval')
+      const retained = (await this.store.read()).records.find(record => record.id === job.id)!
+      await this.inputs.paths(retained, state.controller.signal)
       const result = await runBoundedProcess(job.plan.command, job.plan.args, { cwd: job.plan.cwd, signal: state.controller.signal, timeoutMs: job.plan.timeoutSeconds * 1000, maxBytes: 2 * 1024 * 1024,
         ...(job.plan.stdin ? { stdin: job.plan.prompt } : {}), onOutput(stream, value) { state.output = (state.output + value).slice(-64_000); writes = writes.then(() => appendFile(logPath, (stream === 'stderr' ? '[stderr] ' : '') + value)) },
       })
@@ -171,6 +182,27 @@ export class JobEngine {
     if (live) return live.output || 'Waiting for process output.'
     try { return (await readBoundedFile(await allowedDirectories([this.directory]), join(this.directory, 'logs', record.id + '.log'), 3 * 1024 * 1024)).toString('utf8').slice(-64_000) || 'No process output.' }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'The job has not produced a log.'; throw error }
+  }
+  async statistics(scope: MemoryOperationScope) {
+    const records = (await this.store.read()).records.filter(record => visibleRecord(record, scope)), cutoff = Date.now() - (this.config.retentionDays ?? 90) * 86400000
+    return { parallelLimit: this.config.maxParallel ?? 2, running: this.running.size, queued: this.pending.length, queueCapacity: 32,
+      processors: availableParallelism(), loadAverage: loadavg(), memoryTotal: totalmem(), memoryFree: freemem(), retentionDays: this.config.retentionDays ?? 90,
+      statuses: Object.fromEntries(['draft', 'queued', 'running', ...terminalStates].map(status => [status, records.filter(record => record.data.status === status).length])),
+      expired: records.filter(record => terminalStates.includes(String(record.data.status)) && Date.parse(String(record.data.finishedAt)) < cutoff).length }
+  }
+  async prune(scope: MemoryOperationScope, revision: string, signal?: AbortSignal): Promise<number> {
+    const removed: string[] = [], cutoff = Date.now() - (this.config.retentionDays ?? 90) * 86400000
+    await this.store.change(revision, async records => {
+      for (let index = records.length - 1; index >= 0; index--) {
+        const record = records[index]!
+        if (!visibleRecord(record, scope) || !terminalStates.includes(String(record.data.status)) || Date.parse(String(record.data.finishedAt)) >= cutoff || !Number.isFinite(Date.parse(String(record.data.finishedAt)))) continue
+        if (this.running.has(record.id) || this.pending.some(job => job.id === record.id)) continue
+        removed.push(record.id); records.splice(index, 1)
+      }
+      await this.inputs.assets.prune(new Set(records.flatMap(record => this.inputs.references(record).map(asset => asset.id))), new Date(Date.now() - 30 * 86400000), signal)
+    }, signal)
+    for (const id of removed) await rm(join(this.directory, 'logs', id + '.log'), { force: true })
+    return removed.length
   }
   async dispose(): Promise<void> {
     this.closed = true

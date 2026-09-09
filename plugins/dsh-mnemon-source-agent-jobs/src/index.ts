@@ -6,17 +6,18 @@ import { createMemoryMutationReceipt, defineMemoryPlugin, installMemory, memoryC
 import { createRecordSource, digest, json, reviseRecord, sourceRecordDirectory, visibleRecord, withLookupRoutes, type LookupResult, type RecordValue } from 'dsh-mnemon-workspace-kit'
 import { DshWorkspaceAdapter } from 'dsh-mnemon-workspace-kit/dsh'
 import { JobEngine, preparePlan, terminalStates, validateJobConfig, type ExecutionPlan, type JobConfig } from './engine.ts'
+import { contextCaptures, type JobInputs } from './inputs.ts'
 export type { CliAdapter, ExecutionPlan, JobConfig } from './engine.ts'
 export const name = 'dsh-mnemon-source-agent-jobs'
-export const inject = ['mnemonMemory', 'sessionQuery', 'agents', 'workspaceRegistry']
+export const inject = ['mnemonMemory', 'sessionQuery', 'agents', 'workspaceRegistry', 'attachments']
 export type Config = JobConfig
-export const Config = z.object({ dataDir: z.string(), maxParallel: z.number().default(2), attachmentRoots: z.array(z.string()).default([]), notifyOwner: z.boolean().default(true),
+export const Config = z.object({ dataDir: z.string(), maxParallel: z.number().default(2), attachmentRoots: z.array(z.string()).default([]), attachmentUrlOrigins: z.array(z.string()).default([]), retentionDays: z.number().default(90), notifyOwner: z.boolean().default(true),
   adapters: z.array(z.object({ id: z.string(), label: z.string(), command: z.string(), args: z.array(z.string()), resumeArgs: z.array(z.string()), input: z.union(['argument', 'stdin']), attachmentArgs: z.array(z.string()), supportsImages: z.boolean(), supportsUrls: z.boolean(), models: z.array(z.string()), defaultModel: z.string(), timeoutSeconds: z.number() })).default([]),
 }) as z<Config>
 export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Background jobs', 'zh-CN': '后台任务' }, description: { en: 'Reviewed CLI execution with durable status, logs and recovery.', 'zh-CN': '经审核的 CLI 执行，支持持久状态、日志和恢复。' }, roles: ['source'], provides: [{ id: 'source' }, { id: 'source.agent-jobs' }] })
 export interface CompletedJob { sourceInstanceKey: string; record: RecordValue; scope: MemoryOperationScope }
 declare module '@deepseek-ai/cordis' { interface Events { 'mnemon-jobs/completed'(event: CompletedJob): void } }
-interface Integration { completed?(event: CompletedJob): Promise<void> }
+interface Integration { completed?(event: CompletedJob): Promise<void>; sessionImage?: ConstructorParameters<typeof JobInputs>[2] }
 const engines = new Map<string, { engine: JobEngine; refs: number }>()
 const idSchema: MemoryJsonValue = { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } }
 const planSchema: MemoryJsonValue = { type: 'object', additionalProperties: false, required: ['id', 'plan'], properties: { id: { type: 'string' }, plan: { type: 'object', additionalProperties: true } } }
@@ -26,11 +27,12 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
   const base = createRecordSource({ typeId: 'agent-jobs', role: 'agent-jobs', label: 'Background jobs', description: 'Approved project jobs and their execution history.', kinds: ['job'], scopes: ['project'], defaultScope: 'project',
     prepare(record, scope) {
       const data = record.data
-      record.data = { adapter: String(data.adapter ?? ''), model: String(data.model ?? ''), attachments: data.attachments ?? [], context: data.context ?? '', status: 'draft', ownerSessionId: scope.sessionId ?? '', notify: data.notify ?? true }
+      record.data = { adapter: String(data.adapter ?? ''), model: String(data.model ?? ''), attachments: data.attachments ?? [], assets: [], contextSnapshots: [], context: data.context ?? '', status: 'draft', ownerSessionId: scope.sessionId ?? '', notify: data.notify ?? true }
     },
     validate(record) {
       if (!config.adapters?.some(adapter => adapter.id === record.data.adapter)) throw new Error('Choose a configured CLI adapter')
       if (record.content.length > 30_000 || typeof record.data.context !== 'string' || record.data.context.length > 10_000 || typeof record.data.model !== 'string' || !Array.isArray(record.data.attachments) || record.data.attachments.length > 8) throw new Error('Invalid prompt, model, context or attachments')
+      contextCaptures(record.data.contextSnapshots)
     },
     project(records) { return `Background jobs: ${records.filter(record => ['running', 'queued'].includes(String(record.data.status))).length} active, ${records.filter(record => terminalStates.includes(String(record.data.status))).length} finished. Read status and logs on demand. Preview a concrete execution plan before requesting external execution.` },
     modelActions: [{ id: 'cancel-job', description: 'Request cancellation of an owned queued/running job from this View.', capability: 'write', inputSchema: idSchema }],
@@ -43,19 +45,19 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
       }
       if (operation !== 'retry-job' || !terminalStates.includes(String(record.data.status))) throw new Error('Only finished jobs can be copied for retry or resume')
       const now = new Date().toISOString()
-      const data = { adapter: record.data.adapter!, model: record.data.model!, attachments: structuredClone(record.data.attachments!), context: record.data.context!, status: 'draft', ownerSessionId: scope.sessionId ?? '', notify: record.data.notify ?? true, previousJobId: record.id,
+      const data = { adapter: record.data.adapter!, model: record.data.model!, attachments: structuredClone(record.data.attachments!), assets: structuredClone(record.data.assets ?? []), contextSnapshots: structuredClone(record.data.contextSnapshots ?? []), context: record.data.context!, status: 'draft', ownerSessionId: scope.sessionId ?? '', notify: record.data.notify ?? true, previousJobId: record.id,
         ...(input.resume === true ? { resumeSessionId: memoryInputText(record.data.externalSessionId, 'external session id', 200)! } : {}) }
       records.push({ ...structuredClone(record), id: randomUUID(), title: record.title.slice(0, 280) + ' · retry', data, state: 'active', version: 1, signals: 1, createdAt: now, updatedAt: now, history: [] })
     },
   }, config)
-  const manifest = { ...base.manifest, actions: [...base.manifest.actions ?? [], { id: 'run-job', description: 'Start an approved draft using the exact displayed execution plan. The plan includes command, argv, workspace, prompt and attachments.', capability: 'write' as const, authority: 'process-execution', inputSchema: planSchema }] }
+  const manifest = { ...base.manifest, capabilities: base.manifest.capabilities.filter(capability => capability !== 'import'), actions: [...base.manifest.actions ?? [], { id: 'run-job', description: 'Start an approved draft using the exact displayed execution plan. The plan includes command, argv, workspace, prompt and attachments.', capability: 'write' as const, authority: 'process-execution', inputSchema: planSchema }] }
   return { manifest: { ...manifest, consistency: 'namespace-pinned-live-read', routes: [
     { id: 'job-plan', description: 'Preview an approved job as a concrete JSON execution plan; oversized plans require the management page.', capability: 'recall', inputSchema: idSchema, maxCalls: 4, maxResults: 1, maxCharacters: 12_000 },
     { id: 'job-log', description: 'Read the recent log output for one project job.', capability: 'recall', inputSchema: idSchema, maxCalls: 8, maxResults: 1, maxCharacters: 12_000 }, ...base.manifest.routes ?? [],
   ] }, create(context) {
     const directory = sourceRecordDirectory('agent-jobs', context, config), key = digest([directory, config])
     let entry = engines.get(key)
-    if (!entry) { entry = { refs: 0, engine: new JobEngine(directory, config, async (record, scope) => { await integration.completed?.({ sourceInstanceKey: context.sourceInstanceKey, record, scope }) }) }; engines.set(key, entry) }
+    if (!entry) { entry = { refs: 0, engine: new JobEngine(directory, config, async (record, scope) => { await integration.completed?.({ sourceInstanceKey: context.sourceInstanceKey, record, scope }) }, integration.sessionImage) }; engines.set(key, entry) }
     entry.refs++
     const engine = entry.engine
     const wrapped = withLookupRoutes({ ...base, manifest }, {
@@ -71,16 +73,39 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
         if (operation === 'job-log') return { items: [{ id, text: await engine.log(id, scope), provenance: { kind: 'process-log', jobId: id } }] }
         const record = (await engine.store.read()).records.find(record => record.id === id && visibleRecord(record, scope) && record.state === 'active')
         if (!record) throw new Error('An approved project job is required')
-        const plan = await preparePlan(record, scope, config), text = JSON.stringify(plan, null, 2)
+        const plan = await preparePlan(record, scope, config, engine.inputs), text = JSON.stringify(plan, null, 2)
         return { items: [{ id, text: text.length <= 11_000 ? text : 'This plan exceeds the model review budget. Review and start it in the Background jobs page.', provenance: { kind: 'execution-plan', jobId: id } }], truncated: text.length > 11_000 }
       },
     }).create(context)
     const snapshot = (request: MemorySourceManagementRequest) => wrapped.manage!({ ...request, operation: 'snapshot', mode: 'read', input: {} })
     return { ...wrapped,
-      async facts(request, signal) { await engine.ready; const facts = await wrapped.facts(request, signal); return { ...facts, actionIds: [...facts.actionIds, 'run-job'] } },
+      async facts(request, signal) { await engine.ready; const facts = await wrapped.facts(request, signal); return { ...facts, capabilities: facts.capabilities.filter(capability => capability !== 'import'), actionIds: [...facts.actionIds, 'run-job'] } },
       async manage(request) {
         await engine.ready
-        if (request.mode === 'mutate' && request.operation === 'update') {
+        if (request.mode === 'mutate' && request.operation === 'import') throw new Error('Execution records cannot be imported; create a new draft request')
+        if (request.mode === 'read' && request.operation === 'statistics') return { revision: (await engine.store.read()).revision, value: json(await engine.statistics(request.scope)) }
+        if (request.mode === 'read' && request.operation === 'job-asset') {
+          const input = memoryInputRecord(request.input, 'job image'), record = (await engine.store.read()).records.find(record => record.id === input.id && visibleRecord(record, request.scope))
+          const reference = record && engine.inputs.references(record).find(asset => asset.id === input.assetId)
+          if (!reference) throw new Error('Image does not belong to this project job')
+          return { revision: (await engine.store.read()).revision, value: json({ ...reference, base64: (await engine.inputs.assets.read(reference, request.signal)).toString('base64') }) }
+        }
+        if (request.mode === 'mutate' && ['set-job-inputs', 'prune-jobs'].includes(request.operation)) {
+          if (!request.confirmed || !request.expectedRevision) throw new Error('Confirm the current job input or cleanup selection')
+          if (request.operation === 'prune-jobs') { await engine.prune(request.scope, request.expectedRevision, request.signal); return snapshot(request) }
+          const input = memoryInputRecord(request.input, 'job inputs'), before = await engine.store.read(request.signal)
+          if (before.revision !== request.expectedRevision) throw new Error('The job list changed; refresh before copying inputs')
+          const selected = before.records.find(record => record.id === input.id && visibleRecord(record, request.scope))
+          if (!selected || selected.data.status !== 'draft') throw new Error('Only a draft accepts new input snapshots')
+          const captures = contextCaptures(input.contextSnapshots), keep = input.keepAssetIds ?? []
+          if (!Array.isArray(keep) || keep.some(id => typeof id !== 'string' || !engine.inputs.references(selected).some(asset => asset.id === id))) throw new Error('Retained images must belong to this job')
+          const copied = await engine.inputs.copy(input.images ?? [], request.scope, request.signal)
+          const assets = [...new Map([...engine.inputs.references(selected).filter(asset => keep.includes(asset.id)), ...copied].map(asset => [asset.id, asset])).values()]
+          if (assets.length > 8 || assets.reduce((total, asset) => total + asset.bytes, 0) > 20 * 1024 * 1024) throw new Error('Too many retained images')
+          await engine.store.change(request.expectedRevision, records => { const record = records.find(record => record.id === selected.id)!; reviseRecord(record, 'inputs-captured'); record.data.assets = json(assets); record.data.contextSnapshots = json(captures); record.data.attachments = [] }, request.signal)
+          return snapshot(request)
+        }
+        if (request.mode === 'mutate' && ['update', 'approve'].includes(request.operation)) {
           const input = memoryInputRecord(request.input, 'job update'), record = (await engine.store.read()).records.find(record => record.id === input.id && visibleRecord(record, request.scope))
           if (!record || record.data.status !== 'draft') throw new Error('Execution records are immutable after queueing; copy the job to retry')
           if (input.data !== undefined) {
@@ -93,7 +118,7 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
         if (request.mode === 'read' && request.operation === 'execution-plan') {
           const input = memoryInputRecord(request.input, 'job plan'), record = (await engine.store.read()).records.find(record => record.id === input.id && visibleRecord(record, request.scope) && record.state === 'active')
           if (!record) throw new Error('An approved job is required')
-          return { revision: (await snapshot(request)).revision, value: json(await preparePlan(record, request.scope, config)) }
+          return { revision: (await snapshot(request)).revision, value: json(await preparePlan(record, request.scope, config, engine.inputs)) }
         }
         if (request.mode === 'mutate' && ['start-job', 'stop-job'].includes(request.operation)) {
           if (!request.confirmed || request.expectedRevision === undefined) throw new Error('Confirm the current execution plan before starting')
@@ -116,8 +141,8 @@ export function createAgentJobsSource(config: Config = {}, integration: Integrat
   } }
 }
 export function apply(ctx: Context, config: Config = {}): void {
-  const adapter = new DshWorkspaceAdapter({ sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry })
-  installMemory(ctx, { plugin: memoryPlugin, sources: [createAgentJobsSource(config, { async completed(event) {
+  const adapter = new DshWorkspaceAdapter({ sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry, attachments: ctx.attachments })
+  installMemory(ctx, { plugin: memoryPlugin, sources: [createAgentJobsSource(config, { sessionImage: (id, scope, signal) => adapter.readSessionImage(id, scope, signal), async completed(event) {
     ctx.emit('mnemon-jobs/completed', event)
     ctx.emit('mnemon-workspace/activity', { eventKey: event.record.id + '/completed', sourceInstanceKey: event.sourceInstanceKey, scope: event.scope, kind: 'job-completed', title: 'Background job: ' + event.record.title.slice(0, 280), summary: String(event.record.data.output ?? event.record.data.error ?? event.record.data.status).slice(-6000), level: event.record.data.status === 'succeeded' ? 'info' : 'warning', recordId: event.record.id })
     if (config.notifyOwner !== false && event.record.data.notify !== false && typeof event.record.data.ownerSessionId === 'string' && event.record.data.ownerSessionId) {
