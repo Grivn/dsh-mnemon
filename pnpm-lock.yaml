@@ -38,6 +38,9 @@ importers:
       dsh-mnemon-source-agent-jobs:
         specifier: 0.1.0
         version: link:plugins/dsh-mnemon-source-agent-jobs
+      dsh-mnemon-source-canvas:
+        specifier: 0.1.0
+        version: link:plugins/dsh-mnemon-source-canvas
       dsh-mnemon-source-collaboration:
         specifier: 0.1.0
         version: link:plugins/dsh-mnemon-source-collaboration
@@ -80,6 +83,9 @@ importers:
       dsh-mnemon-strategy-default-three-tier:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-strategy-default-three-tier
+      dsh-mnemon-strategy-focus:
+        specifier: 0.1.0
+        version: link:plugins/dsh-mnemon-strategy-focus
       dsh-mnemon-strategy-journal-capture:
         specifier: 0.1.0
         version: link:plugins/dsh-mnemon-strategy-journal-capture
@@ -487,6 +493,58 @@ importers:
       dsh-mnemon-strategy-default-three-tier:
         specifier: ^0.5.4
         version: link:../dsh-mnemon-strategy-default-three-tier
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0(supports-color@7.2.0)
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+      tsdown:
+        specifier: ^0.22.0
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(publint@0.3.23)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jsdom@26.1.0(supports-color@7.2.0))(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0)
+
+  plugins/dsh-mnemon-source-canvas:
+    dependencies:
+      dsh-mnemon-workspace-kit:
+        specifier: 0.1.0
+        version: link:../dsh-mnemon-workspace-kit
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      schemastery:
+        specifier: ^3.18.0
+        version: 3.18.0
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.1
+        version: 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      dsh-mnemon:
+        specifier: ^0.5.5
+        version: link:../..
+      dsh-mnemon-strategy-default-three-tier:
+        specifier: ^0.5.4
+        version: link:../dsh-mnemon-strategy-default-three-tier
+      dsh-mnemon-strategy-workspace:
+        specifier: ^0.1.0
+        version: link:../dsh-mnemon-strategy-workspace
       jsdom:
         specifier: ^26.0.0
         version: 26.1.0(supports-color@7.2.0)
@@ -1265,6 +1323,30 @@ importers:
       dsh-mnemon:
         specifier: ^0.5.4
         version: link:../..
+      tsdown:
+        specifier: ^0.22.0
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(publint@0.3.23)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jsdom@26.1.0(supports-color@7.2.0))(lightningcss@1.33.0)(supports-color@7.2.0)(yaml@2.9.0)
+
+  plugins/dsh-mnemon-strategy-focus:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.1
+        version: 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      dsh-mnemon:
+        specifier: ^0.5.5
+        version: link:../..
+      dsh-mnemon-strategy-workspace:
+        specifier: ^0.1.0
+        version: link:../dsh-mnemon-strategy-workspace
       tsdown:
         specifier: ^0.22.0
         version: 0.22.14(@arethetypeswrong/core@0.18.5)(publint@0.3.23)(typescript@5.9.3)

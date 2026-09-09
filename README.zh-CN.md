@@ -100,6 +100,8 @@ View 不仅包含上下文，也包含 LLM 接下来可以使用的限定范围�
 | [dsh-mnemon-source-agent-jobs](plugins/dsh-mnemon-source-agent-jobs/README.md) | 经审核的 CLI 计划、后台执行与持久日志 | 关闭 |
 | [dsh-mnemon-source-review](plugins/dsh-mnemon-source-review/README.md) | 独立会话审核与分层约束 | 关闭 |
 | [dsh-mnemon-source-notifications](plugins/dsh-mnemon-source-notifications/README.md) | 个人收件箱、登记附件与渠道回执 | 关闭 |
+| [dsh-mnemon-source-canvas](plugins/dsh-mnemon-source-canvas/README.md) | 便签、实时文件引用与空间化素材管理 | 关闭 |
+| [dsh-mnemon-strategy-focus](plugins/dsh-mnemon-strategy-focus/README.md) | Source 选择、写入子集与上下文预算 | 关闭 |
 | [dsh-mnemon-strategy-workspace](plugins/dsh-mnemon-strategy-workspace/README.md) | 将工作区 Source 组合为一个 View | 关闭 |
 | [dsh-mnemon-strategy-journal-capture](plugins/dsh-mnemon-strategy-journal-capture/README.md) | 有明确来源的记录指引 | 关闭 |
 | [dsh-mnemon-strategy-prompt-schedule](plugins/dsh-mnemon-strategy-prompt-schedule/README.md) | 提示词调度使用策略 | 关闭 |

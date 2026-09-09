@@ -127,6 +127,7 @@ export interface MemoryLayerConfig {
 }
 
 export interface MemoryTopologyConfig {
+  viewBudget?: Partial<import('../core/contracts/index.ts').MemoryViewBudget>
   id?: string
   strategyId?: string
   layers?: Record<string, MemoryLayerConfig>
@@ -139,6 +140,7 @@ export interface ResolvedMemoryLayerConfig {
 }
 
 export interface ResolvedMemoryTopologyConfig {
+  viewBudget: import('../core/contracts/index.ts').MemoryViewBudget
   id: string
   strategyId: string
   layers: Record<string, ResolvedMemoryLayerConfig>

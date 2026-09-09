@@ -8,12 +8,12 @@ const weight = (role: string) => role === 'working-context' ? 16 : role === 'pro
 
 export const WORKSPACE_STRATEGY = defineMemoryStrategy({
   manifest: { apiVersion: COMPOSABLE_MEMORY_API_VERSION, kind: 'strategy', typeId: 'workspace', packageName: 'dsh-mnemon-strategy-workspace', deterministic: true,
-    supportedSourceRoles: WORKSPACE_SOURCE_ROLES, maxSources: 32, maxRoutes: 32, maxActions: 32, extensionSlots: ['focus', 'capture', 'review', 'prompts', 'collaboration'] },
+    supportedSourceRoles: WORKSPACE_SOURCE_ROLES, maxSources: 32, maxRoutes: 128, maxActions: 128, extensionSlots: ['focus', 'capture', 'review', 'prompts', 'collaboration'] },
   compose(request, sources, contributions = []) {
     const policies = workspacePolicies(contributions)
     const available = sources.filter(source => WORKSPACE_SOURCE_ROLES.includes(source.role))
     let selected = available.slice().sort((a, b) => WORKSPACE_SOURCE_ROLES.indexOf(a.role) - WORKSPACE_SOURCE_ROLES.indexOf(b.role) || a.sourceInstanceKey.localeCompare(b.sourceInstanceKey))
-    if (policies.focus?.sourceKeys.length) selected = policies.focus.sourceKeys.map(key => {
+    if (policies.focus) selected = policies.focus.sourceKeys.map(key => {
       const source = available.find(source => source.sourceInstanceKey === key)
       if (!source) throw new Error('Configured Source is not installed: ' + key)
       return source
@@ -26,13 +26,13 @@ export const WORKSPACE_STRATEGY = defineMemoryStrategy({
     const projected = selected.filter(source => source.capabilities.includes('project'))
     const total = projected.reduce((sum, source) => sum + weight(source.role), 0)
     const budget = Math.min(request.budget.maxProjectionCharacters, policies.focus?.maxProjectionCharacters ?? 16_384)
-    let routes = Math.min(32, request.budget.maxRoutes), actions = Math.min(32, request.budget.maxActions)
+    let routes = Math.min(128, request.budget.maxRoutes), actions = Math.min(128, request.budget.maxActions)
     const operations = selected.map(source => ({ source, routeIds: [] as string[], actionIds: [] as string[],
       offered: source.actions.filter(action => !['forget', 'delete', 'remove'].includes(action.id)
         && (policies.focus?.writableSourceKeys === undefined || policies.focus.writableSourceKeys.includes(source.sourceInstanceKey)))
         .sort((a, b) => Number(b.id === 'remember') - Number(a.id === 'remember')) }))
     // Give each Source its first operation before spending the shared remainder.
-    for (let round = 0; round < 32 && (routes > 0 || actions > 0); round++) for (const item of operations) {
+    for (let round = 0; round < 128 && (routes > 0 || actions > 0); round++) for (const item of operations) {
       if (routes > 0 && item.source.routes[round]) { item.routeIds.push(item.source.routes[round]!.id); routes-- }
       if (actions > 0 && item.offered[round]) { item.actionIds.push(item.offered[round]!.id); actions-- }
     }

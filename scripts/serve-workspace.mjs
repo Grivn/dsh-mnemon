@@ -119,7 +119,7 @@ try {
     writeEnabled: true
     lifecycleEnabled: true
     displayMode: sidebar
-${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspace\n' : ''}
+${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspace\n      viewBudget:\n        maxRoutes: 96\n        maxActions: 96\n' : ''}
 - id: agent-presets
   config:
     default: workspace-validation

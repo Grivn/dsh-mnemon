@@ -6,7 +6,6 @@ import type {
   MemoryPluginDescriptor,
   MemoryPluginRole,
 } from '../core/contracts/index.ts'
-import { DEFAULT_MEMORY_VIEW_BUDGET } from '../core/contracts/index.ts'
 import {
   MemoryCompositionGeneration,
   captureMemoryContributionSnapshot,
@@ -433,7 +432,7 @@ export class MemoryPluginManagement {
     signal?.throwIfAborted()
     const generation = new MemoryCompositionGeneration(snapshot, { ...memoryGenerationOptions(config, scope.workspaceId), strategyTypeId })
     try {
-      const view = await generation.compose({ scope, scenario: 'agent.root-turn', budget: { ...DEFAULT_MEMORY_VIEW_BUDGET } }, signal)
+      const view = await generation.compose({ scope, scenario: 'agent.root-turn', budget: { ...config.memoryTopology.viewBudget } }, signal)
       signal?.throwIfAborted()
       return inspectMemoryView(generation, view, 'preview')
     } finally { await generation.dispose() }

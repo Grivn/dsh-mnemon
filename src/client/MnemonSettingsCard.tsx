@@ -18,6 +18,7 @@ import {
 } from "../host/protocol.ts"
 import type { MemoryPluginEntryView, MemoryViewDashboard } from '../host/view-protocol.ts'
 import { MnemonClient } from './api.ts'
+import { MemoryCompositionEditor } from './MemoryCompositionEditor.tsx'
 import css from './MnemonSettingsCard.module.css'
 import { GlobalLocationSetting } from './GlobalLocationSetting.tsx'
 import { translateZh, type MnemonKey, type MnemonTranslate } from './locales.ts'
@@ -488,6 +489,13 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
           t={t}
         />
 
+        <MemoryCompositionEditor
+          {...(connection === undefined ? {} : { connection })}
+          {...(sessionId === undefined ? {} : { sessionId })}
+          {...(workspaceId === undefined ? {} : { workspaceId })}
+          locale={t('config.title') === translateZh('config.title') ? 'zh-CN' : 'en'}
+        />
+
         <section className={css.section} aria-labelledby="mnemon-providers-heading">
           <div className={css.sectionHeading}>
             <div><h2 id="mnemon-providers-heading">{t('config.providersTitle')}</h2><p>{t('config.providersDescription')}</p></div>
@@ -654,7 +662,7 @@ function MemoryEnhancementsSection(props: {
     return entry === undefined ? [] : [{ definition, entry }]
   })
 
-  if (state !== 'ready' || dashboard === null || entries.length === 0) return null
+  if (state !== 'ready' || dashboard === null || entries.length === 0 || dashboard.strategyTypeId !== 'default-three-tier') return null
 
   const toggle = async (entry: MemoryPluginEntryView): Promise<void> => {
     if (client === undefined || working !== null || !dashboard.writable || !entry.writable) return

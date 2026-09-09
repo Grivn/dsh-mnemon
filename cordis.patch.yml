@@ -127,3 +127,9 @@
         - id: mnemon-source-notifications
           name: dsh-mnemon-source-notifications
           disabled: true
+        - id: mnemon-strategy-focus
+          name: dsh-mnemon-strategy-focus
+          disabled: true
+        - id: mnemon-source-canvas
+          name: dsh-mnemon-source-canvas
+          disabled: true

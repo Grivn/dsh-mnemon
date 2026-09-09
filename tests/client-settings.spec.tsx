@@ -149,6 +149,7 @@ describe('MnemonSettingsCard', () => {
       evaluation: { state: 'ready', contributionRevision: 4, sourceInstanceKeys: [], diagnostics: [] },
       sources: [],
       configuration: {
+        viewBudget: { maxProjectionCharacters: 65536, maxRoutes: 16, maxActions: 16, maxEvidenceResults: 16, maxEvidenceCharacters: 16384 },
         id: 'default-three-tier', strategyId: 'default-three-tier',
         layers: Object.fromEntries(['runtime', 'documents', 'memory-spaces'].map(id => [id, { enabled: true, participation: { ...participation }, adapterIds: [] }])),
       },

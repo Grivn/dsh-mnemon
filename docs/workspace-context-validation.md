@@ -83,3 +83,15 @@ Screenshots: [inbox](assets/workspace-context/notification-inbox.png), [file pre
 通知与附件已通过服务端集成测试和真实页面验收，涵盖本地收件箱、搜索与未读筛选、归档恢复、文件和图片预览、关联会话跳转、按钮拖动与刷新保留，以及 390 × 844 窄屏布局。两个本机接收器各收到一次相同发送计划中的消息，附件哈希一致；没有连接第三方账号或向实际人员发送消息。
 
 页面测试发现并修正了轮询导致表单重置和深色主题文字对比度问题。原生会话先验证纯文本模型拒绝图片，再选用同一本机模型适配器中的图片路由，成功提交图片并由通知 Source 通过公开附件服务复制、预览。模型响应仍为固定合成结果；全仓库检查、独立制品安装、完整能力补齐与最终验收仍在进行。
+
+## Material board and composition configuration checkpoint
+
+The independent Canvas Source passed four integration tests covering live files, missing files, symlink and private-directory rejection, scope filtering, revision fences, asset integrity, persistence and real Core composition grants. Notes and registered file bodies remain outside the automatic projection. The real WebUI created session, project and global cards; dragged and resized a note; preserved pan and zoom after reload; copied a stable material reference; and archived and restored a card. File edits appeared on reload, a missing file retained its card, and an uploaded PNG remained readable after its original local file was moved. Actual audio and video controls reached their ended state; malformed media showed a recoverable error. Another session excluded the private note in its default view and included it only in the explicit project-wide human view.
+
+The generic composition editor discovers installed Strategy descriptors without a business-plugin whitelist. Real preview reported 14 Sources, 26 routes and 29 actions. Enabling the independent Focus enhancement with Tasks and Canvas and an empty writable list produced 2 Sources, 3 routes and 0 actions. Saving and restoring the full composition both succeeded. Host route/action budgets now apply consistently to previews, new turns and pinned turns; positive limits and fair operation selection are covered by configuration, runtime and Strategy tests. The default budget remains 16 and the optional development profile uses 96.
+
+Root client checks passed 52 tests, alongside root type checking/build, Focus tests and Canvas verification. A 390 × 844 viewport had a document width and scroll width of exactly 390 pixels, with a 282-pixel board after collapsing native navigation. Service-host file opening is opt-in and was not exercised; binary model reads return metadata, while the human page renders supported media. Screenshots: [material board](assets/workspace-context/canvas-media.png), [missing file](assets/workspace-context/canvas-missing-file.png), [narrow viewport](assets/workspace-context/canvas-mobile.png), [read-only composition](assets/workspace-context/focus-preview.png).
+
+素材画布已通过文件边界、作用域、并发版本、持久化、附件完整性和真实 Core 组合测试。WebUI 实测了便签、实时文件和上传副本，拖动与尺寸修改，平移缩放的刷新保留，跨会话视角，归档恢复，以及真实音视频播放。文件更新可以重读，文件缺失保留卡片，上传副本不依赖原文件。窄屏下没有页面横向溢出；截图保留在上述路径。
+
+通用策略配置界面根据独立插件声明展示字段，无业务插件白名单。默认预览含 14 个 Source；启用“专注上下文”并仅选择任务、画布及空写入集合后，预览变为 2 个 Source、3 条读取路由、0 个操作。保存与恢复完整组合均成功。Host 的预算同时约束预览和实际轮次，并保留旧轮次的原预算；默认值保持不变。服务主机打开文件功能没有在本轮测试中执行，模型读取二进制素材返回元信息，人类页面负责媒体展示。

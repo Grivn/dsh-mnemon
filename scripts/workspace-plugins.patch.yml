@@ -29,3 +29,5 @@
   disabled: false
 - id: mnemon-source-collaboration
   disabled: false
+- id: mnemon-source-canvas
+  disabled: false
