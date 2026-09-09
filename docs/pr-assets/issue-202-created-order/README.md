@@ -31,9 +31,9 @@ All records are synthetic. Model replies are scripted; Source persistence, page 
 
 The published upstream UI package has an existing missing-source-map warning during Vitest. It does not prevent the checks from passing. / 已发布上游 UI 包在 Vitest 中存在缺少 source map 的现有警告，不影响检查通过。
 
-The first independent-package attempt exposed timeouts in the new tests while seeding repeatedly through Source management under parallel load. The final regressions use frozen page snapshots without changing the global clock; existing real Source mutation tests and the actual WebUI writes remain in place.
+The first independent-package attempt exposed timeouts in the new tests while seeding repeatedly through Source management under parallel load. The final regressions use frozen page snapshots without changing the global clock. The first remote artifact run also exposed repeated whole-list accessibility visibility scans under CI load; ordering assertions now read the list nodes directly and use scoped labels/text for interaction. Existing real Source mutation tests, timeouts and actual WebUI writes remain in place.
 
-首次独立包检查中，新增测试在并行负载下通过 Source management 反复播种时超时。最终回归使用冻结的页面快照，不再修改全局时钟；原有真实 Source 写入测试和本次实际 WebUI 写入验收均保留。
+首次独立包检查中，新增测试在并行负载下通过 Source management 反复播种时超时。最终回归使用冻结的页面快照，不再修改全局时钟。首次远端制品检查还暴露了 CI 负载下反复扫描整份列表可访问性与可见性的开销；排序断言现直接读取列表节点，交互使用有范围的标签/文本定位。原有真实 Source 写入测试、超时限制和本次实际 WebUI 写入验收均保留。
 
 ## Reproduce / 复现
 
