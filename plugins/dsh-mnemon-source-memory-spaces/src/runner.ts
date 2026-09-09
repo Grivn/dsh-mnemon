@@ -5,7 +5,7 @@ import type { JsonValue } from './contracts.ts'
 import type { ResolvedMemorySpacesConfig as ResolvedConfig } from './config.ts'
 import { runProcess, type ProcessOptions, type ProcessRunner } from './providers/process.ts'
 import { withMemoryStorageLock } from 'dsh-mnemon/extension-sdk'
-import { findMnemonCommand, isMnemonExecutable, mnemonNpmLauncher } from './native-cli.ts'
+import { findMnemonCommand, isMnemonExecutable, mnemonNpmLauncher, nodeLauncherEnvironment } from './native-cli.ts'
 
 export { findMnemonCommand } from './native-cli.ts'
 export type { CommandDiscoveryOptions } from './native-cli.ts'
@@ -117,7 +117,8 @@ export function createRunner(config: ResolvedConfig, processRunner: ProcessRunne
     try {
       const command = currentCommand()
       const launcher = mnemonNpmLauncher(command)
-      result = await processRunner(launcher === undefined ? command : process.execPath, launcher === undefined ? argv : [launcher, ...argv], processOptions)
+      result = await processRunner(launcher === undefined ? command : process.execPath, launcher === undefined ? argv : [launcher, ...argv],
+        launcher === undefined ? processOptions : { ...processOptions, env: nodeLauncherEnvironment(processOptions.env) })
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
       const hint = process.platform === 'win32'

@@ -10,6 +10,14 @@ function samePath(left: string, right: string): boolean {
 }
 const MNEMON_NPM_PACKAGE = '@mnemon-dev/mnemon'
 
+/** Execute JavaScript with the Host binary even when it is Electron's GUI executable. */
+export function nodeLauncherEnvironment(environment: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  // Windows treats environment keys case-insensitively. Emit a single spelling,
+  // and do not restore keys deliberately removed by saved embedding overrides.
+  const inherited = Object.fromEntries(Object.entries(environment).filter(([key]) => key.toUpperCase() !== 'ELECTRON_RUN_AS_NODE'))
+  return { ...inherited, ELECTRON_RUN_AS_NODE: '1' }
+}
+
 export function mnemonNpmLauncher(command: string): string | undefined {
   let realCommand = command
   try { realCommand = realpathSync(command) } catch {}
