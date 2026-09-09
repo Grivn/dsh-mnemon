@@ -124,3 +124,6 @@
         - id: mnemon-source-collaboration
           name: dsh-mnemon-source-collaboration
           disabled: true
+        - id: mnemon-source-notifications
+          name: dsh-mnemon-source-notifications
+          disabled: true

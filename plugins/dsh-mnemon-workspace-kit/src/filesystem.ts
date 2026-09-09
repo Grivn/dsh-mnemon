@@ -46,9 +46,17 @@ export async function readBoundedFile(roots: readonly string[], value: string, m
     signal?.throwIfAborted()
     // Do not allow a growing file to allocate an unbounded buffer.
     const buffer = Buffer.alloc(Math.min(maxBytes + 1, opened.size + 1))
-    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    let bytesRead = 0
+    while (bytesRead < buffer.length) {
+      signal?.throwIfAborted()
+      const chunk = await handle.read(buffer, bytesRead, buffer.length - bytesRead, bytesRead)
+      if (!chunk.bytesRead) break
+      bytesRead += chunk.bytesRead
+    }
     signal?.throwIfAborted()
     if (bytesRead > maxBytes) throw new Error('File exceeds the configured read limit')
+    const after = await handle.stat()
+    if (bytesRead !== opened.size || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs) throw new Error('File changed while reading; retry')
     return buffer.subarray(0, bytesRead)
   } finally { await handle.close() }
 }

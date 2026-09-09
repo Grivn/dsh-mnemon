@@ -1,3 +1,4 @@
+import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type { Agent, AgentHandle, AgentOptions, AgentRegistry } from '@deepseek-ai/dsh-agent'
@@ -31,7 +32,7 @@ export function assertSessionScope(header: SessionHeader, scope: MemoryOperation
 
 /** Public DSH services only. Callers own all authorization, intent and domain state. */
 export class DshWorkspaceAdapter {
-  constructor(readonly services: { sessionQuery: SessionQueryEngine; agents: AgentRegistry; workspaceRegistry?: WorkspaceRegistry }) {}
+  constructor(readonly services: { sessionQuery: SessionQueryEngine; agents: AgentRegistry; workspaceRegistry?: WorkspaceRegistry; attachments?: AttachmentStore }) {}
   async list(scope: MemoryOperationScope, signal?: AbortSignal) {
     if (!scope.workspaceId) return []
     const rows = await this.services.sessionQuery.listSessions(signal)
@@ -49,6 +50,28 @@ export class DshWorkspaceAdapter {
     const observation = await this.observe(id, scope, signal)
     try { return { ...visibleMessages(observation.events, maxCharacters), turns: observation.events.flatMap(event => event.type === 'turn/end' ? [{ turn: event.data.turn, seq: Number(event.seq) }] : []) } }
     finally { observation[Symbol.dispose]() }
+  }
+  async images(scope: MemoryOperationScope, signal?: AbortSignal) {
+    if (!scope.sessionId) throw new Error('Select a session to inspect its images')
+    const observation = await this.observe(scope.sessionId, scope, signal)
+    try {
+      const images = new Map<string, { reference: ImageAttachmentRef; seq: number; at: string }>()
+      for (const event of observation.events) {
+        if (!isAppendSurfaceEvent(event) || event.type !== 'user/message' || event.data.source.kind !== 'user') continue
+        for (const block of event.data.content) if (block.type === 'image') {
+          images.delete(String(block.attachment.attachmentId))
+          images.set(String(block.attachment.attachmentId), { reference: block.attachment, seq: Number(event.seq), at: new Date(event.time).toISOString() })
+        }
+      }
+      return [...images.values()].slice(-100)
+    } finally { observation[Symbol.dispose]() }
+  }
+  async readSessionImage(id: string | undefined, scope: MemoryOperationScope, signal?: AbortSignal) {
+    if (!this.services.attachments) throw new Error('Native session image storage is unavailable')
+    const images = await this.images(scope, signal), image = id ? images.find(value => String(value.reference.attachmentId) === id) : images.at(-1)
+    if (!image) throw new Error('The image is not referenced by a visible user message in this session')
+    const stored = await this.services.attachments.readImage(image.reference, signal)
+    return { data: stored.data, name: image.reference.name || String(image.reference.attachmentId).slice(0, 16) + '.image' }
   }
   async live(id: string, scope: MemoryOperationScope, signal?: AbortSignal): Promise<Agent> {
     const observation = await this.observe(id, scope, signal)

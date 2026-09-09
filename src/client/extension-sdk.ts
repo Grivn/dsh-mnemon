@@ -1,7 +1,7 @@
 // Browser-only public helpers behind dsh-mnemon/client. No Source registration,
 // default workbench, Host Context, or raw transport is part of this module.
 export {
-  installMemorySourceUI, memorySourcePageEntryId, MNEMON_SOURCE_PAGE_SLOT,
+  installMemorySourceUI, installMemorySourceOverlayUI, memorySourcePageEntryId, MNEMON_SOURCE_PAGE_SLOT, MNEMON_SOURCE_OVERLAY_SLOT,
   MNEMON_SOURCE_CONFIGURATION_MUTATE, MNEMON_SOURCE_CONFIGURATION_READ,
   type MemorySourcePageComponent, type MemorySourcePageDefinition,
   type MemorySourcePageProps, type MemorySourceUIContribution, type MemorySourceUIContext, type MemorySourcePageNavigation,

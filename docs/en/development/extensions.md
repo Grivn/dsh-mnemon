@@ -4,6 +4,8 @@
 
 Choose the ownership boundary before writing code. The complete external examples under [plugin-consumer](../../../scripts/fixtures/plugin-consumer) are compiled and tested against packed artifacts outside this repository.
 
+Sources can also contribute an additive shell widget with `installMemorySourceOverlayUI` from `dsh-mnemon/client`. Its `overlays` definitions use the same instance-bound `MemorySourcePageProps` as management pages. The Host declares `mnemon.source.overlay`, supplies authenticated management clients and public session navigation, and renders installed Source contributions in both Sidebar and Builtin modes. Widget state, layout, polling and persistence belong to the Source. Catalog revision refreshes retain the same client identity; session changes replace its scope binding. `coordinateSources: true` explicitly requests a directory of other authorized Source clients, without exposing the raw transport or server objects.
+
 ## Distinguish contribution responsibilities
 
 | Plugin | Owns | Public dependency |

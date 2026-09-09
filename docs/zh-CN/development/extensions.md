@@ -4,6 +4,8 @@
 
 先确定归属，再写代码。[plugin-consumer](../../../scripts/fixtures/plugin-consumer) 中的完整示例，会在仓库外只依赖打包制品编译和测试。
 
+Source 可通过 `dsh-mnemon/client` 的 `installMemorySourceOverlayUI` 添加独立浮层。`overlays` 使用与管理页面相同的实例绑定 `MemorySourcePageProps`。Host 声明 `mnemon.source.overlay`，提供有权限约束的管理客户端与公开会话导航，并在侧栏和内嵌模式下渲染已安装的 Source 贡献。控件状态、布局、轮询和位置持久化由 Source 自行负责。目录版本刷新保留客户端身份，切换会话则更换范围绑定。只有显式声明 `coordinateSources: true` 的贡献才会获得其他已授权 Source 客户端目录，不会暴露原始通信接口或服务端对象。
+
 ## 区分贡献的职责
 
 | 插件 | 拥有 | 公开依赖 |

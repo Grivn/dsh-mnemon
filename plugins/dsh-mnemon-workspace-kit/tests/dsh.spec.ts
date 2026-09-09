@@ -53,3 +53,16 @@ it('restores recorded model options when concurrent deliveries resume a cold ses
   expect(resume.mock.calls[0]?.[0]).toMatchObject({resumeSessionId:'cold',agentOptions:{provider:'fixture',model:'fixture-model',reasoningEffort:'high',maxTokens:2048}})
   expect(followup).toHaveBeenCalledTimes(2);expect(dispose).toHaveBeenCalledTimes(2)
 })
+
+it('reads only images actually attached by the current session user', async () => {
+  const image = (id: string, kind = 'user') => ({ seq: 1, time: 1, type: 'user/message', surfaceOp: 'append', data: { source: { kind }, content: [{ type: 'image', attachment: { attachmentId: id, name: id + '.png' } }] } })
+  const readImage = vi.fn(async () => ({ data: Buffer.from('image') })), dispose = vi.fn()
+  const adapter = new DshWorkspaceAdapter({ sessionQuery: { observeSession: async () => ({ header: { cwd: '/project' }, events: [image('first'), image('injected', 'plugin'), image('latest')], [Symbol.dispose]: dispose }) }, attachments: { readImage } } as any)
+  const scope = { storage: 'custom' as const, workspaceId: '/project', sessionId: 'current' }
+  expect((await adapter.readSessionImage(undefined, scope)).name).toBe('latest.png')
+  expect((await adapter.readSessionImage('first', scope)).name).toBe('first.png')
+  await expect(adapter.readSessionImage('injected', scope)).rejects.toThrow(/not referenced/)
+  await expect(adapter.readSessionImage('unknown', scope)).rejects.toThrow(/not referenced/)
+  await expect(adapter.readSessionImage('first', { ...scope, workspaceId: '/elsewhere' })).rejects.toThrow(/workspace/)
+  expect(readImage).toHaveBeenCalledTimes(2); expect(dispose).toHaveBeenCalledTimes(5)
+})

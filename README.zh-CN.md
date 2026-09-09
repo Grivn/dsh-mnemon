@@ -72,7 +72,7 @@ View 不仅包含上下文，也包含 LLM 接下来可以使用的限定范围�
 
 ## 官方插件
 
-Starter 随附 **3 个 Source、1 个默认 Strategy、3 个可选策略贡献、9 个 Provider**。各包独立版本、独立发布；Starter 固定经过测试的精确组合。
+默认配置启用三个核心 Source 和默认三层 Strategy。可选工作区插件默认关闭，需显式启用与选择。各包独立版本、独立发布，Starter 固定依赖的精确版本。
 
 | 包 | 职责 | 默认状态 |
 |---|---|---|
@@ -85,6 +85,28 @@ Starter 随附 **3 个 Source、1 个默认 Strategy、3 个可选策略贡献�
 | [dsh-mnemon-strategy-scoped](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-scoped/README.md) | 有序选择 Source，并限定可写子集 | 关闭 |
 
 三个增强使用默认 Strategy 的不同槽，可以共存，最终仍输出一个 View。主动记录是指引，不是自主记录器；投影上限不是 token 计费或增量注入；范围组合不创建存储。
+
+工作区组合提供以下独立插件：
+
+| 包 | 职责 | 默认状态 |
+|---|---|---|
+| [dsh-mnemon-source-project-context](plugins/dsh-mnemon-source-project-context/README.md) | 项目事实、决策与分支范围笔记 | 关闭 |
+| [dsh-mnemon-source-journal](plugins/dsh-mnemon-source-journal/README.md) | 项目与每日日志、逐字反馈 | 关闭 |
+| [dsh-mnemon-source-tasks](plugins/dsh-mnemon-source-tasks/README.md) | 多范围任务、截止日期与完成历史 | 关闭 |
+| [dsh-mnemon-source-playbooks](plugins/dsh-mnemon-source-playbooks/README.md) | 经审核技能、文件技能与提示词调度 | 关闭 |
+| [dsh-mnemon-source-files](plugins/dsh-mnemon-source-files/README.md) | 有范围限制的文件发现与内容检索 | 关闭 |
+| [dsh-mnemon-source-sessions](plugins/dsh-mnemon-source-sessions/README.md) | 可见会话历史、书签与已完成轮次分叉 | 关闭 |
+| [dsh-mnemon-source-collaboration](plugins/dsh-mnemon-source-collaboration/README.md) | 会话协作空间、定向消息与文件预约 | 关闭 |
+| [dsh-mnemon-source-agent-jobs](plugins/dsh-mnemon-source-agent-jobs/README.md) | 经审核的 CLI 计划、后台执行与持久日志 | 关闭 |
+| [dsh-mnemon-source-review](plugins/dsh-mnemon-source-review/README.md) | 独立会话审核与分层约束 | 关闭 |
+| [dsh-mnemon-source-notifications](plugins/dsh-mnemon-source-notifications/README.md) | 个人收件箱、登记附件与渠道回执 | 关闭 |
+| [dsh-mnemon-strategy-workspace](plugins/dsh-mnemon-strategy-workspace/README.md) | 将工作区 Source 组合为一个 View | 关闭 |
+| [dsh-mnemon-strategy-journal-capture](plugins/dsh-mnemon-strategy-journal-capture/README.md) | 有明确来源的记录指引 | 关闭 |
+| [dsh-mnemon-strategy-prompt-schedule](plugins/dsh-mnemon-strategy-prompt-schedule/README.md) | 提示词调度使用策略 | 关闭 |
+| [dsh-mnemon-strategy-review-cycle](plugins/dsh-mnemon-strategy-review-cycle/README.md) | 审核周期与显式完成策略 | 关闭 |
+| [dsh-mnemon-strategy-team-coordination](plugins/dsh-mnemon-strategy-team-coordination/README.md) | 限定范围的会话协作策略 | 关闭 |
+
+工作区策略的增强使用其公开扩展槽，不获得 Source 的存储或执行权限。开发服务和实际验收结果见[工作区验收记录](docs/workspace-context-validation.md)。
 
 Memory Spaces 可使用以下 Provider 插件：
 

@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { constants, createWriteStream } from 'node:fs'
-import { access, copyFile, chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, appendFile, copyFile, chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -34,9 +34,19 @@ const native = join(bin, 'mnemon')
 if (resolve(values.mnemon) !== native) await copyFile(resolve(values.mnemon), native)
 await chmod(native, 0o700)
 const model = values.model === 'fixture' ? createServer(async (request, response) => {
+  const deliveryFixture = request.url?.startsWith('/notification/') === true
+  const maxBody = deliveryFixture ? 36 * 1024 * 1024 : 2 * 1024 * 1024
   const chunks = []; let bytes = 0
-  for await (const chunk of request) { bytes += chunk.length; if (bytes <= 2 * 1024 * 1024) chunks.push(chunk) }
-  if (bytes > 2 * 1024 * 1024) { response.writeHead(413); response.end('Fixture input limit exceeded'); return }
+  for await (const chunk of request) { bytes += chunk.length; if (bytes <= maxBody) chunks.push(chunk) }
+  if (bytes > maxBody) { response.writeHead(413); response.end('Fixture input limit exceeded'); return }
+  if (deliveryFixture) {
+    try {
+      const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+      if (payload.format !== 'mnemon-notification/v1') throw new Error('Invalid fixture payload')
+      await appendFile(join(logs, 'notification-deliveries.jsonl'), JSON.stringify({ at: new Date().toISOString(), route: request.url, payload }) + '\n', { mode: 0o600 })
+      response.writeHead(202); response.end(); return
+    } catch { response.writeHead(400); response.end(); return }
+  }
   let review = false, proposals = false
   try { const body = JSON.parse(Buffer.concat(chunks).toString('utf8')); proposals = JSON.stringify(body.messages).includes('[proposals]'); review = body.messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
   const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: proposals ? [{ kind: 'fact', title: '合成验收建议', content: '这是一条用于验证跨插件审核流程的合成建议。' }] : [], ...(proposals ? { skill: { slug: 'validation-checklist', title: '验收检查流程', content: '检查具体结果、测试证据与适用范围。此条目用于验证插件流程。' } } : {}) }) : 'The isolated workspace is ready. This is a deterministic local test response.'
@@ -123,6 +133,7 @@ ${values['workspace-plugins'] ? '    memoryTopology:\n      strategyId: workspac
 `
   if (values['workspace-plugins']) patch += await readFile(join(root, 'scripts/workspace-plugins.patch.yml'), 'utf8')
   if (values['workspace-plugins']) patch += `- id: mnemon-source-agent-jobs\n  disabled: false\n  config:\n    adapters:\n      - id: local-fixture\n        label: Local validation\n        command: ${JSON.stringify(process.execPath)}\n        args: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}']\n        resumeArgs: [${JSON.stringify(join(root, 'scripts/fixture-worker.mjs'))}, '{prompt}', '{session}']\n        timeoutSeconds: 60\n`
+  if (values['workspace-plugins'] && model) patch += `- id: mnemon-source-notifications\n  disabled: false\n  config:\n    captureTurns: true\n    attachmentUrlOrigins: [http://127.0.0.1:${model.address().port}]\n    channels:\n      - id: local-inbox\n        label: Local inbox fixture\n        target: synthetic-inbox\n        endpoint: http://127.0.0.1:${model.address().port}/notification/inbox\n      - id: local-direct\n        label: Local direct fixture\n        target: synthetic-recipient\n        endpoint: http://127.0.0.1:${model.address().port}/notification/direct\n`
   if (values['workspace-plugins']) {
     const skillDirectory = join(workspace, 'skills'), fixtureSkill = join(skillDirectory, 'fixture-validation')
     await mkdir(fixtureSkill, { recursive: true })

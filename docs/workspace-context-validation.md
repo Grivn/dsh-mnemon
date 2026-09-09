@@ -69,3 +69,17 @@ Screenshots: [directed message](assets/workspace-context/collaboration-message.p
 真实页面已验证项目协作空间、成员邀请、定向消息、显式唤醒、历史阅读、在线状态与文件预约。首次唤醒未加载会话时发现模型配置未恢复，已在公开 DSH 适配层修复，并通过另一个未加载会话的新回复验证。投递回执仅表示消息被接收，不将其等同于模型成功完成。
 
 技能文件读取与编辑、原生目录加载、审核建议转入目标待审核队列，以及技能采纳和停用对原生目录的影响均已验证。原生反馈命令被逐字记录；会话检索排除注入的协作内容，并能打开选定的原生会话。截图保存于上述路径，最终整体验收仍在继续。
+
+## Notifications and attachments checkpoint
+
+Notifications is an independent Source with its own inbox, attachment store and reviewed delivery plans. Six integration tests cover exact-plan and workspace checks, claims across independent engines, actual loopback HTTP delivery, corrupted attachments, configuration changes, partial or uncertain receipts, interrupted claims, event deduplication and unloading a transport that ignores abort. The shared utility package now has 18 tests, including path/URL/base64 bounds, redirects, tamper detection, asset retention and native image ownership. Root Source-page, client mounting and overlay binding tests total 21; the new binding tests reject a late catalog from the previous session and keep open UI state stable during revision refresh.
+
+Real WebUI tests saved a local notice with a file, previewed text and PNG attachments, combined search with unread filters, marked a notice read, archived and restored a delivery, and opened its associated native session. A concrete direct-message plan selected two loopback receivers; each received exactly one request with the same delivery ID and attachment hash, confirmed independently in the receiver ledger. No third-party account or human recipient was contacted.
+
+The floating bell was dragged from the left edge to the right, retained its position after reload, and remained usable at a 390 × 844 viewport. Both its popup and the full Source page were checked in the current dark theme. Real testing found and fixed a periodic catalog refresh that reset open forms, and a text contrast issue in the full page. A native image paste was correctly rejected by a text-only model; selecting the image-capable route in the same loopback model fixture accepted it. The Notifications Source then copied and previewed that actual user image through the public native attachment service.
+
+Screenshots: [inbox](assets/workspace-context/notification-inbox.png), [file preview](assets/workspace-context/notification-attachment.png), [send plan](assets/workspace-context/notification-delivery-plan.png), [channel receipts](assets/workspace-context/notification-delivery-receipts.png), [PNG preview](assets/workspace-context/notification-image.png), [native user image](assets/workspace-context/notification-session-image.png), [retained position](assets/workspace-context/notification-position.png), [narrow viewport](assets/workspace-context/notification-mobile.png). The full native service status image was refreshed as well.
+
+通知与附件已通过服务端集成测试和真实页面验收，涵盖本地收件箱、搜索与未读筛选、归档恢复、文件和图片预览、关联会话跳转、按钮拖动与刷新保留，以及 390 × 844 窄屏布局。两个本机接收器各收到一次相同发送计划中的消息，附件哈希一致；没有连接第三方账号或向实际人员发送消息。
+
+页面测试发现并修正了轮询导致表单重置和深色主题文字对比度问题。原生会话先验证纯文本模型拒绝图片，再选用同一本机模型适配器中的图片路由，成功提交图片并由通知 Source 通过公开附件服务复制、预览。模型响应仍为固定合成结果；全仓库检查、独立制品安装、完整能力补齐与最终验收仍在进行。

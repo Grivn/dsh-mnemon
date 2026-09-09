@@ -3,6 +3,8 @@ import type { MemorySourcePageProps } from './source-contracts.ts'
 export type { MemorySourcePageProps } from './source-contracts.ts'
 
 export const MNEMON_SOURCE_PAGE_SLOT = 'mnemon.source.page' as const
+export const MNEMON_SOURCE_OVERLAY_SLOT = 'mnemon.source.overlay' as const
+type MemorySourceSurfaceSlot = typeof MNEMON_SOURCE_PAGE_SLOT | typeof MNEMON_SOURCE_OVERLAY_SLOT
 /** Conventional operations used by Mnemon's descriptor-driven Source page. */
 export const MNEMON_SOURCE_CONFIGURATION_READ = 'configuration' as const
 export const MNEMON_SOURCE_CONFIGURATION_MUTATE = 'configuration' as const
@@ -16,9 +18,9 @@ export type MemorySourcePageComponent = (props: MemorySourcePageProps) => ReactN
 export interface MemorySourceUIContext {
   locale?: { bind(namespace: 'mnemon'): import('./locales.ts').MnemonTranslate }
   slots: {
-    inject(name: typeof MNEMON_SOURCE_PAGE_SLOT, setup: () => () => void): () => void
+    inject(name: MemorySourceSurfaceSlot, setup: () => () => void): () => void
     register(options: {
-      name: typeof MNEMON_SOURCE_PAGE_SLOT
+      name: MemorySourceSurfaceSlot
       id: string
       order: number
       label: string | (() => string)
@@ -30,9 +32,9 @@ export interface MemorySourceUIContext {
 interface MemorySourcePageDirectoryContext {
   locale?: { getSnapshot(): unknown; subscribe(listener: () => void): () => void }
   slots: {
-    getVersion(name: typeof MNEMON_SOURCE_PAGE_SLOT): number
-    entriesOfSlot(name: typeof MNEMON_SOURCE_PAGE_SLOT): readonly { options: { id?: string; label?: string | (() => string); order?: number }; component?: unknown }[]
-    subscribe(name: typeof MNEMON_SOURCE_PAGE_SLOT, listener: () => void): () => void
+    getVersion(name: MemorySourceSurfaceSlot): number
+    entriesOfSlot(name: MemorySourceSurfaceSlot): readonly { options: { id?: string; label?: string | (() => string); order?: number }; component?: unknown }[]
+    subscribe(name: MemorySourceSurfaceSlot, listener: () => void): () => void
   }
 }
 
@@ -85,10 +87,16 @@ export function memorySourcePageEntryId(sourceTypeId: string, pageId: string): s
  * Thin Client-Fiber adapter over the DSH child Slot. It creates no service or
  * registry: `slots.inject/register` own declaration waiting and disposal.
  */
-export function installMemorySourceUI(
-  ctx: MemorySourceUIContext,
-  contribution: MemorySourceUIContribution,
-): () => void {
+export function installMemorySourceUI(ctx: MemorySourceUIContext, contribution: MemorySourceUIContribution): () => void {
+  return installSourceSurface(ctx, contribution, MNEMON_SOURCE_PAGE_SLOT)
+}
+
+/** Additive shell widgets with the same instance-bound capabilities as Source pages. */
+export function installMemorySourceOverlayUI(ctx: MemorySourceUIContext, contribution: { sourceTypeId: string; overlays: readonly MemorySourcePageDefinition[] }): () => void {
+  return installSourceSurface(ctx, { sourceTypeId: contribution.sourceTypeId, pages: contribution.overlays }, MNEMON_SOURCE_OVERLAY_SLOT)
+}
+
+function installSourceSurface(ctx: MemorySourceUIContext, contribution: MemorySourceUIContribution, slot: MemorySourceSurfaceSlot): () => void {
   if (contribution.pages.length === 0) throw new Error('memory Source UI requires at least one page')
   const seen = new Set<string>()
   const pages = contribution.pages.map((page, index) => {
@@ -100,12 +108,12 @@ export function installMemorySourceUI(
 
   // One declaration wait owns the whole contribution. Once the parent exists,
   // registrations commit transactionally and are released in reverse order.
-  return ctx.slots.inject(MNEMON_SOURCE_PAGE_SLOT, () => {
+  return ctx.slots.inject(slot, () => {
     const disposers: Array<() => void> = []
     try {
       for (const { page, entryId, order } of pages) {
         disposers.push(ctx.slots.register({
-          name: MNEMON_SOURCE_PAGE_SLOT,
+          name: slot,
           id: entryId,
           order,
           label: page.label,
@@ -123,16 +131,22 @@ export function installMemorySourceUI(
 
 /** Stable uSES directory over the Slot ledger; no parallel page registry. */
 export function createMemorySourcePageDirectory(ctx: MemorySourcePageDirectoryContext): MemorySourcePageDirectory {
+  return createSourceSurfaceDirectory(ctx, MNEMON_SOURCE_PAGE_SLOT)
+}
+export function createMemorySourceOverlayDirectory(ctx: MemorySourcePageDirectoryContext): MemorySourcePageDirectory {
+  return createSourceSurfaceDirectory(ctx, MNEMON_SOURCE_OVERLAY_SLOT)
+}
+function createSourceSurfaceDirectory(ctx: MemorySourcePageDirectoryContext, slot: MemorySourceSurfaceSlot): MemorySourcePageDirectory {
   let version = -1
   let localeSnapshot: unknown
   let snapshot: readonly MemorySourcePageEntry[] = Object.freeze([])
   const read = (): readonly MemorySourcePageEntry[] => {
-    const currentVersion = ctx.slots.getVersion(MNEMON_SOURCE_PAGE_SLOT)
+    const currentVersion = ctx.slots.getVersion(slot)
     const currentLocale = ctx.locale?.getSnapshot()
     if (currentVersion === version && currentLocale === localeSnapshot) return snapshot
     version = currentVersion
     localeSnapshot = currentLocale
-    snapshot = Object.freeze(ctx.slots.entriesOfSlot(MNEMON_SOURCE_PAGE_SLOT).flatMap(entry => {
+    snapshot = Object.freeze(ctx.slots.entriesOfSlot(slot).flatMap(entry => {
       const id = entry.options.id
       if (id === undefined) return []
       const separator = id.indexOf('/')
@@ -172,7 +186,7 @@ export function createMemorySourcePageDirectory(ctx: MemorySourcePageDirectoryCo
         read()
         listener()
       }
-      const stopSlots = ctx.slots.subscribe(MNEMON_SOURCE_PAGE_SLOT, changed)
+      const stopSlots = ctx.slots.subscribe(slot, changed)
       const stopLocale = ctx.locale?.subscribe(changed)
       return () => { stopLocale?.(); stopSlots() }
     },

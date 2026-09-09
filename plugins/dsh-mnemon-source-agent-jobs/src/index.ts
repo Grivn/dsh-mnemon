@@ -119,6 +119,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const adapter = new DshWorkspaceAdapter({ sessionQuery: ctx.sessionQuery, agents: ctx.agents, workspaceRegistry: ctx.workspaceRegistry })
   installMemory(ctx, { plugin: memoryPlugin, sources: [createAgentJobsSource(config, { async completed(event) {
     ctx.emit('mnemon-jobs/completed', event)
+    ctx.emit('mnemon-workspace/activity', { eventKey: event.record.id + '/completed', sourceInstanceKey: event.sourceInstanceKey, scope: event.scope, kind: 'job-completed', title: 'Background job: ' + event.record.title.slice(0, 280), summary: String(event.record.data.output ?? event.record.data.error ?? event.record.data.status).slice(-6000), level: event.record.data.status === 'succeeded' ? 'info' : 'warning', recordId: event.record.id })
     if (config.notifyOwner !== false && event.record.data.notify !== false && typeof event.record.data.ownerSessionId === 'string' && event.record.data.ownerSessionId) {
       await adapter.deliver(event.record.data.ownerSessionId, `Background job ${event.record.title} (${event.record.id}) ${String(event.record.data.status)}.\n${String(event.record.data.output ?? event.record.data.error ?? '').slice(-6000)}`, event.scope, { plugin: name })
     }

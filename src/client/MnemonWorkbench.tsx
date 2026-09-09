@@ -1,3 +1,4 @@
+import { bindSourceManagementClient } from './source-client.ts'
 import { isDefaultSourceInstance } from '../host/protocol.ts'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { IconChevronLeftOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -76,29 +77,6 @@ function managedSourceTypeId(page: Page): string | undefined {
   return page.startsWith('source-management:') ? page.slice('source-management:'.length) : undefined
 }
 
-function bindSourceManagementClient(client: MnemonClient, instance: MemorySourceManagementInstance, taskClient: MnemonClient): MnemonSourceManagementClient {
-  return {
-    sourceInstanceKey: instance.sourceInstanceKey,
-    revision: instance.revision,
-    ...(instance.assistance === undefined || instance.assistance.length === 0 ? {} : { assistance: {
-      operations: instance.assistance,
-      execute: (operation: string, input: JsonValue, options: { expectedRevision: string; confirmed: boolean }) => {
-        // These clean task-Agent workflows follow the inspected Sidebar root;
-        // normal Source edits keep their existing session-aware write path.
-        const task = ['agent-search', 'supervise', 'body-create', 'body-metadata-maintain'].includes(operation)
-        return (task ? taskClient : client).assistSource(instance.sourceInstanceKey, operation, input, options.expectedRevision, options.confirmed)
-      },
-    } }),
-    read: (operation, input = null) => client.readSourceManagement(instance.sourceInstanceKey, operation, input),
-    mutate: (operation, input, options) => client.mutateSourceManagement(
-      instance.sourceInstanceKey,
-      operation,
-      input,
-      options.expectedRevision ?? instance.revision,
-      options.confirmed,
-    ),
-  }
-}
 
 function jsonRecord(value: JsonValue): Record<string, JsonValue> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value : undefined

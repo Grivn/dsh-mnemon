@@ -24,6 +24,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
   interface SlotMap {
     /** Optional Source-specific pages owned by the canonical Mnemon workspace. */
+    'mnemon.source.overlay': { kind: 'list'; scope: 'root'; owner: MnemonSourcePageOwnerProps }
     'mnemon.source.page': {
       kind: 'list'
       scope: 'root'

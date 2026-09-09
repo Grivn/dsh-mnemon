@@ -9,7 +9,7 @@ import type { MnemonSourcePageOwnerProps } from "../src/client/dsh-context.ts"
 import { MnemonWorkbench } from '../src/client/MnemonWorkbench.tsx'
 import { translateEn } from '../src/client/locales.ts'
 import {
-  createMemorySourcePageDirectory,
+  createMemorySourcePageDirectory, createMemorySourceOverlayDirectory, installMemorySourceOverlayUI, MNEMON_SOURCE_OVERLAY_SLOT,
   installMemorySourceUI,
   MNEMON_SOURCE_PAGE_SLOT,
   type MemorySourcePageProps,
@@ -22,12 +22,12 @@ class TestSlots {
     return (this.core.register as (options: unknown, component: unknown) => () => void)(options, component)
   }
 
-  inject(_name: string, factory: () => (() => void)): () => void {
+  inject(name: string, factory: () => (() => void)): () => void {
     let active: (() => void) | undefined
     let disposed = false
     const reconcile = (): void => {
       if (disposed) return
-      const declared = this.core.specDynamic(MNEMON_SOURCE_PAGE_SLOT) !== undefined
+      const declared = this.core.specDynamic(name) !== undefined
       if (!declared) {
         active?.()
         active = undefined
@@ -35,7 +35,7 @@ class TestSlots {
         active = factory()
       }
     }
-    const unsubscribe = this.core.subscribeDeclaration(MNEMON_SOURCE_PAGE_SLOT, reconcile)
+    const unsubscribe = this.core.subscribeDeclaration(name, reconcile)
     try {
       reconcile()
     } catch (error) {
@@ -107,6 +107,18 @@ describe('Source Client presentation conformance', () => {
     second()
     expect(directory.getSnapshot()).toEqual([])
     owner()
+  })
+
+  it('keeps shell overlays in a separate additive slot with ordinary Source ownership', () => {
+    const slots = new TestSlots()
+    const owner = slots.register({ name: 'root', children: { [MNEMON_SOURCE_PAGE_SLOT]: { kind: 'list', scope: 'root' }, [MNEMON_SOURCE_OVERLAY_SLOT]: { kind: 'list', scope: 'root' } } }, Page)
+    const stopPage = installMemorySourceUI({ slots } as never, { sourceTypeId: 'inbox', pages: [{ id: 'main', label: 'Inbox', component: Page }] })
+    const stopOverlay = installMemorySourceOverlayUI({ slots } as never, { sourceTypeId: 'inbox', overlays: [{ id: 'bell', label: 'Inbox status', component: Page }] })
+    expect(createMemorySourcePageDirectory({slots} as never).getSnapshot().map(entry=>entry.id)).toEqual(['inbox/main'])
+    const directory = createMemorySourceOverlayDirectory({slots} as never)
+    expect(directory.getSnapshot().map(entry=>entry.id)).toEqual(['inbox/bell'])
+    stopOverlay(); expect(directory.getSnapshot()).toEqual([])
+    stopPage();owner()
   })
 
   afterEach(cleanup)
