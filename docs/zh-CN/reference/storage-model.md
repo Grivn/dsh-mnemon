@@ -59,6 +59,9 @@ follow an exact cold reference when full text is required
 
 `storageScope` 决定整个根，而不只是 Mnemon 数据库。`workspace` 范围会为每个已登记 DSH 工作区解析独立的 `<workspace>/.mnemon`。显式启用的 `runtimeUserScope=global` 是唯一的分根例外：Runtime 从全局根读取 USER.md，MEMORY.md 与其他所有组件仍留在所选根。工作台任务使用查看工作区；对话工具与生命周期使用所属会话的 cwd 和已固定的 View。`state/memory-providers.json` 保存第三方 endpoint、目标 URI、身份和可选凭据；文件权限为 `0600`，Host 只返回已配置字段名，不回传凭据值。
 
+`workspaces` 布局把四个 area 集中在 `<集中根>/workspaces/<工作区路径哈希>/`；独立布局插件不创建文件或修改旧根。只有显式 `runtimeUserScope: global` 会把 USER.md 放在该工作区子目录之外。
+
+
 <a id="runtime-memory"></a>
 
 ## 运行时记忆
@@ -211,5 +214,3 @@ Mnemon Native 保留 `temporal`、`semantic`、`causal` 和 `entity` 关系；Hi
 | 第三方 Provider 连接 | `state/memory-providers.json` | 脱敏的 Provider 能力与状态 |
 | 长期记忆 | Mnemon `mnemon.db` 或远程 Provider | 图谱投影、跨 Provider 排名融合 |
 | 审查水位 | Host 进程内存 | 状态页快照；尚未持久化 |
-
-`workspaces` 布局把四个 area 集中在 `<集中根>/workspaces/<工作区路径哈希>/`；独立布局插件不创建文件或修改旧根。只有显式 `runtimeUserScope: global` 会把 USER.md 放在该工作区子目录之外。

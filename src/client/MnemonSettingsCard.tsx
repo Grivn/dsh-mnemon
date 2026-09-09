@@ -456,7 +456,7 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
           <div className={css.sectionHeading}>
             <div><h2 id="mnemon-storage-heading">{t('config.storageTitle')}</h2><p>{t('config.storageDescription')}</p></div>
           </div>
-          <div className={css.choiceGrid} role="radiogroup" aria-label={t('config.scopeAria')}>
+          <div className={`${css.choiceGrid} ${css.storageChoiceGrid}`} role="radiogroup" aria-label={t('config.scopeAria')}>
             <ChoiceCard id="mnemon-storage-global" name="mnemon-storage" label={t('config.global')} detail={t('config.globalScopeHint')} checked={!isWorkspaceStorageScope(draft.storageScope)} disabled={coreDisabled} onChange={() => edit('storageScope', draft.dataDir.trim() === '' ? 'global' : 'custom')} />
             <ChoiceCard id="mnemon-storage-workspace" name="mnemon-storage" label={t('config.workspace')} detail="<workspace>/.mnemon" checked={draft.storageScope === 'workspace'} disabled={coreDisabled} onChange={() => edit('storageScope', 'workspace')} />
             <ChoiceCard id="mnemon-storage-workspaces" name="mnemon-storage" label={t('config.workspaces')} detail={t('config.workspacesHint')} checked={draft.storageScope === 'workspaces'} disabled={coreDisabled} onChange={() => edit('storageScope', 'workspaces')} />

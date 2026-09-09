@@ -69,11 +69,12 @@ Tasks follow the DSH new-session model route by default. **Settings → Memory S
 
 Bounded workers may still perform structured judgment internally, but that is an implementation detail. The UI and product documentation consistently call the user-visible unit an **independent task Agent**.
 
-## Global, workspace, and custom scope
+## Storage scope
 
 - **Global** uses `~/.mnemon`, suitable for a control plane shared by local workspaces and Agents.
 - **Workspace** uses `<workspace>/.mnemon`; local data planes such as Mnemon, Holographic, and ByteRover can follow it automatically.
 - **Custom** is effectively a global scope at an explicit path, useful for team conventions and isolated demo roots.
+- **Centralized workspaces** (`workspaces`) uses the bundled `dsh-mnemon-storage-workspaces` layout plugin: one fixed root, independent workspace subdirectories, and optional global USER.md. Scope switches preserve every old root.
 
 Remote Provider workspaces, users, banks, projects, containers, and URIs are their own namespaces. Switching the DSH workspace never silently rewrites them. The workbench may inspect a chosen directory; an independent task Agent always writes according to its effective workspace and saved scope rules.
 
@@ -102,5 +103,3 @@ Remote Provider workspaces, users, banks, projects, containers, and URIs are the
 3. [Compare all nine Providers](./memory-providers.md)
 4. [Understand lifecycle, concurrency, and failure boundaries](../reference/workflows.md)
 5. [Check compatibility and upgrade](../reference/compatibility.md)
-
-**Centralized workspaces** (`workspaces`) uses the bundled `dsh-mnemon-storage-workspaces` layout plugin: one fixed root, independent workspace subdirectories, and optional global USER.md. Scope switches preserve every old root.

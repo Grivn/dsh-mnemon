@@ -69,11 +69,13 @@ Runtime、Documents、Memory Spaces 是独立 Source 插件；Strategy 将各实
 
 内部仍可能使用受限 worker 完成结构化判断，但它属于实现细节。用户界面与产品文档统一称为“独立任务 Agent”。
 
-## 全局、工作区与自定义
+## 存储范围
 
 - **全局**：使用 `~/.mnemon`，适合本机多个工作区和 Agent 共享控制面。
 - **工作区**：使用 `<workspace>/.mnemon`；Mnemon、Holographic 与 ByteRover 等本地数据面可以自动跟随工作区。
 - **自定义**：本质上是显式路径的全局范围，适合团队约定或隔离演示环境。
+- **集中工作区**（`workspaces`）使用随附的 `dsh-mnemon-storage-workspaces` 布局插件：统一固定根、相互独立的工作区子目录，以及可选的全局 USER.md。切换范围保留所有旧根。
+
 
 远程 Provider 的 workspace、user、bank、project、container 或 URI 是它们自己的命名空间，不会因 DSH 左上角切换工作区而被隐式重写。工作区页可以查看选定目录；独立任务 Agent 的写入位置始终由当前任务的有效工作区和保存的范围规则确定。
 
@@ -102,5 +104,3 @@ Runtime、Documents、Memory Spaces 是独立 Source 插件；Strategy 将各实
 3. [比较九种 Provider 的能力与配置](./memory-providers.md)
 4. [理解生命周期、并发和失败边界](../reference/workflows.md)
 5. [检查兼容性并升级](../reference/compatibility.md)
-
-**集中工作区**（`workspaces`）使用随附的 `dsh-mnemon-storage-workspaces` 布局插件：统一固定根、相互独立的工作区子目录，以及可选的全局 USER.md。切换范围保留所有旧根。

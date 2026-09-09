@@ -625,5 +625,6 @@
   .miniSpinner { animation: none; }
 }
 
+.storageChoiceGrid > :last-child { grid-column: 1 / -1; }
 .workspaceStorageLocation { margin-top: 16px; }
 .workspaceStorageLocation > p { margin: 10px 0 0; color: var(--dsw-alias-label-caption); font-size: 12px; line-height: 1.5; }

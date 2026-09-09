@@ -163,6 +163,9 @@ By default, open the dedicated workbench from Memory System in the DSH sidebar. 
 | **Global** (default) | `MNEMON_DATA_DIR` or `~/.mnemon` | Sharing one memory set across workspaces |
 | **Workspace** | `<workspace>/.mnemon` | Project isolation with cross-workspace inspection in the workbench |
 | **Custom** | `dataDir` | A dedicated disk, mounted volume, or explicit directory |
+| **Centralized workspaces** | `<central-root>/workspaces/<workspace-path-hash>/` | Central management with project isolation |
+
+For centralized project isolation, select `storageScope: workspaces` and optionally set `dataDir`; data is stored in `<central-root>/workspaces/<workspace-path-hash>/`. The directory setting appears alongside the scope selector. Existing roots are retained when switching modes.
 
 Save initializes a candidate runtime graph before atomically switching the Host. The page clears stale state and reloads automatically—no browser refresh is needed. Changing scope never migrates, merges, or deletes old data.
 
@@ -242,5 +245,3 @@ Ordinary conversation should not force recall. Current requests, repository file
 - Use the [storage model](../reference/storage-model.md) to choose Runtime, Documents, or Memory Spaces.
 - Use the [configuration reference](../reference/configuration.md) for Workspace scope, read-only behavior, and lifecycle switches.
 - Use the [operations guide](./operations.md) to export your first ZIP backup and establish a pre-upgrade checklist.
-
-For centralized project isolation, select `storageScope: workspaces` and optionally set `dataDir`; data is stored in `<central-root>/workspaces/<workspace-path-hash>/`. The directory setting appears alongside the scope selector. Existing roots are retained when switching modes.

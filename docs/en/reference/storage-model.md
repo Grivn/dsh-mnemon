@@ -59,6 +59,9 @@ Use `global` for a common local root, `custom` for an explicitly agreed root, or
 
 `storageScope` determines the entire root, not just the Mnemon databases. The `workspace` scope resolves an independent `<workspace>/.mnemon` for every registered DSH workspace. The opt-in `runtimeUserScope=global` is the sole split-root exception: Runtime reads USER.md from the global root while MEMORY.md and every other component remain under the selected root. Workbench tasks use the inspected workspace; conversation tools and lifecycle hooks use their owning session's cwd and pinned View. `state/memory-providers.json` stores third-party endpoints, target URIs, identities, and optional credentials. Its mode is `0600`; the Host returns configured field names, never saved credential values.
 
+The `workspaces` layout keeps all four areas under `<central-root>/workspaces/<workspace-path-hash>/`; its independent layout plugin never creates files or changes old roots. Only explicit `runtimeUserScope: global` places USER.md outside that workspace subtree.
+
+
 ## Runtime Memory
 
 ### Semantics
@@ -203,5 +206,3 @@ Mnemon Native preserves `temporal`, `semantic`, `causal`, and `entity` relations
 | Third-party connections | `state/memory-providers.json` | redacted provider capabilities and status |
 | Long-term memory | Mnemon `mnemon.db` or remote provider | graph projection and cross-provider rank fusion |
 | Review watermark | Host process memory | status-page snapshot; not yet persisted |
-
-The `workspaces` layout keeps all four areas under `<central-root>/workspaces/<workspace-path-hash>/`; its independent layout plugin never creates files or changes old roots. Only explicit `runtimeUserScope: global` places USER.md outside that workspace subtree.
