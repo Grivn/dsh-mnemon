@@ -2,7 +2,9 @@
 
 **English** | [简体中文](./README.zh-CN.md)
 
-**Verdict: full memory-quality acceptance failed.** Four sessions kept working, most current facts were retained and recalled, and every tested formal correction was answered correctly. However, automatic maintenance performed lossy replacements, removed module attribution, retained obsolete documents and persisted transient examples. This reproduces part of the “messy memory” complaint in [issue #203](https://github.com/omdsh-dev/dsh-mnemon/issues/203). Passing the capacity repair does not establish overall automatic-memory quality.
+**Acceptance: passed, with follow-up improvements retained.** Following user review, the measured behavior of this four-session simulation is accepted: 144/152 answers were correct (94.7%), the other eight were unknown, and every tested formal correction was answered correctly. There were no cross-module, stale or unsupported answers. All four sessions continued completing their work, meeting the usability expectation for this acceptance.
+
+Observed lossy replacements, missing module attribution, obsolete documents, transient clutter and missed recall remain non-blocking follow-up items, with their relationship to [issue #203](https://github.com/omdsh-dev/dsh-mnemon/issues/203) documented below. This updates the reviewed acceptance decision. Original automated scores, measurements and finding evidence are preserved; see `acceptanceDecision` in [results.json](./results.json).
 
 This report tests production commit `fce3873e9669c9a9eefb902b76ca8d0ddbf68700` in [PR #212](https://github.com/omdsh-dev/dsh-mnemon/pull/212), dated 2026-09-09. This addition contains experiments, evidence and documentation; the quality defects below remain unfixed. Every outgoing model request was restricted to `deepseek-v4-flash`, and Flash was the only model observed in responses. Thinking was disabled; Pro was never used.
 
@@ -24,10 +26,11 @@ Each condition has concurrent backend, frontend, Android and operations sessions
 | Automatic idle reviews / model requests | 40 / 321 | 41 / 299 | 85 / 654 |
 | Rejected memory tool calls | 1 | 3 | 4 |
 | Experiment duration | 4m 34s | 4m 9s | 12m 5s |
+| Reviewed acceptance | Pass | Pass | Pass |
 
 The experiments completed 192 developer turns, 52 fresh sessions, 152 answer cells and 166 automatic reviews. Every developer turn's final configuration check passed. Two intermediate test-before-edit checks failed and then recovered in the short four-space condition. Its original scorer labeled these `development-workload-incomplete`; manual adjudication found the work complete. The original flag remains in the evidence, and the committed reporter now distinguishes intermediate failure from final incompletion.
 
-Coverage inspects complete Runtime, Documents and cold-memory content. It does not establish that every source is current, each row is independently understandable, or a fresh reader can retrieve it. All three Vitest experiments completed successfully; all three recorded `automatedVerdict` values are `fail`.
+Coverage inspects complete Runtime, Documents and cold-memory content. It does not establish that every source is current, each row is independently understandable, or a fresh reader can retrieve it. All three Vitest experiments completed successfully; their original `automatedVerdict` values are `fail` under the frozen strict thresholds. Following user review, the findings are classified as non-blocking improvements and the reviewed acceptance is pass. Original scores are not changed retrospectively.
 
 ## Comparison with the complaint
 

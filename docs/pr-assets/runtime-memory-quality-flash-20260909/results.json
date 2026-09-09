@@ -1,6 +1,36 @@
 {
   "testedProductionCommit": "fce3873e9669c9a9eefb902b76ca8d0ddbf68700",
   "model": "deepseek-v4-flash",
+  "acceptanceDecision": {
+    "status": "pass",
+    "reviewDate": "2026-09-09",
+    "authority": "Explicit user acceptance after review of measured accuracy and observed findings.",
+    "appliesToRuns": [
+      "short-single",
+      "short-four",
+      "long-four"
+    ],
+    "basis": {
+      "correctAnswers": 144,
+      "answerCells": 152,
+      "unknownAnswers": 8,
+      "unsupportedAnswers": 0,
+      "staleAnswers": 0,
+      "crossModuleAnswers": 0,
+      "allTestedCorrectionsCorrect": true,
+      "allDeveloperTurnsCompleted": true
+    },
+    "nonBlockingFindings": [
+      "lossy whole-entry replacements",
+      "missing module attribution",
+      "obsolete active documents",
+      "transient examples retained",
+      "missed recall",
+      "recovered invalid tool calls"
+    ],
+    "originalAutomatedVerdictsPreserved": true,
+    "scope": "Reviewed acceptance of this bounded simulation. Original frozen thresholds, observations and scores remain unchanged; follow-up defects are not represented as fixed."
+  },
   "runs": [
     {
       "id": "short-single",
