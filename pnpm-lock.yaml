@@ -44,6 +44,9 @@ importers:
       dsh-mnemon-source-runtime:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-source-runtime
+      dsh-mnemon-storage-workspaces:
+        specifier: 0.5.5
+        version: link:plugins/dsh-mnemon-storage-workspaces
       dsh-mnemon-strategy-auto-capture:
         specifier: 0.5.4
         version: link:plugins/dsh-mnemon-strategy-auto-capture
@@ -561,6 +564,24 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
+      tsdown:
+        specifier: ^0.22.0
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(publint@0.3.23)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jsdom@26.1.0)(lightningcss@1.33.0)(yaml@2.9.0)
+
+  plugins/dsh-mnemon-storage-workspaces:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      dsh-mnemon:
+        specifier: ^0.5.5
+        version: link:../..
       tsdown:
         specifier: ^0.22.0
         version: 0.22.14(@arethetypeswrong/core@0.18.5)(publint@0.3.23)(typescript@5.9.3)

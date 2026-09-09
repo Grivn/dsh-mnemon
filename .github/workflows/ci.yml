@@ -54,6 +54,7 @@ jobs:
       - name: Build public plugin SDK entries
         run: >-
           pnpm --workspace-concurrency=2
+          --filter dsh-mnemon-storage-workspaces
           --filter dsh-mnemon-source-memory-spaces
           --filter dsh-mnemon-source-documents
           --filter dsh-mnemon-source-runtime

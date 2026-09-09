@@ -16,7 +16,7 @@ Older media remain available with their original version labels in [historical e
 
 The Memory System sidebar entry always opens its workspace, including after visiting Task Board or SSH. Clicking it again keeps the current page open; use Back to conversation to close it.
 
-With `displayMode: builtin`, open Memory System from the conversation's tabs instead; the Sidebar entry is absent. The header omits storage-mode and workspace-selection controls because the Host uses the owning session's global, workspace or custom scope. All Source pages and dialogs below are shared, and conversation shortcuts open the matching tab. See [scope mapping](../reference/configuration.md#entry-placement-displaymode-and-tabenabled).
+With `displayMode: builtin`, open Memory System from the conversation's tabs instead; the Sidebar entry is absent. The header omits storage-mode and workspace-selection controls because the Host uses the owning session's global, workspace, centralized workspaces or custom scope. All Source pages and dialogs below are shared, and conversation shortcuts open the matching tab. See [scope mapping](../reference/configuration.md#entry-placement-displaymode-and-tabenabled).
 
 Primary pages remain **Status, Runtime, Documents, Memory Spaces**. Memory Spaces adds **Overview, Recall, Content, Entities**, with **Remember** and **Distillation strategy** at the top right. A generated View is an internal per-turn runtime artifact, not a navigation page; Status does not own plugin discovery or installation.
 
@@ -224,3 +224,5 @@ Remote Provider workspaces, users, banks, projects, containers, and URIs are ind
 - The workbench defaults to Sidebar; Builtin puts the same UI in the owning conversation. Turn memory and Save to memory remain conversation shortcuts.
 
 Next: [Capability map](./capabilities.md) · [Getting Started](./getting-started.md) · [Provider guide](./memory-providers.md) · [Configuration](../reference/configuration.md)
+
+Choose **Settings → Memory System → Memory scope → Centralized · isolated by workspace** to collect project-isolated memory in one directory. Its optional **Central root directory** field is in the same section; leave it empty for `MNEMON_DATA_DIR` or `~/.mnemon`. The independent **Global user profile** option remains available.

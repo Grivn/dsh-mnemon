@@ -98,7 +98,7 @@ Generate an inventory or checksums and rehearse recovery in isolation. A normal 
 
 ## Changing storage scope
 
-Saving `global` / `workspace` / `custom` initializes a new runtime graph before switching atomically. The page reloads automatically, but **data is not migrated**:
+Saving `global` / `workspace` / `custom` / `workspaces` initializes a new runtime graph before switching atomically. The page reloads automatically, but **data is not migrated**:
 
 ```text
 old scope -- save --> new empty or existing root
@@ -266,3 +266,5 @@ Activity score, latest checkpoint, and retry state are not persisted. Host resta
 ### Versions and internationalization
 
 There is no formal fixed DSH / Mnemon support matrix. The main Web interface is bilingual, while commands, tool cards, compatibility metadata, and some errors remain partially untranslated.
+
+With `workspaces`, back up the complete central directory for every workspace, or export a Pack for the selected workspace only. A renamed/moved workspace receives a new path hash; restoring its old data is an explicit operator action.

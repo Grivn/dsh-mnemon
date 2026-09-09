@@ -102,3 +102,5 @@ Remote Provider workspaces, users, banks, projects, containers, and URIs are the
 3. [Compare all nine Providers](./memory-providers.md)
 4. [Understand lifecycle, concurrency, and failure boundaries](../reference/workflows.md)
 5. [Check compatibility and upgrade](../reference/compatibility.md)
+
+**Centralized workspaces** (`workspaces`) uses the bundled `dsh-mnemon-storage-workspaces` layout plugin: one fixed root, independent workspace subdirectories, and optional global USER.md. Scope switches preserve every old root.

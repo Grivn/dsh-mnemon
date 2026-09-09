@@ -16,7 +16,7 @@
 
 侧栏“记忆系统”始终打开工作台，从任务看板或 SSH 返回时也一样。重复点击保留当前页面；关闭工作台请使用“返回会话”。
 
-使用 `displayMode: builtin` 时，从会话 Tab 打开“记忆系统”，Sidebar 不再显示入口。Host 使用所属会话的全局、工作区或自定义范围，因此顶部不显示存储模式和工作区选择器。以下 Source 页面与弹窗全部共用，对话快捷入口会打开匹配的 Tab。详见[范围映射](../reference/configuration.md#入口位置displaymode-与-tabenabled)。
+使用 `displayMode: builtin` 时，从会话 Tab 打开“记忆系统”，Sidebar 不再显示入口。Host 使用所属会话的全局、工作区、集中工作区或自定义范围，因此顶部不显示存储模式和工作区选择器。以下 Source 页面与弹窗全部共用，对话快捷入口会打开匹配的 Tab。详见[范围映射](../reference/configuration.md#入口位置displaymode-与-tabenabled)。
 
 一级页仍按**状态、运行时、档案、记忆空间**排列。记忆空间内部再分为**概览、检索、内容、实体**，右上角保留“沉淀记忆”和“沉淀策略”。生成的 View 是每轮内部运行时产物，不单独占用导航页面，状态页也不承担插件发现或安装。
 
@@ -232,3 +232,5 @@ Mnemon 自己的自定义目录、备份与迁移留在 Mnemon 专属折叠区�
 - 工作台默认从 Sidebar 打开，Builtin 将同一界面放入所属会话；本回合记忆和存入记忆仍作为对话内快捷入口。
 
 下一步：[能力地图](./capabilities.md) · [快速开始](./getting-started.md) · [Provider 指南](./memory-providers.md) · [配置参考](../reference/configuration.md)
+
+在“设置 → 记忆系统 → 记忆范围”选择“集中存储 · 按工作区隔离”，即可在统一目录管理相互隔离的项目记忆。同一节的“集中根目录”可留空，使用 `MNEMON_DATA_DIR` 或 `~/.mnemon`；仍可独立选择“全局用户档案”。

@@ -1,10 +1,11 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeMemorySnapshot } from 'dsh-mnemon-source-runtime/contracts'
 import type { HostAgent, HostWorkspaceRegistry, HostAgentsService, HostContextShape, HostSubagentsService } from '../src/host/dsh.ts'
 import { createRuntimeGraph, LiveMnemonRuntime } from '../src/host/runtime.ts'
+import { createStorageRoot } from '../src/host/storage-root.ts'
 import { resolveConfig } from '../src/host/config.ts'
 import { compositionFixture } from './fixtures/composition.ts'
 import { createReadHandler, createWriteHandler } from '../src/host/rpc.ts'
@@ -27,7 +28,7 @@ afterEach(async () => {
 })
 
 describe('default Host scope over the Composable Runtime', () => {
-  it.each(['global', 'workspace', 'custom', 'legacy-custom'] as const)('keeps Builtin session-only reads and writes in %s storage through real Sources', async storageScope => {
+  it.each(['global', 'workspace', 'workspaces', 'custom', 'legacy-custom'] as const)('keeps Builtin session-only reads and writes in %s storage through real Sources', async storageScope => {
     const globalRoot = directory(), customRoot = directory()
     vi.stubEnv('MNEMON_DATA_DIR', globalRoot)
     const sessions = [agent('session-1', directory()), agent('session-2', directory())]
@@ -48,13 +49,13 @@ describe('default Host scope over the Composable Runtime', () => {
     const read = createReadHandler(value.live, lifecycle)
     const write = createWriteHandler(value.live, lifecycle)
     for (const session of sessions) {
-      const expected = storageScope === 'workspace' ? join(session.session.header!.cwd!, '.mnemon') : storageScope === 'global' ? globalRoot : customRoot
+      const expected = createStorageRoot(value.config, session.session.header!.cwd!).effectiveDataDir()
       expect(value.live.route({ sessionId: session.id })).toMatchObject({ selectedRoot: expected, effectiveRoot: expected, aligned: true })
       await expect(write('runtime-memory', { sessionId: session.id, action: 'add', target: 'memory', content: `Memory from ${session.id}` })).resolves.toMatchObject({ ok: true })
       await expect(write('document', { sessionId: session.id, action: 'create', title: `Document from ${session.id}`, content: `# ${session.id}` })).resolves.toMatchObject({ ok: true })
     }
     for (const session of sessions) {
-      const expectedSessions = storageScope === 'workspace' ? [session] : sessions
+      const expectedSessions = ['workspace', 'workspaces'].includes(storageScope) ? [session] : sessions
       const memory = await read('runtime-memory', { sessionId: session.id })
       expect(memory).toMatchObject({ ok: true, value: { entries: expect.arrayContaining(expectedSessions.map(item => expect.objectContaining({ content: `Memory from ${item.id}` }))) } })
       if (memory.ok) expect((memory.value as { entries: unknown[] }).entries).toHaveLength(expectedSessions.length)
@@ -118,32 +119,32 @@ describe('default Host scope over the Composable Runtime', () => {
     live.dispose()
     expect(() => live.forAgent(parent)).toThrow('disposed')
   })
-  it('resolves inspection and execution workspaces through the Host registry', async () => {
+  it.each(['workspace', 'workspaces'] as const)('resolves inspection and execution workspaces through the Host registry in %s mode', async storageScope => {
     const one = directory(), two = directory()
-    const { graph, extensions } = await fixture({ storageScope: 'workspace' })
+    const { graph, extensions } = await fixture({ storageScope })
     const workspaces = [{ id: 'one', title: 'One', path: one }, { id: 'two', title: 'Two', path: two }]
     const registry = { get: (id: string) => workspaces.find(value => value.id === id), list: () => workspaces } satisfies HostWorkspaceRegistry
     const session = agent('session', one)
     const agents = { get: (id: string) => id === session.id ? session : undefined, roots: () => [session] } satisfies HostAgentsService
     const live = new LiveMnemonRuntime(graph, registry, agents, extensions)
     try {
-      expect(live.forAgent(session).directory).toBe(join(one, '.mnemon'))
-      expect(live.forWorkspaceId('two').directory).toBe(join(two, '.mnemon'))
+      expect(live.forAgent(session).directory).toBe(createStorageRoot(graph.config, one).effectiveDataDir())
+      expect(live.forWorkspaceId('two').directory).toBe(createStorageRoot(graph.config, two).effectiveDataDir())
       expect(live.route({ workspaceId: 'two', sessionId: session.id })).toMatchObject({
-        selectedRoot: join(two, '.mnemon'), effectiveRoot: join(one, '.mnemon'), aligned: false,
+        selectedRoot: createStorageRoot(graph.config, two).effectiveDataDir(), effectiveRoot: createStorageRoot(graph.config, one).effectiveDataDir(), aligned: false,
       })
       expect(live.route({ workspaceId: 'one', sessionId: session.id }).aligned).toBe(true)
       expect(() => live.forWorkspaceId('../../private')).toThrow('selected DSH workspace is unavailable')
     } finally { live.dispose() }
   })
-  it('uses Agent cwd in Headless without a Web workspace registry', async () => {
+  it.each(['workspace', 'workspaces'] as const)('uses Agent cwd in Headless without a Web workspace registry in %s mode', async storageScope => {
     const workspace = directory()
-    const { graph, extensions } = await fixture({ storageScope: 'workspace' })
+    const { graph, extensions } = await fixture({ storageScope })
     const session = agent('headless', workspace)
     const live = new LiveMnemonRuntime(graph, undefined, { get: () => session, roots: () => [session] }, extensions)
     try {
-      expect(live.forAgent(session).directory).toBe(join(workspace, '.mnemon'))
-      expect(live.route({ sessionId: session.id })).toMatchObject({ selectedRoot: join(workspace, '.mnemon'), effectiveRoot: join(workspace, '.mnemon'), aligned: true })
+      expect(live.forAgent(session).directory).toBe(createStorageRoot(graph.config, workspace).effectiveDataDir())
+      expect(live.route({ sessionId: session.id })).toMatchObject({ selectedRoot: createStorageRoot(graph.config, workspace).effectiveDataDir(), effectiveRoot: createStorageRoot(graph.config, workspace).effectiveDataDir(), aligned: true })
     } finally { live.dispose() }
   })
   it('preserves one singleton root for global and custom storage', async () => {
@@ -168,5 +169,47 @@ describe('default Host scope over the Composable Runtime', () => {
       }
       graph.composableTurns.endTurn(turn.turnId)
     }
+  })
+})
+
+describe('centralized workspace persistence', () => {
+  it.each(['storage', 'global'] as const)('isolates every Source area while USER.md follows %s scope, and preserves roots across switches', async runtimeUserScope => {
+    const central = directory(), globalRoot = directory(), one = directory(), two = directory()
+    vi.stubEnv('MNEMON_DATA_DIR', globalRoot)
+    const workspaces = [{ id: 'one', path: one, title: 'One' }, { id: 'two', path: two, title: 'Two' }]
+    const f = await compositionFixture({ storageScope: 'workspaces', dataDir: central, runtimeUserScope }, {
+      workspaceRegistry: { get: id => workspaces.find(workspace => workspace.id === id), list: () => workspaces },
+    })
+    fixtures.push(f)
+    const first = f.live.forWorkspaceId('one'), second = f.live.forWorkspaceId('two')
+    const firstRuntime = first.source('runtime'), secondRuntime = second.source('runtime')
+    await firstRuntime.mutate('mutate', { action: 'add', target: 'memory', content: 'Project One only' })
+    await firstRuntime.mutate('mutate', { action: 'add', target: 'user', content: 'Prefer compact answers' })
+    await first.source('documents').mutate('mutate', { action: 'create', title: 'One design', content: '# One only' })
+    const spaces = first.source('memory-spaces')
+    await spaces.mutate('provider-service-update', { providerId: 'holographic', settings: {}, enabled: true })
+    const catalog = await spaces.read<{ items: Array<{ id: string; provider: { id: string } }> }>('body-directory')
+    const body = catalog.items.find(item => item.provider.id === 'holographic')!
+    expect(body).toBeDefined()
+    await spaces.mutate('remember', { memoryBodyId: body.id, content: 'Project One durable sentinel' })
+    for (const area of ['runtime', 'data', 'documents', 'state']) expect(existsSync(join(first.directory, area)), area).toBe(true)
+    const snapshot = await secondRuntime.read<RuntimeMemorySnapshot>('snapshot')
+    expect(snapshot.entries.map(entry => entry.content)).toEqual(runtimeUserScope === 'global' ? ['Prefer compact answers'] : [])
+    expect(snapshot.targets.user.markdownPath).toBe(join(runtimeUserScope === 'global' ? globalRoot : second.directory, 'runtime', 'USER.md'))
+    expect((await second.source('documents').read<{ activeCount: number }>('snapshot')).activeCount).toBe(0)
+    expect((await second.source('memory-spaces').read<{ items: unknown[] }>('body-directory')).items).toHaveLength(0)
+    expect(existsSync(join(one, '.mnemon'))).toBe(false)
+    expect(existsSync(join(two, '.mnemon'))).toBe(false)
+    const originalMemory = readFileSync(join(first.directory, 'runtime', 'memories.json'), 'utf8')
+    const originalState = readFileSync(join(first.directory, 'state', 'memory-providers.json'), 'utf8')
+    const legacy = createRuntimeGraph(resolveConfig({ ...f.config, storageScope: 'custom' }), one, f.extensions)
+    f.live.swap(legacy)
+    expect((await f.live.forWorkspaceId('one').source('runtime').read<RuntimeMemorySnapshot>('snapshot')).entries.some(entry => entry.content === 'Project One only')).toBe(false)
+    f.live.swap(createRuntimeGraph(f.config, one, f.extensions))
+    expect((await f.live.forWorkspaceId('one').source('runtime').read<RuntimeMemorySnapshot>('snapshot')).entries.some(entry => entry.content === 'Project One only')).toBe(true)
+    expect(readFileSync(join(first.directory, 'runtime', 'memories.json'), 'utf8')).toBe(originalMemory)
+    expect(readFileSync(join(first.directory, 'state', 'memory-providers.json'), 'utf8')).toBe(originalState)
+    expect(() => f.live.forAgent(agent('missing-cwd', ''))).toThrow('no workspace')
+    expect(() => f.live.forWorkspaceId('../../other')).toThrow('unavailable')
   })
 })

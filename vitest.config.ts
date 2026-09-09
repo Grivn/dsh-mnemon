@@ -20,6 +20,7 @@ export default defineConfig({
       'dsh-mnemon-source-runtime/contracts': fileURLToPath(new URL('./plugins/dsh-mnemon-source-runtime/src/contracts.ts', import.meta.url)),
       'dsh-mnemon-source-documents/contracts': fileURLToPath(new URL('./plugins/dsh-mnemon-source-documents/src/contracts.ts', import.meta.url)),
       'dsh-mnemon-source-memory-spaces/contracts': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/contracts.ts', import.meta.url)),
+      'dsh-mnemon-storage-workspaces': fileURLToPath(new URL('./plugins/dsh-mnemon-storage-workspaces/src/index.ts', import.meta.url)),
       'dsh-mnemon-source-runtime': fileURLToPath(new URL('./plugins/dsh-mnemon-source-runtime/src/index.ts', import.meta.url)),
       'dsh-mnemon-source-documents': fileURLToPath(new URL('./plugins/dsh-mnemon-source-documents/src/index.ts', import.meta.url)),
       'dsh-mnemon-source-memory-spaces': fileURLToPath(new URL('./plugins/dsh-mnemon-source-memory-spaces/src/index.ts', import.meta.url)),

@@ -46,6 +46,7 @@ describe('standalone plugin repository boundary', () => {
     ])
     expect(pluginNames.filter(name => name.startsWith('dsh-mnemon-strategy-'))).toEqual([...threeTierExtensions, threeTierOwner].sort())
     expect(pluginNames.filter(name => name.startsWith('dsh-mnemon-provider-'))).toHaveLength(9)
+    expect(pluginNames.filter(name => name.startsWith('dsh-mnemon-storage-'))).toEqual(['dsh-mnemon-storage-workspaces'])
   })
 
   for (const name of pluginNames) it(`${name} owns its build, tests and declared public dependencies`, () => {

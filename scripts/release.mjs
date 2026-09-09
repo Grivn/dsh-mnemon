@@ -13,7 +13,7 @@ const execute = promisify(execFile)
 const defaultRegistry = 'https://registry.npmjs.org'
 const manifestName = 'release-manifest.json'
 const starterName = 'dsh-mnemon'
-const internalName = /^dsh-mnemon-(?:source|strategy|provider)-[a-z0-9-]+$/u
+const internalName = /^dsh-mnemon-(?:source|strategy|provider|storage)-[a-z0-9-]+$/u
 const releaseVersion = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(alpha|beta|rc)\.(?:0|[1-9]\d*))?$/u
 
 function distTagForVersion(version) {
@@ -206,7 +206,7 @@ export function publicationInputsChanged(plan, paths, { ignoredPackageJson = new
   const changed = new Set()
   const rootInputs = /^(?:package\.json|cordis\.patch\.yml|README(?:\.zh-CN)?\.md|LICENSE|SECURITY\.md|THIRD_PARTY_NOTICES\.md|tsconfig(?:\.types)?\.json|tsdown\.config\.ts|scripts\/link-bundle-declarations\.mjs|src\/|lib\/)/u
   for (const path of paths) {
-    const plugin = /^plugins\/(dsh-mnemon-(?:source|strategy|provider)-[a-z0-9-]+)\/(.+)$/u.exec(path)
+    const plugin = /^plugins\/(dsh-mnemon-(?:source|strategy|provider|storage)-[a-z0-9-]+)\/(.+)$/u.exec(path)
     if (plugin) {
       const [, name, packagePath] = plugin
       if (packageNames.has(name) && !(packagePath === 'package.json' && ignoredPackageJson.has(name))

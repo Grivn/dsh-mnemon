@@ -83,6 +83,7 @@ The Starter ships **3 Sources, 1 default Strategy, 3 optional Strategy contribut
 | [dsh-mnemon-strategy-auto-capture](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-auto-capture/README.md) | In-turn guidance to retain useful facts | Off |
 | [dsh-mnemon-strategy-light-context](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-light-context/README.md) | A shared resident-projection ceiling | Off |
 | [dsh-mnemon-strategy-scoped](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-scoped/README.md) | Ordered Source selection and a writable subset | Off |
+| [dsh-mnemon-storage-workspaces](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-storage-workspaces/README.md) | Central root with isolated workspace subdirectories | Select `workspaces` |
 
 The three enhancements occupy different slots of the default Strategy and can coexist. They still produce one View. Capture is guidance, not an autonomous recorder; a projection ceiling is not token accounting or delta injection; scoped selection does not create storage.
 

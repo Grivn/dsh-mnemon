@@ -242,3 +242,5 @@ Ordinary conversation should not force recall. Current requests, repository file
 - Use the [storage model](../reference/storage-model.md) to choose Runtime, Documents, or Memory Spaces.
 - Use the [configuration reference](../reference/configuration.md) for Workspace scope, read-only behavior, and lifecycle switches.
 - Use the [operations guide](./operations.md) to export your first ZIP backup and establish a pre-upgrade checklist.
+
+For centralized project isolation, select `storageScope: workspaces` and optionally set `dataDir`; data is stored in `<central-root>/workspaces/<workspace-path-hash>/`. The directory setting appears alongside the scope selector. Existing roots are retained when switching modes.

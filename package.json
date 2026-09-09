@@ -156,7 +156,8 @@
     "dsh-mnemon-strategy-scoped": "0.5.4",
     "fflate": "^0.8.3",
     "schemastery": "^3.18.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "dsh-mnemon-storage-workspaces": "0.5.5"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

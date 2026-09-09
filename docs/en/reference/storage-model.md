@@ -131,7 +131,7 @@ User profiles, ordinary conversation, temporary progress, raw large logs, and se
 
 The physical sharing scope of Documents is determined by `storageScope`:
 
-- `workspace`: normally isolated with the project;
+- `workspace` / `workspaces`: normally isolated with the project;
 - `global` / `custom`: multiple workspaces may share the same `documents/index.json`.
 
 Therefore, “Project Documents” describes the content type and does not guarantee physical isolation by workspace. The current session workspace constrains only `sourcePaths` on new writes.
@@ -203,3 +203,5 @@ Mnemon Native preserves `temporal`, `semantic`, `causal`, and `entity` relations
 | Third-party connections | `state/memory-providers.json` | redacted provider capabilities and status |
 | Long-term memory | Mnemon `mnemon.db` or remote provider | graph projection and cross-provider rank fusion |
 | Review watermark | Host process memory | status-page snapshot; not yet persisted |
+
+The `workspaces` layout keeps all four areas under `<central-root>/workspaces/<workspace-path-hash>/`; its independent layout plugin never creates files or changes old roots. Only explicit `runtimeUserScope: global` places USER.md outside that workspace subtree.

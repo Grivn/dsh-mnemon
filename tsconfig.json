@@ -110,6 +110,9 @@
       ],
       "dsh-mnemon-source-memory-spaces/native-cli": [
         "./plugins/dsh-mnemon-source-memory-spaces/src/native-cli.ts"
+      ],
+      "dsh-mnemon-storage-workspaces": [
+        "./plugins/dsh-mnemon-storage-workspaces/src/index.ts"
       ]
     },
     "resolveJsonModule": true

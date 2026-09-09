@@ -51,8 +51,37 @@ describe('Mnemon storage-domain inventory', () => {
     const root = temporaryDirectory()
     const catalog = new StorageScopeInspector({ effectiveDataDir: () => root }, { storageScope: 'custom', dataDir: root }).catalog(workspace)
 
-    expect(catalog.scopes.map(scope => scope.kind)).toEqual(['global', 'workspace', 'custom'])
+    expect(catalog.scopes.map(scope => scope.kind)).toEqual(['global', 'workspace', 'custom', 'workspaces'])
     expect(catalog.scopes.filter(scope => scope.active)).toEqual([expect.objectContaining({ kind: 'custom', root })])
     expect(catalog.scopes.find(scope => scope.kind === 'workspace')?.root).toBe(join(workspace, '.mnemon'))
+  })
+})
+
+describe('centralized storage roots', () => {
+  it('uses the configured central root and inventories only the selected workspace subtree', async () => {
+    const { createStorageRoot } = await import('../src/host/storage-root.ts')
+    const root = temporaryDirectory(), one = temporaryDirectory(), two = temporaryDirectory()
+    const config = { storageScope: 'workspaces' as const, dataDir: root }
+    const first = createStorageRoot(config, one), second = createStorageRoot(config, two)
+    expect(first.effectiveDataDir()).not.toBe(second.effectiveDataDir())
+    const catalog = new StorageScopeInspector(first, config).catalog(one)
+    expect(catalog.activeRoot).toBe(first.effectiveDataDir())
+    expect(catalog.scopes.filter(scope => scope.active)).toEqual([expect.objectContaining({ kind: 'workspaces', root: first.effectiveDataDir() })])
+    const active = catalog.scopes.find(scope => scope.active)!
+    expect(active.areas.map(area => area.path)).toEqual(['runtime', 'data', 'documents', 'state'].map(area => join(first.effectiveDataDir(), area)))
+    expect(active.areas.every(area => area.status === 'missing')).toBe(true)
+  })
+  it('honors dataDir, then MNEMON_DATA_DIR, then the default home root', async () => {
+    const { createStorageRoot } = await import('../src/host/storage-root.ts')
+    const { homedir } = await import('node:os')
+    const { vi } = await import('vitest')
+    const workspace = temporaryDirectory(), root = temporaryDirectory()
+    try {
+      vi.stubEnv('MNEMON_DATA_DIR', root)
+      expect(createStorageRoot({ storageScope: 'workspaces' }, workspace).effectiveDataDir()).toMatch(root + '/workspaces/')
+      expect(createStorageRoot({ storageScope: 'workspaces', dataDir: '~/central' }, workspace).effectiveDataDir()).toMatch(join(homedir(), 'central', 'workspaces'))
+      vi.stubEnv('MNEMON_DATA_DIR', '')
+      expect(createStorageRoot({ storageScope: 'workspaces' }, workspace).effectiveDataDir()).toMatch(join(homedir(), '.mnemon', 'workspaces'))
+    } finally { vi.unstubAllEnvs() }
   })
 })

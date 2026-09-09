@@ -135,7 +135,7 @@ Documents 保存比单条记忆更完整、又希望快速阅读的项目知识�
 
 Documents 的物理共享范围由 `storageScope` 决定：
 
-- `workspace`：通常随项目隔离；
+- `workspace` / `workspaces`：通常随项目隔离；
 - `global` / `custom`：多个工作区可能共享同一个 `documents/index.json`。
 
 因此“项目档案”表示内容类型，不保证天然按工作区物理隔离。当前会话工作区只约束新写入的 `sourcePaths`。
@@ -211,3 +211,5 @@ Mnemon Native 保留 `temporal`、`semantic`、`causal` 和 `entity` 关系；Hi
 | 第三方 Provider 连接 | `state/memory-providers.json` | 脱敏的 Provider 能力与状态 |
 | 长期记忆 | Mnemon `mnemon.db` 或远程 Provider | 图谱投影、跨 Provider 排名融合 |
 | 审查水位 | Host 进程内存 | 状态页快照；尚未持久化 |
+
+`workspaces` 布局把四个 area 集中在 `<集中根>/workspaces/<工作区路径哈希>/`；独立布局插件不创建文件或修改旧根。只有显式 `runtimeUserScope: global` 会把 USER.md 放在该工作区子目录之外。

@@ -102,3 +102,5 @@ Runtime、Documents、Memory Spaces 是独立 Source 插件；Strategy 将各实
 3. [比较九种 Provider 的能力与配置](./memory-providers.md)
 4. [理解生命周期、并发和失败边界](../reference/workflows.md)
 5. [检查兼容性并升级](../reference/compatibility.md)
+
+**集中工作区**（`workspaces`）使用随附的 `dsh-mnemon-storage-workspaces` 布局插件：统一固定根、相互独立的工作区子目录，以及可选的全局 USER.md。切换范围保留所有旧根。

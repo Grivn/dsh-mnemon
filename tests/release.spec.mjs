@@ -69,7 +69,7 @@ describe('selective, channel-safe official release', () => {
   it('validates every real package without requiring one shared version', async () => {
     const packages = await readReleasePackages(root)
     const plan = createReleasePlan(packages)
-    expect(plan.composition).toHaveLength(17)
+    expect(plan.composition).toHaveLength(18)
     expect(plan.distTag).toBe('latest')
     expect(plan.composition.at(-1).manifest.name).toBe('dsh-mnemon')
     for (const { directory, manifest } of packages.filter(packageItem => packageItem.manifest.name.startsWith('dsh-mnemon-provider-'))) {

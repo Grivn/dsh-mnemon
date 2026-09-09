@@ -83,6 +83,7 @@ Starter 随附 **3 个 Source、1 个默认 Strategy、3 个可选策略贡献�
 | [dsh-mnemon-strategy-auto-capture](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-auto-capture/README.md) | 当前回合中主动记录有用事实的指引 | 关闭 |
 | [dsh-mnemon-strategy-light-context](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-light-context/README.md) | 所有选中 Source 共享的常驻投影上限 | 关闭 |
 | [dsh-mnemon-strategy-scoped](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-strategy-scoped/README.md) | 有序选择 Source，并限定可写子集 | 关闭 |
+| [dsh-mnemon-storage-workspaces](https://github.com/omdsh-dev/dsh-mnemon/blob/main/plugins/dsh-mnemon-storage-workspaces/README.md) | 集中根目录下按工作区隔离 | 选择 `workspaces` |
 
 三个增强使用默认 Strategy 的不同槽，可以共存，最终仍输出一个 View。主动记录是指引，不是自主记录器；投影上限不是 token 计费或增量注入；范围组合不创建存储。
 

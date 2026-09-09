@@ -1,0 +1,51 @@
+{
+  "name": "dsh-mnemon-storage-workspaces",
+  "version": "0.5.5",
+  "description": "Fixed-root, per-workspace storage layout plugin for the Mnemon Starter.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsdown",
+    "test": "vitest run",
+    "verify": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "peerDependencies": {
+    "dsh-mnemon": "^0.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "dsh-mnemon": "^0.5.5",
+    "tsdown": "^0.22.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omdsh-dev/dsh-mnemon.git",
+    "directory": "plugins/dsh-mnemon-storage-workspaces"
+  },
+  "homepage": "https://github.com/omdsh-dev/dsh-mnemon/tree/main/plugins/dsh-mnemon-storage-workspaces#readme",
+  "bugs": {
+    "url": "https://github.com/omdsh-dev/dsh-mnemon/issues"
+  }
+}

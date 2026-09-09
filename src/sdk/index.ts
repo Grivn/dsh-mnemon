@@ -39,3 +39,6 @@ export type {
   MemoryViewSpec,
   MemoryViewGuidance,
 } from "../core/contracts/index.ts"
+
+export { defineMemoryStoragePlugin } from './storage.ts'
+export type { MemoryStoragePlugin, MemoryStorageLocation } from './storage.ts'
