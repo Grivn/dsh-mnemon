@@ -1,0 +1,2042 @@
+{
+  "testedProductionCommit": "fce3873e9669c9a9eefb902b76ca8d0ddbf68700",
+  "model": "deepseek-v4-flash",
+  "runs": [
+    {
+      "id": "short-single",
+      "scenario": "automatic-single-space",
+      "executionStatus": "completed",
+      "config": {
+        "memoryLimitBytes": 10240,
+        "idleReviewMs": 5000,
+        "productionIdleReviewMs": 30000,
+        "recallMode": "guided",
+        "writebackMode": "guided",
+        "waves": 12,
+        "acceptance": {
+          "currentFactCoverage": 0.9,
+          "freshRecallAccuracy": 0.9,
+          "forbiddenNoiseMatches": 0,
+          "staleCorrectionAnswers": 0,
+          "crossModuleAnswers": 0,
+          "unsupportedCurrentAnswers": 0,
+          "correctedFactRecall": 1,
+          "noWriteTurnMutations": 0,
+          "exactColdDuplicates": 0,
+          "memoryLimitBytes": 10240
+        }
+      },
+      "developerTurns": 48,
+      "freshReaderSessions": 12,
+      "reviews": 40,
+      "modelCalls": 321,
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "maxConcurrentModels": 4,
+      "elapsedMs": 273767,
+      "inputTokens": 622608,
+      "outputTokens": 61074,
+      "modelCallP95Ms": 5600,
+      "maximumHotBytes": 7095,
+      "finalHotBytes": 7095,
+      "archiveCycles": 0,
+      "finalRowsByLocation": {
+        "runtime": 22,
+        "document": 6
+      },
+      "currentFacts": [
+        {
+          "id": "backend/service_port",
+          "domain": "backend",
+          "key": "service_port",
+          "value": "8411",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "frontend/service_port",
+          "domain": "frontend",
+          "key": "service_port",
+          "value": "8421",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "android/service_port",
+          "domain": "android",
+          "key": "service_port",
+          "value": "8431",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "operations/service_port",
+          "domain": "operations",
+          "key": "service_port",
+          "value": "8441",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "backend/retry_limit",
+          "domain": "backend",
+          "key": "retry_limit",
+          "value": "11",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "3"
+        },
+        {
+          "id": "frontend/retry_limit",
+          "domain": "frontend",
+          "key": "retry_limit",
+          "value": "13",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "5"
+        },
+        {
+          "id": "android/retry_limit",
+          "domain": "android",
+          "key": "retry_limit",
+          "value": "17",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "7"
+        },
+        {
+          "id": "operations/retry_limit",
+          "domain": "operations",
+          "key": "retry_limit",
+          "value": "19",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "9"
+        },
+        {
+          "id": "backend/timeout_ms",
+          "domain": "backend",
+          "key": "timeout_ms",
+          "value": "1200",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "frontend/timeout_ms",
+          "domain": "frontend",
+          "key": "timeout_ms",
+          "value": "1800",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "android/timeout_ms",
+          "domain": "android",
+          "key": "timeout_ms",
+          "value": "2400",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "operations/timeout_ms",
+          "domain": "operations",
+          "key": "timeout_ms",
+          "value": "3000",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "backend/cache_ttl_seconds",
+          "domain": "backend",
+          "key": "cache_ttl_seconds",
+          "value": "61",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "frontend/cache_ttl_seconds",
+          "domain": "frontend",
+          "key": "cache_ttl_seconds",
+          "value": "73",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "android/cache_ttl_seconds",
+          "domain": "android",
+          "key": "cache_ttl_seconds",
+          "value": "89",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "operations/cache_ttl_seconds",
+          "domain": "operations",
+          "key": "cache_ttl_seconds",
+          "value": "97",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "backend/schema_version",
+          "domain": "backend",
+          "key": "schema_version",
+          "value": "be-v17",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "frontend/schema_version",
+          "domain": "frontend",
+          "key": "schema_version",
+          "value": "fe-v23",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "android/schema_version",
+          "domain": "android",
+          "key": "schema_version",
+          "value": "and-v31",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "operations/schema_version",
+          "domain": "operations",
+          "key": "schema_version",
+          "value": "ops-v41",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "backend/queue_name",
+          "domain": "backend",
+          "key": "queue_name",
+          "value": "orion-be-outbox",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "frontend/queue_name",
+          "domain": "frontend",
+          "key": "queue_name",
+          "value": "orion-fe-refresh",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "android/queue_name",
+          "domain": "android",
+          "key": "queue_name",
+          "value": "orion-and-sync",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "operations/queue_name",
+          "domain": "operations",
+          "key": "queue_name",
+          "value": "orion-ops-rollout",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "backend/idempotency_key",
+          "domain": "backend",
+          "key": "idempotency_key",
+          "value": "tenant+order+request",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "frontend/idempotency_key",
+          "domain": "frontend",
+          "key": "idempotency_key",
+          "value": "form+revision+submit",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "android/idempotency_key",
+          "domain": "android",
+          "key": "idempotency_key",
+          "value": "device+draft+sequence",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "operations/idempotency_key",
+          "domain": "operations",
+          "key": "idempotency_key",
+          "value": "release+batch+attempt",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "backend/release_gate",
+          "domain": "backend",
+          "key": "release_gate",
+          "value": "ledger-balanced",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "frontend/release_gate",
+          "domain": "frontend",
+          "key": "release_gate",
+          "value": "keyboard-focus-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "android/release_gate",
+          "domain": "android",
+          "key": "release_gate",
+          "value": "offline-draft-preserved",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "operations/release_gate",
+          "domain": "operations",
+          "key": "release_gate",
+          "value": "rollback-watermark-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "backend/handoff_channel",
+          "domain": "backend",
+          "key": "handoff_channel",
+          "value": "be-settlement",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "frontend/handoff_channel",
+          "domain": "frontend",
+          "key": "handoff_channel",
+          "value": "fe-interaction",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "android/handoff_channel",
+          "domain": "android",
+          "key": "handoff_channel",
+          "value": "and-recovery",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "operations/handoff_channel",
+          "domain": "operations",
+          "key": "handoff_channel",
+          "value": "ops-rollout",
+          "description": "模块故障交接通道",
+          "wave": 11
+        }
+      ],
+      "missingFacts": [
+        "operations/handoff_channel"
+      ],
+      "retainedNoiseMarkers": [],
+      "recordedAutomatedVerdict": "fail",
+      "recordedViolations": [
+        "execution-errors"
+      ],
+      "currentFactCoverage": 0.9722222222222222,
+      "freshRecallAccuracy": 0.9444444444444444,
+      "correctRecall": 34,
+      "recallCells": 36,
+      "unsupportedAnswers": 0,
+      "staleAnswers": 0,
+      "crossModuleAnswers": 0,
+      "correctedAnswers": 4,
+      "correctedQuestions": 4,
+      "exactColdDuplicates": 0,
+      "noWriteTurnMutations": [],
+      "toolErrorCount": 1,
+      "intermediateDevelopmentCheckFailures": 0,
+      "incompleteDevelopmentTurns": [],
+      "remainingRootAgents": 0,
+      "waves": [
+        {
+          "wave": 0,
+          "hotBytes": 404,
+          "currentFacts": 4,
+          "coveredFacts": 2,
+          "missingFacts": [
+            "android/service_port",
+            "operations/service_port"
+          ],
+          "retainedRows": 2,
+          "noiseMarkers": [],
+          "reviews": 4
+        },
+        {
+          "wave": 1,
+          "hotBytes": 1090,
+          "currentFacts": 8,
+          "coveredFacts": 5,
+          "missingFacts": [
+            "android/service_port",
+            "operations/service_port",
+            "android/retry_limit"
+          ],
+          "retainedRows": 5,
+          "noiseMarkers": [],
+          "reviews": 8
+        },
+        {
+          "wave": 2,
+          "hotBytes": 2084,
+          "currentFacts": 12,
+          "coveredFacts": 11,
+          "missingFacts": [
+            "operations/timeout_ms"
+          ],
+          "retainedRows": 9,
+          "noiseMarkers": [],
+          "reviews": 12
+        },
+        {
+          "wave": 3,
+          "hotBytes": 2664,
+          "currentFacts": 16,
+          "coveredFacts": 14,
+          "missingFacts": [
+            "operations/timeout_ms",
+            "operations/cache_ttl_seconds"
+          ],
+          "retainedRows": 12,
+          "noiseMarkers": [],
+          "reviews": 16
+        },
+        {
+          "wave": 4,
+          "hotBytes": 3818,
+          "currentFacts": 20,
+          "coveredFacts": 20,
+          "missingFacts": [],
+          "retainedRows": 15,
+          "noiseMarkers": [],
+          "reviews": 20
+        },
+        {
+          "wave": 5,
+          "hotBytes": 4587,
+          "currentFacts": 24,
+          "coveredFacts": 24,
+          "missingFacts": [],
+          "retainedRows": 18,
+          "noiseMarkers": [],
+          "reviews": 24
+        },
+        {
+          "wave": 6,
+          "hotBytes": 5284,
+          "currentFacts": 28,
+          "coveredFacts": 28,
+          "missingFacts": [],
+          "retainedRows": 22,
+          "noiseMarkers": [],
+          "reviews": 28
+        },
+        {
+          "wave": 7,
+          "hotBytes": 6286,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 31
+        },
+        {
+          "wave": 8,
+          "hotBytes": 6286,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 32
+        },
+        {
+          "wave": 9,
+          "hotBytes": 6560,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 36
+        },
+        {
+          "wave": 10,
+          "hotBytes": 6560,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 36
+        },
+        {
+          "wave": 11,
+          "hotBytes": 7095,
+          "currentFacts": 36,
+          "coveredFacts": 35,
+          "missingFacts": [
+            "operations/handoff_channel"
+          ],
+          "retainedRows": 28,
+          "noiseMarkers": [],
+          "reviews": 40
+        }
+      ]
+    },
+    {
+      "id": "short-four",
+      "scenario": "automatic-four-spaces",
+      "executionStatus": "completed",
+      "config": {
+        "memoryLimitBytes": 10240,
+        "idleReviewMs": 5000,
+        "productionIdleReviewMs": 30000,
+        "recallMode": "guided",
+        "writebackMode": "guided",
+        "waves": 12,
+        "acceptance": {
+          "currentFactCoverage": 0.9,
+          "freshRecallAccuracy": 0.9,
+          "forbiddenNoiseMatches": 0,
+          "staleCorrectionAnswers": 0,
+          "crossModuleAnswers": 0,
+          "unsupportedCurrentAnswers": 0,
+          "correctedFactRecall": 1,
+          "noWriteTurnMutations": 0,
+          "exactColdDuplicates": 0,
+          "memoryLimitBytes": 10240
+        }
+      },
+      "developerTurns": 48,
+      "freshReaderSessions": 12,
+      "reviews": 41,
+      "modelCalls": 299,
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "maxConcurrentModels": 4,
+      "elapsedMs": 248769,
+      "inputTokens": 620512,
+      "outputTokens": 62202,
+      "modelCallP95Ms": 6346,
+      "maximumHotBytes": 6684,
+      "finalHotBytes": 6684,
+      "archiveCycles": 0,
+      "finalRowsByLocation": {
+        "runtime": 29,
+        "document": 5
+      },
+      "currentFacts": [
+        {
+          "id": "backend/service_port",
+          "domain": "backend",
+          "key": "service_port",
+          "value": "8411",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "frontend/service_port",
+          "domain": "frontend",
+          "key": "service_port",
+          "value": "8421",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "android/service_port",
+          "domain": "android",
+          "key": "service_port",
+          "value": "8431",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "operations/service_port",
+          "domain": "operations",
+          "key": "service_port",
+          "value": "8441",
+          "description": "模块开发服务监听端口",
+          "wave": 0
+        },
+        {
+          "id": "backend/retry_limit",
+          "domain": "backend",
+          "key": "retry_limit",
+          "value": "11",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "3"
+        },
+        {
+          "id": "frontend/retry_limit",
+          "domain": "frontend",
+          "key": "retry_limit",
+          "value": "13",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "5"
+        },
+        {
+          "id": "android/retry_limit",
+          "domain": "android",
+          "key": "retry_limit",
+          "value": "17",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "7"
+        },
+        {
+          "id": "operations/retry_limit",
+          "domain": "operations",
+          "key": "retry_limit",
+          "value": "19",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "9"
+        },
+        {
+          "id": "backend/timeout_ms",
+          "domain": "backend",
+          "key": "timeout_ms",
+          "value": "1200",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "frontend/timeout_ms",
+          "domain": "frontend",
+          "key": "timeout_ms",
+          "value": "1800",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "android/timeout_ms",
+          "domain": "android",
+          "key": "timeout_ms",
+          "value": "2400",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "operations/timeout_ms",
+          "domain": "operations",
+          "key": "timeout_ms",
+          "value": "3000",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "backend/cache_ttl_seconds",
+          "domain": "backend",
+          "key": "cache_ttl_seconds",
+          "value": "61",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "frontend/cache_ttl_seconds",
+          "domain": "frontend",
+          "key": "cache_ttl_seconds",
+          "value": "73",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "android/cache_ttl_seconds",
+          "domain": "android",
+          "key": "cache_ttl_seconds",
+          "value": "89",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "operations/cache_ttl_seconds",
+          "domain": "operations",
+          "key": "cache_ttl_seconds",
+          "value": "97",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "backend/schema_version",
+          "domain": "backend",
+          "key": "schema_version",
+          "value": "be-v17",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "frontend/schema_version",
+          "domain": "frontend",
+          "key": "schema_version",
+          "value": "fe-v23",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "android/schema_version",
+          "domain": "android",
+          "key": "schema_version",
+          "value": "and-v31",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "operations/schema_version",
+          "domain": "operations",
+          "key": "schema_version",
+          "value": "ops-v41",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "backend/queue_name",
+          "domain": "backend",
+          "key": "queue_name",
+          "value": "orion-be-outbox",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "frontend/queue_name",
+          "domain": "frontend",
+          "key": "queue_name",
+          "value": "orion-fe-refresh",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "android/queue_name",
+          "domain": "android",
+          "key": "queue_name",
+          "value": "orion-and-sync",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "operations/queue_name",
+          "domain": "operations",
+          "key": "queue_name",
+          "value": "orion-ops-rollout",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "backend/idempotency_key",
+          "domain": "backend",
+          "key": "idempotency_key",
+          "value": "tenant+order+request",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "frontend/idempotency_key",
+          "domain": "frontend",
+          "key": "idempotency_key",
+          "value": "form+revision+submit",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "android/idempotency_key",
+          "domain": "android",
+          "key": "idempotency_key",
+          "value": "device+draft+sequence",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "operations/idempotency_key",
+          "domain": "operations",
+          "key": "idempotency_key",
+          "value": "release+batch+attempt",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "backend/release_gate",
+          "domain": "backend",
+          "key": "release_gate",
+          "value": "ledger-balanced",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "frontend/release_gate",
+          "domain": "frontend",
+          "key": "release_gate",
+          "value": "keyboard-focus-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "android/release_gate",
+          "domain": "android",
+          "key": "release_gate",
+          "value": "offline-draft-preserved",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "operations/release_gate",
+          "domain": "operations",
+          "key": "release_gate",
+          "value": "rollback-watermark-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "backend/handoff_channel",
+          "domain": "backend",
+          "key": "handoff_channel",
+          "value": "be-settlement",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "frontend/handoff_channel",
+          "domain": "frontend",
+          "key": "handoff_channel",
+          "value": "fe-interaction",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "android/handoff_channel",
+          "domain": "android",
+          "key": "handoff_channel",
+          "value": "and-recovery",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "operations/handoff_channel",
+          "domain": "operations",
+          "key": "handoff_channel",
+          "value": "ops-rollout",
+          "description": "模块故障交接通道",
+          "wave": 11
+        }
+      ],
+      "missingFacts": [],
+      "retainedNoiseMarkers": [
+        "TEMP_USER_android"
+      ],
+      "recordedAutomatedVerdict": "fail",
+      "recordedViolations": [
+        "forbidden-noise-retained",
+        "execution-errors",
+        "development-workload-incomplete"
+      ],
+      "currentFactCoverage": 1,
+      "freshRecallAccuracy": 1,
+      "correctRecall": 36,
+      "recallCells": 36,
+      "unsupportedAnswers": 0,
+      "staleAnswers": 0,
+      "crossModuleAnswers": 0,
+      "correctedAnswers": 4,
+      "correctedQuestions": 4,
+      "exactColdDuplicates": 0,
+      "noWriteTurnMutations": [],
+      "toolErrorCount": 3,
+      "intermediateDevelopmentCheckFailures": 2,
+      "incompleteDevelopmentTurns": [],
+      "remainingRootAgents": 0,
+      "waves": [
+        {
+          "wave": 0,
+          "hotBytes": 382,
+          "currentFacts": 4,
+          "coveredFacts": 2,
+          "missingFacts": [
+            "frontend/service_port",
+            "operations/service_port"
+          ],
+          "retainedRows": 2,
+          "noiseMarkers": [],
+          "reviews": 4
+        },
+        {
+          "wave": 1,
+          "hotBytes": 917,
+          "currentFacts": 8,
+          "coveredFacts": 5,
+          "missingFacts": [
+            "frontend/service_port",
+            "operations/service_port",
+            "frontend/retry_limit"
+          ],
+          "retainedRows": 5,
+          "noiseMarkers": [],
+          "reviews": 7
+        },
+        {
+          "wave": 2,
+          "hotBytes": 1667,
+          "currentFacts": 12,
+          "coveredFacts": 11,
+          "missingFacts": [
+            "operations/service_port"
+          ],
+          "retainedRows": 9,
+          "noiseMarkers": [],
+          "reviews": 11
+        },
+        {
+          "wave": 3,
+          "hotBytes": 2236,
+          "currentFacts": 16,
+          "coveredFacts": 15,
+          "missingFacts": [
+            "operations/cache_ttl_seconds"
+          ],
+          "retainedRows": 13,
+          "noiseMarkers": [],
+          "reviews": 15
+        },
+        {
+          "wave": 4,
+          "hotBytes": 3182,
+          "currentFacts": 20,
+          "coveredFacts": 20,
+          "missingFacts": [],
+          "retainedRows": 18,
+          "noiseMarkers": [],
+          "reviews": 19
+        },
+        {
+          "wave": 5,
+          "hotBytes": 3898,
+          "currentFacts": 24,
+          "coveredFacts": 24,
+          "missingFacts": [],
+          "retainedRows": 23,
+          "noiseMarkers": [],
+          "reviews": 23
+        },
+        {
+          "wave": 6,
+          "hotBytes": 4652,
+          "currentFacts": 28,
+          "coveredFacts": 28,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 27
+        },
+        {
+          "wave": 7,
+          "hotBytes": 5464,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 30,
+          "noiseMarkers": [],
+          "reviews": 31
+        },
+        {
+          "wave": 8,
+          "hotBytes": 5735,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 31,
+          "noiseMarkers": [
+            "TEMP_USER_android"
+          ],
+          "reviews": 33
+        },
+        {
+          "wave": 9,
+          "hotBytes": 6049,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 31,
+          "noiseMarkers": [
+            "TEMP_USER_android"
+          ],
+          "reviews": 37
+        },
+        {
+          "wave": 10,
+          "hotBytes": 6049,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 31,
+          "noiseMarkers": [
+            "TEMP_USER_android"
+          ],
+          "reviews": 37
+        },
+        {
+          "wave": 11,
+          "hotBytes": 6684,
+          "currentFacts": 36,
+          "coveredFacts": 36,
+          "missingFacts": [],
+          "retainedRows": 34,
+          "noiseMarkers": [
+            "TEMP_USER_android"
+          ],
+          "reviews": 41
+        }
+      ]
+    },
+    {
+      "id": "long-four",
+      "scenario": "automatic-four-spaces",
+      "executionStatus": "completed",
+      "config": {
+        "memoryLimitBytes": 10240,
+        "idleReviewMs": 5000,
+        "productionIdleReviewMs": 30000,
+        "recallMode": "guided",
+        "writebackMode": "guided",
+        "waves": 24,
+        "modelCallBudget": 900,
+        "acceptance": {
+          "currentFactCoverage": 0.9,
+          "freshRecallAccuracy": 0.9,
+          "forbiddenNoiseMatches": 0,
+          "staleCorrectionAnswers": 0,
+          "crossModuleAnswers": 0,
+          "unsupportedCurrentAnswers": 0,
+          "correctedFactRecall": 1,
+          "noWriteTurnMutations": 0,
+          "exactColdDuplicates": 0,
+          "memoryLimitBytes": 10240
+        }
+      },
+      "developerTurns": 96,
+      "freshReaderSessions": 28,
+      "reviews": 85,
+      "modelCalls": 654,
+      "modelsReturned": [
+        "deepseek-v4-flash"
+      ],
+      "maxConcurrentModels": 4,
+      "elapsedMs": 724741,
+      "inputTokens": 3314331,
+      "outputTokens": 169498,
+      "modelCallP95Ms": 7663,
+      "maximumHotBytes": 10079,
+      "finalHotBytes": 5615,
+      "archiveCycles": 0,
+      "finalRowsByLocation": {
+        "runtime": 13,
+        "document": 23
+      },
+      "currentFacts": [
+        {
+          "id": "backend/service_port",
+          "domain": "backend",
+          "key": "service_port",
+          "value": "8841",
+          "description": "模块开发服务监听端口",
+          "wave": 23,
+          "supersedes": "8411"
+        },
+        {
+          "id": "frontend/service_port",
+          "domain": "frontend",
+          "key": "service_port",
+          "value": "8851",
+          "description": "模块开发服务监听端口",
+          "wave": 23,
+          "supersedes": "8421"
+        },
+        {
+          "id": "android/service_port",
+          "domain": "android",
+          "key": "service_port",
+          "value": "8861",
+          "description": "模块开发服务监听端口",
+          "wave": 23,
+          "supersedes": "8431"
+        },
+        {
+          "id": "operations/service_port",
+          "domain": "operations",
+          "key": "service_port",
+          "value": "8871",
+          "description": "模块开发服务监听端口",
+          "wave": 23,
+          "supersedes": "8441"
+        },
+        {
+          "id": "backend/retry_limit",
+          "domain": "backend",
+          "key": "retry_limit",
+          "value": "11",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "3"
+        },
+        {
+          "id": "frontend/retry_limit",
+          "domain": "frontend",
+          "key": "retry_limit",
+          "value": "13",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "5"
+        },
+        {
+          "id": "android/retry_limit",
+          "domain": "android",
+          "key": "retry_limit",
+          "value": "17",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "7"
+        },
+        {
+          "id": "operations/retry_limit",
+          "domain": "operations",
+          "key": "retry_limit",
+          "value": "19",
+          "description": "模块失败重试上限",
+          "wave": 9,
+          "supersedes": "9"
+        },
+        {
+          "id": "backend/timeout_ms",
+          "domain": "backend",
+          "key": "timeout_ms",
+          "value": "1200",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "frontend/timeout_ms",
+          "domain": "frontend",
+          "key": "timeout_ms",
+          "value": "1800",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "android/timeout_ms",
+          "domain": "android",
+          "key": "timeout_ms",
+          "value": "2400",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "operations/timeout_ms",
+          "domain": "operations",
+          "key": "timeout_ms",
+          "value": "3000",
+          "description": "模块请求超时毫秒数",
+          "wave": 2
+        },
+        {
+          "id": "backend/cache_ttl_seconds",
+          "domain": "backend",
+          "key": "cache_ttl_seconds",
+          "value": "61",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "frontend/cache_ttl_seconds",
+          "domain": "frontend",
+          "key": "cache_ttl_seconds",
+          "value": "73",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "android/cache_ttl_seconds",
+          "domain": "android",
+          "key": "cache_ttl_seconds",
+          "value": "89",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "operations/cache_ttl_seconds",
+          "domain": "operations",
+          "key": "cache_ttl_seconds",
+          "value": "97",
+          "description": "模块缓存有效期秒数",
+          "wave": 3
+        },
+        {
+          "id": "backend/schema_version",
+          "domain": "backend",
+          "key": "schema_version",
+          "value": "be-v17",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "frontend/schema_version",
+          "domain": "frontend",
+          "key": "schema_version",
+          "value": "fe-v23",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "android/schema_version",
+          "domain": "android",
+          "key": "schema_version",
+          "value": "and-v31",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "operations/schema_version",
+          "domain": "operations",
+          "key": "schema_version",
+          "value": "ops-v41",
+          "description": "模块持久化结构版本",
+          "wave": 4
+        },
+        {
+          "id": "backend/queue_name",
+          "domain": "backend",
+          "key": "queue_name",
+          "value": "orion-be-outbox",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "frontend/queue_name",
+          "domain": "frontend",
+          "key": "queue_name",
+          "value": "orion-fe-refresh",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "android/queue_name",
+          "domain": "android",
+          "key": "queue_name",
+          "value": "orion-and-sync",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "operations/queue_name",
+          "domain": "operations",
+          "key": "queue_name",
+          "value": "orion-ops-rollout",
+          "description": "模块异步队列名称",
+          "wave": 5
+        },
+        {
+          "id": "backend/idempotency_key",
+          "domain": "backend",
+          "key": "idempotency_key",
+          "value": "tenant+order+request",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "frontend/idempotency_key",
+          "domain": "frontend",
+          "key": "idempotency_key",
+          "value": "form+revision+submit",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "android/idempotency_key",
+          "domain": "android",
+          "key": "idempotency_key",
+          "value": "device+draft+sequence",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "operations/idempotency_key",
+          "domain": "operations",
+          "key": "idempotency_key",
+          "value": "release+batch+attempt",
+          "description": "模块幂等键表达式",
+          "wave": 6
+        },
+        {
+          "id": "backend/release_gate",
+          "domain": "backend",
+          "key": "release_gate",
+          "value": "ledger-balanced",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "frontend/release_gate",
+          "domain": "frontend",
+          "key": "release_gate",
+          "value": "keyboard-focus-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "android/release_gate",
+          "domain": "android",
+          "key": "release_gate",
+          "value": "offline-draft-preserved",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "operations/release_gate",
+          "domain": "operations",
+          "key": "release_gate",
+          "value": "rollback-watermark-safe",
+          "description": "模块发布验收门槛标识",
+          "wave": 7
+        },
+        {
+          "id": "backend/handoff_channel",
+          "domain": "backend",
+          "key": "handoff_channel",
+          "value": "be-settlement",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "frontend/handoff_channel",
+          "domain": "frontend",
+          "key": "handoff_channel",
+          "value": "fe-interaction",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "android/handoff_channel",
+          "domain": "android",
+          "key": "handoff_channel",
+          "value": "and-recovery",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "operations/handoff_channel",
+          "domain": "operations",
+          "key": "handoff_channel",
+          "value": "ops-rollout",
+          "description": "模块故障交接通道",
+          "wave": 11
+        },
+        {
+          "id": "backend/conflict_policy",
+          "domain": "backend",
+          "key": "conflict_policy",
+          "value": "preserve-pending-order",
+          "description": "模块冲突处理策略",
+          "wave": 12
+        },
+        {
+          "id": "frontend/conflict_policy",
+          "domain": "frontend",
+          "key": "conflict_policy",
+          "value": "reject-stale-form",
+          "description": "模块冲突处理策略",
+          "wave": 12
+        },
+        {
+          "id": "android/conflict_policy",
+          "domain": "android",
+          "key": "conflict_policy",
+          "value": "retain-offline-draft",
+          "description": "模块冲突处理策略",
+          "wave": 12
+        },
+        {
+          "id": "operations/conflict_policy",
+          "domain": "operations",
+          "key": "conflict_policy",
+          "value": "freeze-rollout-batch",
+          "description": "模块冲突处理策略",
+          "wave": 12
+        },
+        {
+          "id": "backend/retention_days",
+          "domain": "backend",
+          "key": "retention_days",
+          "value": "37",
+          "description": "模块审计记录保留天数",
+          "wave": 13
+        },
+        {
+          "id": "frontend/retention_days",
+          "domain": "frontend",
+          "key": "retention_days",
+          "value": "43",
+          "description": "模块审计记录保留天数",
+          "wave": 13
+        },
+        {
+          "id": "android/retention_days",
+          "domain": "android",
+          "key": "retention_days",
+          "value": "53",
+          "description": "模块审计记录保留天数",
+          "wave": 13
+        },
+        {
+          "id": "operations/retention_days",
+          "domain": "operations",
+          "key": "retention_days",
+          "value": "67",
+          "description": "模块审计记录保留天数",
+          "wave": 13
+        },
+        {
+          "id": "backend/partition_key",
+          "domain": "backend",
+          "key": "partition_key",
+          "value": "tenant_id",
+          "description": "模块任务分区字段",
+          "wave": 14
+        },
+        {
+          "id": "frontend/partition_key",
+          "domain": "frontend",
+          "key": "partition_key",
+          "value": "filter_id",
+          "description": "模块任务分区字段",
+          "wave": 14
+        },
+        {
+          "id": "android/partition_key",
+          "domain": "android",
+          "key": "partition_key",
+          "value": "device_id",
+          "description": "模块任务分区字段",
+          "wave": 14
+        },
+        {
+          "id": "operations/partition_key",
+          "domain": "operations",
+          "key": "partition_key",
+          "value": "release_id",
+          "description": "模块任务分区字段",
+          "wave": 14
+        },
+        {
+          "id": "backend/max_batch_size",
+          "domain": "backend",
+          "key": "max_batch_size",
+          "value": "117",
+          "description": "模块批处理条目上限",
+          "wave": 15
+        },
+        {
+          "id": "frontend/max_batch_size",
+          "domain": "frontend",
+          "key": "max_batch_size",
+          "value": "131",
+          "description": "模块批处理条目上限",
+          "wave": 15
+        },
+        {
+          "id": "android/max_batch_size",
+          "domain": "android",
+          "key": "max_batch_size",
+          "value": "149",
+          "description": "模块批处理条目上限",
+          "wave": 15
+        },
+        {
+          "id": "operations/max_batch_size",
+          "domain": "operations",
+          "key": "max_batch_size",
+          "value": "163",
+          "description": "模块批处理条目上限",
+          "wave": 15
+        },
+        {
+          "id": "backend/backoff_ms",
+          "domain": "backend",
+          "key": "backoff_ms",
+          "value": "271",
+          "description": "模块重试初始退避毫秒数",
+          "wave": 16
+        },
+        {
+          "id": "frontend/backoff_ms",
+          "domain": "frontend",
+          "key": "backoff_ms",
+          "value": "353",
+          "description": "模块重试初始退避毫秒数",
+          "wave": 16
+        },
+        {
+          "id": "android/backoff_ms",
+          "domain": "android",
+          "key": "backoff_ms",
+          "value": "419",
+          "description": "模块重试初始退避毫秒数",
+          "wave": 16
+        },
+        {
+          "id": "operations/backoff_ms",
+          "domain": "operations",
+          "key": "backoff_ms",
+          "value": "487",
+          "description": "模块重试初始退避毫秒数",
+          "wave": 16
+        },
+        {
+          "id": "backend/checkpoint_prefix",
+          "domain": "backend",
+          "key": "checkpoint_prefix",
+          "value": "be-ledger-cp",
+          "description": "模块恢复检查点前缀",
+          "wave": 17
+        },
+        {
+          "id": "frontend/checkpoint_prefix",
+          "domain": "frontend",
+          "key": "checkpoint_prefix",
+          "value": "fe-view-cp",
+          "description": "模块恢复检查点前缀",
+          "wave": 17
+        },
+        {
+          "id": "android/checkpoint_prefix",
+          "domain": "android",
+          "key": "checkpoint_prefix",
+          "value": "and-draft-cp",
+          "description": "模块恢复检查点前缀",
+          "wave": 17
+        },
+        {
+          "id": "operations/checkpoint_prefix",
+          "domain": "operations",
+          "key": "checkpoint_prefix",
+          "value": "ops-release-cp",
+          "description": "模块恢复检查点前缀",
+          "wave": 17
+        },
+        {
+          "id": "backend/audit_event",
+          "domain": "backend",
+          "key": "audit_event",
+          "value": "be.payment.committed",
+          "description": "模块提交审计事件名",
+          "wave": 18
+        },
+        {
+          "id": "frontend/audit_event",
+          "domain": "frontend",
+          "key": "audit_event",
+          "value": "fe.form.submitted",
+          "description": "模块提交审计事件名",
+          "wave": 18
+        },
+        {
+          "id": "android/audit_event",
+          "domain": "android",
+          "key": "audit_event",
+          "value": "and.draft.synchronized",
+          "description": "模块提交审计事件名",
+          "wave": 18
+        },
+        {
+          "id": "operations/audit_event",
+          "domain": "operations",
+          "key": "audit_event",
+          "value": "ops.release.promoted",
+          "description": "模块提交审计事件名",
+          "wave": 18
+        },
+        {
+          "id": "backend/dedup_window_seconds",
+          "domain": "backend",
+          "key": "dedup_window_seconds",
+          "value": "191",
+          "description": "模块重复请求检测窗口秒数",
+          "wave": 19
+        },
+        {
+          "id": "frontend/dedup_window_seconds",
+          "domain": "frontend",
+          "key": "dedup_window_seconds",
+          "value": "223",
+          "description": "模块重复请求检测窗口秒数",
+          "wave": 19
+        },
+        {
+          "id": "android/dedup_window_seconds",
+          "domain": "android",
+          "key": "dedup_window_seconds",
+          "value": "257",
+          "description": "模块重复请求检测窗口秒数",
+          "wave": 19
+        },
+        {
+          "id": "operations/dedup_window_seconds",
+          "domain": "operations",
+          "key": "dedup_window_seconds",
+          "value": "293",
+          "description": "模块重复请求检测窗口秒数",
+          "wave": 19
+        },
+        {
+          "id": "backend/locale_fallback",
+          "domain": "backend",
+          "key": "locale_fallback",
+          "value": "zh-CN",
+          "description": "模块语言回退配置",
+          "wave": 20
+        },
+        {
+          "id": "frontend/locale_fallback",
+          "domain": "frontend",
+          "key": "locale_fallback",
+          "value": "en-GB",
+          "description": "模块语言回退配置",
+          "wave": 20
+        },
+        {
+          "id": "android/locale_fallback",
+          "domain": "android",
+          "key": "locale_fallback",
+          "value": "zh-TW",
+          "description": "模块语言回退配置",
+          "wave": 20
+        },
+        {
+          "id": "operations/locale_fallback",
+          "domain": "operations",
+          "key": "locale_fallback",
+          "value": "en-US",
+          "description": "模块语言回退配置",
+          "wave": 20
+        },
+        {
+          "id": "backend/recovery_marker",
+          "domain": "backend",
+          "key": "recovery_marker",
+          "value": "be-replay-ok",
+          "description": "模块恢复成功标识",
+          "wave": 21
+        },
+        {
+          "id": "frontend/recovery_marker",
+          "domain": "frontend",
+          "key": "recovery_marker",
+          "value": "fe-rehydrate-ok",
+          "description": "模块恢复成功标识",
+          "wave": 21
+        },
+        {
+          "id": "android/recovery_marker",
+          "domain": "android",
+          "key": "recovery_marker",
+          "value": "and-reconnect-ok",
+          "description": "模块恢复成功标识",
+          "wave": 21
+        },
+        {
+          "id": "operations/recovery_marker",
+          "domain": "operations",
+          "key": "recovery_marker",
+          "value": "ops-watermark-ok",
+          "description": "模块恢复成功标识",
+          "wave": 21
+        },
+        {
+          "id": "backend/health_route",
+          "domain": "backend",
+          "key": "health_route",
+          "value": "/be/readyz",
+          "description": "模块健康检查路径",
+          "wave": 22
+        },
+        {
+          "id": "frontend/health_route",
+          "domain": "frontend",
+          "key": "health_route",
+          "value": "/fe/readyz",
+          "description": "模块健康检查路径",
+          "wave": 22
+        },
+        {
+          "id": "android/health_route",
+          "domain": "android",
+          "key": "health_route",
+          "value": "/and/readyz",
+          "description": "模块健康检查路径",
+          "wave": 22
+        },
+        {
+          "id": "operations/health_route",
+          "domain": "operations",
+          "key": "health_route",
+          "value": "/ops/readyz",
+          "description": "模块健康检查路径",
+          "wave": 22
+        }
+      ],
+      "missingFacts": [],
+      "retainedNoiseMarkers": [
+        "TEMP_USER_frontend",
+        "NO_MEMORY_frontend",
+        "FAKE_CREDENTIAL_frontend"
+      ],
+      "recordedAutomatedVerdict": "fail",
+      "recordedViolations": [
+        "forbidden-noise-retained",
+        "execution-errors"
+      ],
+      "currentFactCoverage": 1,
+      "freshRecallAccuracy": 0.925,
+      "correctRecall": 74,
+      "recallCells": 80,
+      "unsupportedAnswers": 0,
+      "staleAnswers": 0,
+      "crossModuleAnswers": 0,
+      "correctedAnswers": 8,
+      "correctedQuestions": 8,
+      "exactColdDuplicates": 0,
+      "noWriteTurnMutations": [],
+      "toolErrorCount": 4,
+      "intermediateDevelopmentCheckFailures": 0,
+      "incompleteDevelopmentTurns": [],
+      "remainingRootAgents": 0,
+      "waves": [
+        {
+          "wave": 0,
+          "hotBytes": 373,
+          "currentFacts": 4,
+          "coveredFacts": 2,
+          "missingFacts": [
+            "frontend/service_port",
+            "operations/service_port"
+          ],
+          "retainedRows": 2,
+          "noiseMarkers": [],
+          "reviews": 4
+        },
+        {
+          "wave": 1,
+          "hotBytes": 712,
+          "currentFacts": 8,
+          "coveredFacts": 4,
+          "missingFacts": [
+            "frontend/service_port",
+            "operations/service_port",
+            "backend/retry_limit",
+            "frontend/retry_limit"
+          ],
+          "retainedRows": 4,
+          "noiseMarkers": [],
+          "reviews": 7
+        },
+        {
+          "wave": 2,
+          "hotBytes": 1317,
+          "currentFacts": 12,
+          "coveredFacts": 10,
+          "missingFacts": [
+            "operations/service_port",
+            "operations/timeout_ms"
+          ],
+          "retainedRows": 7,
+          "noiseMarkers": [],
+          "reviews": 11
+        },
+        {
+          "wave": 3,
+          "hotBytes": 1871,
+          "currentFacts": 16,
+          "coveredFacts": 16,
+          "missingFacts": [],
+          "retainedRows": 11,
+          "noiseMarkers": [],
+          "reviews": 15
+        },
+        {
+          "wave": 4,
+          "hotBytes": 2439,
+          "currentFacts": 20,
+          "coveredFacts": 19,
+          "missingFacts": [
+            "operations/schema_version"
+          ],
+          "retainedRows": 14,
+          "noiseMarkers": [],
+          "reviews": 19
+        },
+        {
+          "wave": 5,
+          "hotBytes": 3225,
+          "currentFacts": 24,
+          "coveredFacts": 23,
+          "missingFacts": [
+            "frontend/queue_name"
+          ],
+          "retainedRows": 16,
+          "noiseMarkers": [],
+          "reviews": 22
+        },
+        {
+          "wave": 6,
+          "hotBytes": 4033,
+          "currentFacts": 28,
+          "coveredFacts": 27,
+          "missingFacts": [
+            "frontend/queue_name"
+          ],
+          "retainedRows": 18,
+          "noiseMarkers": [],
+          "reviews": 26
+        },
+        {
+          "wave": 7,
+          "hotBytes": 4703,
+          "currentFacts": 32,
+          "coveredFacts": 31,
+          "missingFacts": [
+            "frontend/queue_name"
+          ],
+          "retainedRows": 21,
+          "noiseMarkers": [],
+          "reviews": 30
+        },
+        {
+          "wave": 8,
+          "hotBytes": 4703,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 22,
+          "noiseMarkers": [],
+          "reviews": 31
+        },
+        {
+          "wave": 9,
+          "hotBytes": 4691,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 23,
+          "noiseMarkers": [],
+          "reviews": 35
+        },
+        {
+          "wave": 10,
+          "hotBytes": 4691,
+          "currentFacts": 32,
+          "coveredFacts": 32,
+          "missingFacts": [],
+          "retainedRows": 23,
+          "noiseMarkers": [],
+          "reviews": 35
+        },
+        {
+          "wave": 11,
+          "hotBytes": 5238,
+          "currentFacts": 36,
+          "coveredFacts": 36,
+          "missingFacts": [],
+          "retainedRows": 26,
+          "noiseMarkers": [],
+          "reviews": 39
+        },
+        {
+          "wave": 12,
+          "hotBytes": 6427,
+          "currentFacts": 40,
+          "coveredFacts": 40,
+          "missingFacts": [],
+          "retainedRows": 29,
+          "noiseMarkers": [],
+          "reviews": 43
+        },
+        {
+          "wave": 13,
+          "hotBytes": 7025,
+          "currentFacts": 44,
+          "coveredFacts": 44,
+          "missingFacts": [],
+          "retainedRows": 33,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 46
+        },
+        {
+          "wave": 14,
+          "hotBytes": 7190,
+          "currentFacts": 48,
+          "coveredFacts": 47,
+          "missingFacts": [
+            "frontend/partition_key"
+          ],
+          "retainedRows": 35,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 50
+        },
+        {
+          "wave": 15,
+          "hotBytes": 7783,
+          "currentFacts": 52,
+          "coveredFacts": 50,
+          "missingFacts": [
+            "frontend/partition_key",
+            "frontend/max_batch_size"
+          ],
+          "retainedRows": 37,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 54
+        },
+        {
+          "wave": 16,
+          "hotBytes": 8702,
+          "currentFacts": 56,
+          "coveredFacts": 56,
+          "missingFacts": [],
+          "retainedRows": 39,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 58
+        },
+        {
+          "wave": 17,
+          "hotBytes": 8907,
+          "currentFacts": 60,
+          "coveredFacts": 60,
+          "missingFacts": [],
+          "retainedRows": 43,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 62
+        },
+        {
+          "wave": 18,
+          "hotBytes": 9274,
+          "currentFacts": 64,
+          "coveredFacts": 63,
+          "missingFacts": [
+            "frontend/audit_event"
+          ],
+          "retainedRows": 47,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 66
+        },
+        {
+          "wave": 19,
+          "hotBytes": 5901,
+          "currentFacts": 68,
+          "coveredFacts": 68,
+          "missingFacts": [],
+          "retainedRows": 31,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 70
+        },
+        {
+          "wave": 20,
+          "hotBytes": 5793,
+          "currentFacts": 72,
+          "coveredFacts": 72,
+          "missingFacts": [],
+          "retainedRows": 32,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 74
+        },
+        {
+          "wave": 21,
+          "hotBytes": 5431,
+          "currentFacts": 76,
+          "coveredFacts": 75,
+          "missingFacts": [
+            "frontend/recovery_marker"
+          ],
+          "retainedRows": 33,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 78
+        },
+        {
+          "wave": 22,
+          "hotBytes": 5535,
+          "currentFacts": 80,
+          "coveredFacts": 80,
+          "missingFacts": [],
+          "retainedRows": 34,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 81
+        },
+        {
+          "wave": 23,
+          "hotBytes": 5615,
+          "currentFacts": 80,
+          "coveredFacts": 80,
+          "missingFacts": [],
+          "retainedRows": 36,
+          "noiseMarkers": [
+            "TEMP_USER_frontend",
+            "NO_MEMORY_frontend",
+            "FAKE_CREDENTIAL_frontend"
+          ],
+          "reviews": 85
+        }
+      ]
+    }
+  ]
+}

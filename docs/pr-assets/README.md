@@ -8,6 +8,8 @@ These are dated engineering records, not a gallery of current product features. 
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [Automatic memory quality — 2026-09-09](./runtime-memory-quality-flash-20260909/README.md) / [中文](./runtime-memory-quality-flash-20260909/README.zh-CN.md) | Four concurrent developer sessions with real Flash; current facts, corrections, clutter and fresh recall / 四会话自动记忆质量验收 |
+| [Runtime capacity — 2026-09-09](./runtime-capacity-flash-20260909/README.md) / [中文](./runtime-capacity-flash-20260909/README.zh-CN.md) | Real Flash, exact archival, concurrent and session-free writes / 真实 Flash 归档与并发写入 |
 | [Documentation refresh](./documentation-refresh/README.md) | Historical v0.5.2 bilingual media and an explicitly failed 390px resize check |
 | [Architecture cleanup](./architecture-cleanup/README.md) | Public package boundaries, UI and independent artifact verification |
 | [DSH rc.1 compatibility](./dsh-rc1-compat/README.md) | Published Host, Sidebar and Builtin |
