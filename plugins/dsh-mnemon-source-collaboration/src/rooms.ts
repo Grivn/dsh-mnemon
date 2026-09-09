@@ -94,6 +94,8 @@ export function reserveFile(
   filename: string,
   scope: MemoryOperationScope,
   minutes: number,
+  targetKey = filename,
+  roomId?: string,
 ): RecordValue {
   const owner = actor(scope),
     now = Date.now()
@@ -102,7 +104,7 @@ export function reserveFile(
     if (
       record.kind === 'reservation' &&
       visibleRecord(record, scope) &&
-      record.data.path === filename &&
+      (record.data.targetKey === targetKey || record.data.path === filename) &&
       record.state === 'active'
     ) {
       if (Date.parse(String(record.data.expiresAt)) > now && record.data.owner !== owner)
@@ -117,6 +119,8 @@ export function reserveFile(
     }
   const record = newRecord('reservation', filename.split('/').at(-1) || filename, '', 'project', scope, {
     path: filename,
+    targetKey,
+    ...(roomId ? { roomId } : {}),
     owner,
     expiresAt: new Date(now + minutes * 60_000).toISOString(),
   })
@@ -142,6 +146,13 @@ export function validateCollaborationRecord(record: RecordValue): void {
     )
       throw new Error('Invalid room membership')
   } else if (record.kind === 'message') {
+    if (data.assets !== undefined) {
+      if (!Array.isArray(data.assets) || data.assets.length > 8 || data.assets.some(value => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return true
+        return typeof value.id !== 'string' || !/^[a-f0-9]{64}$/.test(value.id) || typeof value.name !== 'string' || value.name.length > 200
+          || !Number.isSafeInteger(value.bytes) || Number(value.bytes) < 1 || Number(value.bytes) > 5 * 1024 * 1024 || typeof value.mediaType !== 'string'
+      })) throw new Error('Invalid message attachment')
+    }
     if (
       typeof data.sender !== 'string' ||
       !data.sender ||
@@ -167,5 +178,11 @@ export function validateCollaborationRecord(record: RecordValue): void {
       !Number.isFinite(Date.parse(data.expiresAt))
     )
       throw new Error('Invalid file reservation')
+  } else if (record.kind === 'resource') {
+    if (!['file', 'service', 'note'].includes(String(data.resourceType)) || typeof data.roomId !== 'string' || typeof data.owner !== 'string'
+      || typeof data.resourceKey !== 'string' || !data.resourceKey || data.resourceKey.length > 4096 || typeof data.resource !== 'string' || record.content.length > 10000)
+      throw new Error('Invalid resource declaration')
+  } else if (record.kind === 'presence') {
+    if (typeof data.roomId !== 'string' || typeof data.owner !== 'string' || !['idle', 'running', 'closed'].includes(String(data.status))) throw new Error('Invalid member presence')
   }
 }

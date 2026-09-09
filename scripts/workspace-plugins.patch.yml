@@ -30,6 +30,10 @@
   disabled: false
 - id: mnemon-source-collaboration
   disabled: false
+  config:
+    writeConflictPolicy: deny
+    captureWrites: true
+    notifyPresence: true
 - id: mnemon-source-canvas
   disabled: false
 

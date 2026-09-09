@@ -1,4 +1,4 @@
-import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { AttachmentStore, ImageAttachmentRef, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type { Agent, AgentHandle, AgentOptions, AgentRegistry } from '@deepseek-ai/dsh-agent'
@@ -132,11 +132,14 @@ export class DshWorkspaceAdapter {
     }
     return handle
   }
-  async deliver(id: string, text: string, scope: MemoryOperationScope, options: { plugin: string; wake?: boolean; steering?: boolean; signal?: AbortSignal }): Promise<{ status: string; delivery: string }> {
+  async deliver(id: string, text: string, scope: MemoryOperationScope, options: { plugin: string; wake?: boolean; steering?: boolean; signal?: AbortSignal; images?: readonly SaveImageAttachment[] }): Promise<{ status: string; delivery: string }> {
     if (!text.trim() || text.length > 100_000) throw new Error('Message must contain 1–100000 characters')
     const agent = await this.live(id, scope, options.signal)
     options.signal?.throwIfAborted()
-    const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: options.plugin, form: 'relay' } })
+    if (options.images?.length && !this.services.attachments) throw new Error('Native session image storage is unavailable')
+    const images = options.images?.length ? await this.services.attachments!.saveImages(options.images) : []
+    options.signal?.throwIfAborted()
+    const message = createUserMessage({ content: [{ type: 'text', text }, ...images.map(attachment => ({ type: 'image' as const, attachment }))], source: { kind: 'plugin', plugin: options.plugin, form: 'relay' } })
     if (options.steering) agent.steer(message)
     else if (options.wake) agent.followup(message)
     else agent.inject(message)

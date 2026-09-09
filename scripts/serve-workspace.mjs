@@ -3,7 +3,8 @@
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { constants, createWriteStream } from 'node:fs'
-import { access, appendFile, copyFile, chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, appendFile, copyFile, cp, chmod, mkdir, readFile, realpath, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -33,6 +34,11 @@ await access(resolve(values.mnemon), constants.X_OK)
 const native = join(bin, 'mnemon')
 if (resolve(values.mnemon) !== native) await copyFile(resolve(values.mnemon), native)
 await chmod(native, 0o700)
+const completedChecks = new Set()
+try {
+  const history = await readFile(join(logs, 'workspace-checks.jsonl'), 'utf8')
+  for (const line of history.split('\n').filter(Boolean)) { const value = JSON.parse(line); if (typeof value.check === 'string' && value.dispatched !== 'read') completedChecks.add(value.check) }
+} catch (error) { if (error.code !== 'ENOENT') throw error }
 const model = values.model === 'fixture' ? createServer(async (request, response) => {
   const deliveryFixture = request.url?.startsWith('/notification/') === true
   const maxBody = deliveryFixture ? 36 * 1024 * 1024 : 2 * 1024 * 1024
@@ -47,13 +53,25 @@ const model = values.model === 'fixture' ? createServer(async (request, response
       response.writeHead(202); response.end(); return
     } catch { response.writeHead(400); response.end(); return }
   }
-  let review = false, proposals = false
-  try { const body = JSON.parse(Buffer.concat(chunks).toString('utf8')); proposals = JSON.stringify(body.messages).includes('[proposals]'); review = body.messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
+  let review = false, proposals = false, body = {}
+  try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); proposals = JSON.stringify(body.messages).includes('[proposals]'); review = body.messages?.some(message => message.role === 'system' && typeof message.content === 'string' && message.content.includes('Conversation review contract v1')) === true } catch {}
+  const tools = (body.tools ?? []).map(tool => tool.function?.name), check = [...JSON.stringify(body.messages ?? []).matchAll(/\[workspace-check:file-write:([a-zA-Z0-9-]{1,100})\]/g)].at(-1)?.[1]
+  let toolCall
+  if (!review && tools.length && check && !completedChecks.has(check)) {
+    const args = { file_path: join(workspace, 'coordination-output.txt'), content: 'Successful workspace write check: ' + check + '\n' }
+    const read = body.messages?.some(message => message.role === 'tool' && message.tool_call_id === 'workspace-read-' + check)
+    if (tools.includes('read') && !read) toolCall = { name: 'read', args: { file_path: args.file_path } }
+    else {
+      completedChecks.add(check)
+      if (tools.includes('write')) toolCall = { name: 'write', args }
+    }
+    await appendFile(join(logs, 'workspace-checks.jsonl'), JSON.stringify({ check, offeredTools: tools, dispatched: toolCall?.name ?? null }) + '\n', { mode: 0o600 })
+  }
   const content = review ? JSON.stringify({ severity: 'info', summary: '本地审核链路已完成；这是合成结果，仅用于验证流程。', issues: [{ severity: 'info', text: '审核输入来自用户可见对话，未请求工具或私有推理。' }], proposals: proposals ? [{ kind: 'fact', title: '合成验收建议', content: '这是一条用于验证跨插件审核流程的合成建议。' }] : [], ...(proposals ? { skill: { slug: 'validation-checklist', title: '验收检查流程', content: '检查具体结果、测试证据与适用范围。此条目用于验证插件流程。' } } : {}) }) : 'The isolated workspace is ready. This is a deterministic local test response.'
   response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   for (const choice of [
-    { index: 0, delta: { role: 'assistant', content }, finish_reason: null },
-    { index: 0, delta: {}, finish_reason: 'stop' },
+    { index: 0, delta: toolCall ? { role: 'assistant', tool_calls: [{ index: 0, id: 'workspace-' + toolCall.name + '-' + check, type: 'function', function: { name: toolCall.name, arguments: JSON.stringify(toolCall.args) } }] } : { role: 'assistant', content }, finish_reason: null },
+    { index: 0, delta: {}, finish_reason: toolCall ? 'tool_calls' : 'stop' },
   ]) response.write(`data: ${JSON.stringify({ id: 'workspace-fixture', choices: [choice] })}\n\n`)
   response.end('data: [DONE]\n\n')
 }) : undefined
@@ -108,9 +126,12 @@ try {
   await run(process.execPath, [dshBin, 'plugin', '--profile', 'web', 'add', `link:${root}`,
     ...packages.map(name => `link:${join(root, 'plugins', name)}`)])
   const preset = join(dshHome, '.agent-presets/workspace-validation')
-  await mkdir(preset, { recursive: true })
-  await writeFile(join(preset, 'preset.yml'), 'name: Workspace Validation\ndescription: Local service validation.\norder: 0\n')
-  await writeFile(join(preset, 'agent.cordis.yml'), "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    text: You are helping validate a local memory workspace.\n")
+  const harnessRequire = createRequire(await realpath(join(root, 'node_modules/@deepseek-ai/dsh/package.json')))
+  const presetPackage = harnessRequire.resolve('@deepseek-ai/dsh-agent-presets/package.json')
+  // Copy the shipped composition as authored preset data, retaining its tools,
+  // compaction, skills and isolated service realms without editing DSH itself.
+  await cp(join(dirname(presetPackage), 'presets/standard'), preset, { recursive: true, dereference: true })
+  await writeFile(join(preset, 'preset.yml'), 'name: Workspace Validation\ndescription: Standard coding tools with isolated workspace memory.\norder: 0\n')
   let patch = `- id: mnemon
   config:
     storageScope: custom

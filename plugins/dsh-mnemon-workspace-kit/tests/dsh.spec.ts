@@ -39,6 +39,19 @@ describe('public DSH adapter', () => {
     expect(inject.mock.calls[0]?.[0].source).toEqual({ kind: 'plugin', plugin: 'reviewer', form: 'relay' }); expect(followup).not.toHaveBeenCalled()
     await adapter.deliver('target', 'Wake', scope, { plugin: 'team', wake: true }); expect(followup).toHaveBeenCalledTimes(1)
   })
+  it('admits relayed image bytes into native storage before injecting attributed content', async () => {
+    const inject = vi.fn(), reference = { attachmentId: 'image', mediaType: 'image/png', bytes: 12, width: 1, height: 1 }
+    const saveImages = vi.fn(async () => [reference])
+    const agent = { status: 'idle', session: { header: { cwd: '/project' } }, inject }
+    const adapter = new DshWorkspaceAdapter({ sessionQuery: { observeSession: async () => ({ header: { cwd: '/project' }, events: [], [Symbol.dispose]() {} }) }, agents: { get: () => agent }, attachments: { saveImages } } as any)
+    const images = [{ data: Buffer.from('image bytes'), mediaType: 'image/png' as const, name: 'diagram.png' }]
+    await adapter.deliver('target', 'Shared image', { storage: 'custom', workspaceId: '/project' }, { plugin: 'collaboration', images })
+    expect(saveImages).toHaveBeenCalledWith(images)
+    expect(inject.mock.calls[0]![0]).toMatchObject({ source: { kind: 'plugin', plugin: 'collaboration' }, content: [{ type: 'text', text: 'Shared image' }, { type: 'image', attachment: reference }] })
+    saveImages.mockRejectedValueOnce(new Error('Invalid image'))
+    await expect(adapter.deliver('target', 'Bad image', { storage: 'custom', workspaceId: '/project' }, { plugin: 'collaboration', images })).rejects.toThrow('Invalid image')
+    expect(inject).toHaveBeenCalledOnce()
+  })
 })
 
 it('restores recorded model options when concurrent deliveries resume a cold session', async () => {
