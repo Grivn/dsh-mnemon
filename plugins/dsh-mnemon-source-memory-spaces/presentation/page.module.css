@@ -41,10 +41,11 @@ button.readSourceCard:hover { border-color: color-mix(in srgb, var(--mn-provider
 .readSourceState small { color: var(--mn-faint); font-size: 8px; white-space: nowrap; }
 
 .bodyDirectory { position: relative; margin-bottom: 12px; padding: 12px 14px; border: 1px solid var(--mn-line); border-radius: 11px; background: color-mix(in srgb, var(--mn-layer-1) 72%, var(--mn-bg)); }
-.bodyDirectoryHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
+.bodyDirectoryHeader { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
+.bodyDirectoryHeader > div:first-child { min-width: 0; flex: 1 1 260px; }
 .bodyDirectoryHeader h3 { margin: 1px 0; font-size: 13px; }
 .bodyDirectoryHeader p { margin: 0; color: var(--mn-muted); font-size: 10px; }
-.bodyDirectoryPath { display: block; max-width: min(62vw, 720px); margin-top: 4px; overflow: hidden; color: var(--mn-faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.bodyDirectoryPath { display: block; max-width: 100%; margin-top: 4px; overflow: hidden; color: var(--mn-faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .bodyDirectoryControls { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 6px; padding-right: 28px; }
 .bodyDirectoryControls > strong { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; color: var(--mn-accent); background: color-mix(in srgb, var(--mn-accent) 9%, transparent); font: 650 9px var(--mn-code); }
 .bodyGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(245px, 1fr)); gap: 7px; }

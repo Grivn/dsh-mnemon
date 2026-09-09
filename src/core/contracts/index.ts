@@ -22,7 +22,7 @@ export const MEMORY_CAPABILITIES = [
 export type MemoryCapability = typeof MEMORY_CAPABILITIES[number]
 
 export interface MemoryOperationScope {
-  storage: 'global' | 'workspace' | 'custom'
+  storage: 'global' | 'workspace' | 'custom' | 'workspaces'
   workspaceId?: string
   sessionId?: string
   agentId?: string

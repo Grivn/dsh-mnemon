@@ -12,13 +12,13 @@ $DSH_HOME/settings.yaml
 
 The default is commonly `~/.dsh/settings.yaml`. All current settings are marked `live`; after Save, the Host initializes a candidate runtime graph and then switches to it atomically.
 
-The Web settings page edits `storageScope`, the independent `runtimeUserScope`, `dataDir`, Mnemon Native's Ollama embedding override, one master switch for each of the three memory Sources, the background task Agent model route, and the Turn memory and Save-to-memory switches under `mnemon-ui`. Global and Workspace define the scope of the complete memory system; the USER.md profile may explicitly remain global while project memory follows that scope. Mnemon Native owns its Custom data location, embedding runtime, and ZIP backup/migration controls. Each external provider has a collapsible service configuration for reusable endpoints, credentials, or executables. Enabling or saving it discovers the provider's existing namespaces and maps them into Memory Spaces → Overview; disabling it removes those local mappings without deleting provider data. Other advanced settings must be changed directly in YAML.
+The Web settings page edits `storageScope`, the independent `runtimeUserScope`, `dataDir`, Mnemon Native's Ollama embedding override, one master switch for each of the three memory Sources, the background task Agent model route, and the Turn memory and Save-to-memory switches under `mnemon-ui`. The scope selector applies to the complete memory system. Centralized workspaces exposes its optional root beside that selector; the USER.md profile may explicitly remain global while project memory follows the selected scope. Mnemon Native owns its Custom data location, embedding runtime, and ZIP backup/migration controls. Each external provider has a collapsible service configuration for reusable endpoints, credentials, or executables. Enabling or saving it discovers the provider's existing namespaces and maps them into Memory Spaces → Overview; disabling it removes those local mappings without deleting provider data. Other advanced settings must be changed directly in YAML.
 
 ## Complete Example
 
 ```yaml
 mnemon:
-  storageScope: global # global | workspace | custom
+  storageScope: global # global | workspace | custom | workspaces
   runtimeUserScope: storage # storage | global
   # dataDir: ~/mnemon-data       # required for custom
   # cliPath: /opt/homebrew/bin/mnemon
@@ -63,9 +63,9 @@ mnemon:
 
 | Setting | Default | Range | Implementation Semantics |
 |---|---:|---|---|
-| `storageScope` | `global` | `global` / `workspace` / `custom` | Controls the root for Runtime, Documents, Memory Spaces, and reserved state as one unit |
+| `storageScope` | `global` | `global` / `workspace` / `custom` / `workspaces` | Controls the root for Runtime, Documents, Memory Spaces, and reserved state as one unit |
 | `runtimeUserScope` | `storage` | `storage` / `global` | Keeps USER.md in the selected storage root, or overlays the global USER.md while project MEMORY.md and the other layers stay selected-scope |
-| `dataDir` | unset | absolute path, `~`, or `~/...` | Required for `custom`; legacy configurations that set only this option automatically resolve to `custom` |
+| `dataDir` | unset | absolute path, `~`, or `~/...` | Required for `custom`; optional central root for `workspaces`; legacy configurations that set only this option automatically resolve to `custom` |
 | `cliPath` | auto-discovered | executable path | Explicitly selects the Mnemon CLI |
 | `store` | unset | `[A-Za-z0-9][A-Za-z0-9_-]*` | Compatibility discovery/preference hint for legacy Stores; semantic operations are routed through Memory Spaces |
 | `timeoutMs` | `10000` | 100–120000 ms | Hard timeout for a single CLI call |
@@ -208,6 +208,21 @@ Each turn then projects `USER.md` from the global root (`MNEMON_DATA_DIR` when s
 
 Changing this setting never copies, merges, or deletes entries. Switching back to `runtimeUserScope: storage` reveals the selected root's original USER.md again. A Mnemon Pack still represents one selected storage root, so a workspace Pack does not silently include the separate global USER.md; back up the global root separately when that profile is important.
 
+### `workspaces`
+
+This built-in mode is available with the Starter; no additional plugin is required. Select **Centralized · isolated by workspace** in Memory scope; configure its optional **Central root directory** in the same section.
+
+```yaml
+mnemon:
+  storageScope: workspaces
+  dataDir: ~/central-memory # optional; otherwise MNEMON_DATA_DIR or ~/.mnemon
+  runtimeUserScope: global # optional; share only USER.md
+```
+
+All four areas (`runtime`, `data`, `documents`, `state`) live under `<central-root>/workspaces/<sha256(canonical-workspace-path)>/`. Existing symlink aliases resolve to the same ID; different workspace paths remain isolated. A move or rename selects a new ID, with no automatic migration. Sidebar inspection follows the selected registered workspace; Builtin and Headless follow the owning session cwd. Global USER.md still uses `MNEMON_DATA_DIR` or `~/.mnemon`, even when the central root is customized.
+
+Changing scopes never migrates, merges or deletes an old root. A ZIP Pack still contains only the selected workspace root; back up the whole central directory to preserve all workspaces. Remote Provider namespaces retain their own sharing semantics.
+
 ### `custom`
 
 ```yaml
@@ -345,6 +360,7 @@ Builtin omits the header's storage-mode badge, workspace picker, and alignment c
 | `global` | Shared `MNEMON_DATA_DIR` or `~/.mnemon`, regardless of the session workspace |
 | `workspace` | The current session's `<cwd>/.mnemon`; switching conversations follows their respective workspaces |
 | `custom` | Configured `dataDir`, regardless of the session workspace |
+| `workspaces` | The current session’s subtree under `<central-root>/workspaces/<workspace-path-hash>/` |
 
 The existing `runtimeUserScope: global` exception still keeps USER.md global. Changing placement does not change scope, migrate memory data, or revive the old builtin navigation. Settings RPC applies entry changes live.
 

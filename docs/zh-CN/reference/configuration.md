@@ -14,13 +14,13 @@ $DSH_HOME/settings.yaml
 
 执行中的回合保留已固定的运行图。已经派发的子 Agent 保留委托运行图直到本次 activation 销毁，即使父回合已结束；后续父回合和新委托的 activation 使用新 generation。保存设置不会静默扩大既有任务的 Recall 权限。
 
-Web 设置页编辑 `storageScope`、独立的 `runtimeUserScope`、`dataDir`、Mnemon Native 的 Ollama 嵌入覆盖、三个记忆层的总开关、后台任务 Agent 的模型路由，以及 `mnemon-ui` 下的回合记忆条和存入记忆按钮。“全局 / 工作区”是整个记忆系统的范围；USER.md 用户档案也可以显式保持全局，而项目记忆继续跟随该范围。`custom` 数据位置、嵌入运行配置与 ZIP 备份 / 迁移收纳在 Mnemon Native 折叠栏。每个第三方 Provider 有独立的服务配置折叠栏；这里保存的是 endpoint、凭据或可执行文件等可复用服务信息，不会创建记忆空间。具体记忆空间及其数据范围仍在“记忆空间 → 概览”中创建。其他高级项需要直接修改 YAML。
+Web 设置页编辑 `storageScope`、独立的 `runtimeUserScope`、`dataDir`、Mnemon Native 的 Ollama 嵌入覆盖、三个记忆层的总开关、后台任务 Agent 的模型路由，以及 `mnemon-ui` 下的回合记忆条和存入记忆按钮。“全局 / 工作区 / 集中工作区”是整个记忆系统的范围，可选的集中根目录在范围选择器旁配置；USER.md 用户档案也可以显式保持全局，而项目记忆继续跟随该范围。`custom` 数据位置、嵌入运行配置与 ZIP 备份 / 迁移收纳在 Mnemon Native 折叠栏。每个第三方 Provider 有独立的服务配置折叠栏；这里保存的是 endpoint、凭据或可执行文件等可复用服务信息，不会创建记忆空间。具体记忆空间及其数据范围仍在“记忆空间 → 概览”中创建。其他高级项需要直接修改 YAML。
 
 ## 完整示例
 
 ```yaml
 mnemon:
-  storageScope: global # global | workspace | custom
+  storageScope: global # global | workspace | custom | workspaces
   runtimeUserScope: storage # storage | global
   # dataDir: ~/mnemon-data       # custom 时必填
   # cliPath: /opt/homebrew/bin/mnemon
@@ -65,9 +65,9 @@ mnemon:
 
 | 配置 | 默认值 | 范围 | 实现语义 |
 |---|---:|---|---|
-| `storageScope` | `global` | `global` / `workspace` / `custom` | 统一控制 Runtime、Documents、Memory Spaces 和预留 state 根目录 |
+| `storageScope` | `global` | `global` / `workspace` / `custom` / `workspaces` | 统一控制 Runtime、Documents、Memory Spaces 和预留 state 根目录 |
 | `runtimeUserScope` | `storage` | `storage` / `global` | 让 USER.md 跟随当前存储根，或叠加全局 USER.md，同时保持项目 MEMORY.md 与其他层使用所选范围 |
-| `dataDir` | 未设置 | 绝对路径、`~` 或 `~/...` | `custom` 时必填；旧配置只设置它时自动解析为 `custom` |
+| `dataDir` | 未设置 | 绝对路径、`~` 或 `~/...` | `custom` 时必填；`workspaces` 时为可选集中根目录；旧配置只设置它时自动解析为 `custom` |
 | `cliPath` | 自动发现 | 可执行路径 | 显式指定 Mnemon CLI |
 | `store` | 未设置 | `[A-Za-z0-9][A-Za-z0-9_-]*` | 用于旧 Store 的兼容发现/首选提示；语义操作由 Memory Space 路由 |
 | `timeoutMs` | `10000` | 100–120000 ms | 单次 CLI 硬超时 |
@@ -210,6 +210,21 @@ mnemon:
 
 切换设置不会复制、合并或删除条目；改回 `runtimeUserScope: storage` 后，原工作区 USER.md 会重新可见。Mnemon Pack 仍表示一个所选存储根，因此工作区 Pack 不会暗中带入独立的全局 USER.md；重要的全局档案需要单独备份全局根。
 
+### `workspaces`
+
+这是 Starter 的内置模式，无需额外安装插件。在记忆范围中选择“集中存储 · 按工作区隔离”，并在同一节配置可选的“集中根目录”。
+
+```yaml
+mnemon:
+  storageScope: workspaces
+  dataDir: ~/central-memory # 可选；默认 MNEMON_DATA_DIR 或 ~/.mnemon
+  runtimeUserScope: global # 可选；只共享 USER.md
+```
+
+四个 area（`runtime`、`data`、`documents`、`state`）都保存在 `<集中根>/workspaces/<规范工作区路径的 SHA-256>/`。现存符号链接别名解析到同一 ID，不同工作区路径相互隔离。移动或重命名会选择新 ID，不会自动迁移。Sidebar 跟随所选的已登记工作区，Builtin 和 Headless 跟随所属会话 cwd。即使集中根为自定义目录，全局 USER.md 仍使用 `MNEMON_DATA_DIR` 或 `~/.mnemon`。
+
+切换范围不会迁移、合并或删除旧根。ZIP Pack 仍只包含当前工作区根；要保留全部工作区，请备份整个集中目录。远端 Provider 命名空间仍遵循自身共享语义。
+
 ### `custom`
 
 ```yaml
@@ -347,6 +362,7 @@ Builtin 隐藏页眉中的存储模式标记、工作区选择和对齐控件。
 | `global` | 共享 `MNEMON_DATA_DIR` 或 `~/.mnemon`，不受会话工作区影响 |
 | `workspace` | 当前会话的 `<cwd>/.mnemon`；切换会话时自动跟随各自工作区 |
 | `custom` | 配置的 `dataDir`，不受会话工作区影响 |
+| `workspaces` | 所属会话在 `<集中根>/workspaces/<工作区路径哈希>/` 下的子目录 |
 
 既有 `runtimeUserScope: global` 例外仍让 USER.md 保持全局。切换入口不会改变范围、迁移记忆数据或恢复旧 builtin 导航。设置 RPC 保存后实时切换入口。
 

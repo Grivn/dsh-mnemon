@@ -40,7 +40,7 @@
 
 **记忆空间（memory space）** 是由 Provider 承载、可以独立命名和激活的长期证据范围，其中包含多条具体记忆。
 
-Sidebar、对话工具与 Headless 使用同一套数据。全局、工作区与自定义范围明确可选。直接检索不创建 Mnemon 任务 Agent；Agent 查询、语义写入和整理可能使用已配置的模型。[流程与调用开销](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/reference/workflows.md)。
+Sidebar、对话工具与 Headless 使用同一套数据。全局、工作区、集中工作区与自定义范围明确可选。直接检索不创建 Mnemon 任务 Agent；Agent 查询、语义写入和整理可能使用已配置的模型。[流程与调用开销](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/reference/workflows.md)。
 
 ## 从默认组合开始
 

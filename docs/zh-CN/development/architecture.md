@@ -37,6 +37,12 @@ Memory Spaces **自己定义内部 Fiber 与 Provider 协议**。每个 Provider
 
 `ctx.mnemonMemory` 是真正受限的服务对象，不是给引擎套一个更窄的 TypeScript 类型。它只暴露一个注册原语，由 `installMemory` 使用；Host 执行能力留在内部。Provider 在自己的 Source 内遵循同样原则，只收到绑定子节点的 `host.install` 能力。公开测试夹具验证这些协议，不交出私有宿主对象。
 
+## 内置存储范围
+
+存储布局属于根包的 Host 基础设施。同一解析器处理 `global`、`workspace`、`custom` 与 `workspaces`；Core 传递选定的操作范围并执行 View 权限约束。文件系统路径归一化、环境变量与用户目录默认值、工作区目录哈希留在 Host，不新增存储贡献 API 或独立发布包。
+
+Host 将解析后的目录交给各默认 Source。Source 继续拥有自己的格式、事务和 Provider 状态；切换布局不搬迁其数据。显式选择全局 USER.md 时仅用户档案使用全局根，项目数据仍留在所选工作区根。设置和只读清单使用同一布局解析器。
+
 ## 默认插件组合
 
 | 插件 | 记忆权威 | 默认 View 贡献 |

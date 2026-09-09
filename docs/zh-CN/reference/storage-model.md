@@ -59,6 +59,9 @@ follow an exact cold reference when full text is required
 
 `storageScope` 决定整个根，而不只是 Mnemon 数据库。`workspace` 范围会为每个已登记 DSH 工作区解析独立的 `<workspace>/.mnemon`。显式启用的 `runtimeUserScope=global` 是唯一的分根例外：Runtime 从全局根读取 USER.md，MEMORY.md 与其他所有组件仍留在所选根。工作台任务使用查看工作区；对话工具与生命周期使用所属会话的 cwd 和已固定的 View。`state/memory-providers.json` 保存第三方 endpoint、目标 URI、身份和可选凭据；文件权限为 `0600`，Host 只返回已配置字段名，不回传凭据值。
 
+`workspaces` 布局把四个 area 集中在 `<集中根>/workspaces/<工作区路径哈希>/`；Host 解析目录时不创建文件或修改旧根。只有显式 `runtimeUserScope: global` 会把 USER.md 放在该工作区子目录之外。
+
+
 <a id="runtime-memory"></a>
 
 ## 运行时记忆
@@ -137,7 +140,7 @@ Documents 保存比单条记忆更完整、又希望快速阅读的项目知识�
 
 Documents 的物理共享范围由 `storageScope` 决定：
 
-- `workspace`：通常随项目隔离；
+- `workspace` / `workspaces`：通常随项目隔离；
 - `global` / `custom`：多个工作区可能共享同一个 `documents/index.json`。
 
 因此“项目档案”表示内容类型，不保证天然按工作区物理隔离。当前会话工作区只约束新写入的 `sourcePaths`。

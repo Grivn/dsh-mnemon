@@ -1,3 +1,4 @@
+import { isWorkspaceStorageScope } from '../host/protocol.ts'
 import { isDefaultSourceInstance } from '../host/protocol.ts'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { IconChevronLeftOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -328,7 +329,7 @@ function ProviderHealth({ services }: { services: MemoryProviderRuntimeStatus[] 
 }
 
 function storageScopeLabel(t: MnemonTranslate, kind: StorageScopeKind): string {
-  return t(kind === 'global' ? 'status.storageGlobal' : kind === 'workspace' ? 'status.storageWorkspace' : 'status.storageCustom')
+  return t(kind === 'global' ? 'status.storageGlobal' : kind === 'workspace' ? 'status.storageWorkspace' : kind === 'workspaces' ? 'status.storageWorkspaces' : 'status.storageCustom')
 }
 
 /** Resolve the configured scope before the first status round-trip to keep the Sidebar header stable. */
@@ -519,8 +520,8 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
   const workspaceContext = status?.workspaceContext
   const storageMode = workspaceContext?.mode ?? status?.storage?.activeKind ?? configuredStorageScope(settingsSnapshot.value)
   const storageModeText = storageScopeLabel(t, storageMode)
-  const showWorkspacePicker = storageMode === 'workspace' && workspaceSelection !== undefined && workspaceSelection.options.length > 0
-  const workspaceDiverged = workspaceContext?.mode === 'workspace' && !workspaceContext.aligned
+  const showWorkspacePicker = isWorkspaceStorageScope(storageMode) && workspaceSelection !== undefined && workspaceSelection.options.length > 0
+  const workspaceDiverged = workspaceContext !== undefined && isWorkspaceStorageScope(workspaceContext.mode) && !workspaceContext.aligned
   const canAlignWorkspace = workspaceDiverged && workspaceSelection?.effectiveWorkspaceId !== undefined
   const workspaceDifference = workspaceContext === undefined
     ? ''
