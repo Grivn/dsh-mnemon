@@ -12,6 +12,7 @@ For new evaluations, commit the reusable harness, workload generator, concise bi
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [Built-in centralized workspaces — issue #189](./issue-189-core-workspaces/README.md) / [中文](./issue-189-core-workspaces/README.zh-CN.md) | Core/Host storage scope, Source isolation, real WebUI and restart / 内置存储范围、Source 隔离、真实 WebUI 与重启 |
 | [Automatic memory quality — 2026-09-09](./runtime-memory-quality-flash-20260909/README.md) / [中文](./runtime-memory-quality-flash-20260909/README.zh-CN.md) | Four concurrent developer sessions with real Flash; current facts, corrections, clutter and fresh recall / 四会话自动记忆质量验收 |
 | [Runtime capacity — 2026-09-09](./runtime-capacity-flash-20260909/README.md) / [中文](./runtime-capacity-flash-20260909/README.zh-CN.md) | Real Flash, exact archival, concurrent and session-free writes / 真实 Flash 归档与并发写入 |
 | [Creation-time ordering](./issue-202-created-order/README.md) | Issue #202 Runtime/Documents ordering, real WebUI writes and retained screenshots |
