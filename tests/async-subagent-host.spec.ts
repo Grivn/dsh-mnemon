@@ -147,7 +147,7 @@ async function harness(respond: (options: GenerateOptions) => Response | Promise
       })
     },
   })
-  const parent = ctx.agentLoop.create(SessionId('parent'), { provider: 'mock', model: 'mock' }, { cwd: root })
+  const parent = await ctx.agentLoop.create(SessionId('parent'), { provider: 'mock', model: 'mock' }, { cwd: root })
   const runParent = async () => {
     parent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue.' }], source: { kind: 'user' } }))
     await parent.whenIdle()

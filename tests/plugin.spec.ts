@@ -1,4 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { Context } from '@deepseek-ai/cordis'
+import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -116,6 +118,33 @@ async function installStarter(target: ReturnType<typeof context>) {
 }
 
 describe('dsh-mnemon plugin composition', () => {
+  it('registers and disposes Web RPC routes with the Starter connection scope', async () => {
+    const root = new Context()
+    releases.push(() => root.fiber.dispose())
+    const stub = context()
+    const routes = new Map<string, unknown>()
+    await root.plugin({ apply: ctx => {
+      ctx.provide('webServer', { register: (route: { path: string }) => {
+        routes.set(route.path, route)
+        return () => { routes.delete(route.path) }
+      } })
+    } })
+    for (const name of ['tools', 'commands', 'settings', 'agents', 'subagents'] as const) root.provide(name, stub.ctx[name])
+    const transportDependencies = bundlePatch.match(/- id: connection\n\s+inject: \[([^\]]+)\]/)?.[1]
+      ?.split(',').map(name => name.trim()) ?? []
+    root.provide('webRuntime', {})
+    await root.plugin({ inject: transportDependencies, apply: ctx => { new HostConnectionService(ctx, [], { isAuthenticated: () => true } as never) } })
+    const host = await root.plugin({ inject, apply: ctx => apply(ctx, { dataDir: dataDir() }) })
+    const connectionFiber = [...root.registry.values()].flatMap(runtime => [...runtime.fibers])
+      .find(fiber => fiber.parent === host.ctx && Object.hasOwn(fiber.inject, 'connection'))
+    expect(connectionFiber).toBeDefined()
+    await connectionFiber!.await()
+    expect(routes.size).toBe(7)
+    expect(routes.has('/dsh-mnemon-read')).toBe(true)
+    await host.dispose()
+    expect(routes.size).toBe(0)
+  })
+
   it('keeps the installed DSH prerelease family coherent', () => {
     const legacyProjection = '@deepseek-ai/dsh-session-projection-legacy'
     const directDshDependencies = Object.entries(manifest.devDependencies)
@@ -125,20 +154,20 @@ describe('dsh-mnemon plugin composition', () => {
       // Only this aliased regression fixture may use the older host contract.
       .filter(([, name, version]) => name !== '@deepseek-ai/dsh-session-projection' || version !== '0.1.0-rc.8')
       .map(match => match[2])
-    const lockedRcReleases = [...lockfile.matchAll(/^  '(@deepseek-ai\/dsh(?:-[a-z0-9-]+)?)@(0\.1\.2-rc\.1)':$/gm)]
+    const lockedRcReleases = [...lockfile.matchAll(/^  '(@deepseek-ai\/dsh(?:-[a-z0-9-]+)?)@(0\.1\.5-rc\.1)':$/gm)]
       .map(([, name, version]) => `${name}@${version}`)
-    const releaseAgeExclusions = [...workspaceConfig.matchAll(/^  - '(@deepseek-ai\/dsh(?:-[a-z0-9-]+)?@0\.1\.2-rc\.1)'$/gm)]
+    const releaseAgeExclusions = [...workspaceConfig.matchAll(/^  - '(@deepseek-ai\/dsh(?:-[a-z0-9-]+)?@0\.1\.5-rc\.1)'$/gm)]
       .map(match => match[1])
 
-    expect(directDshDependencies).toHaveLength(26)
-    expect(new Set(directDshDependencies.map(([, version]) => version))).toEqual(new Set(['0.1.2-rc.1']))
+    expect(directDshDependencies).toHaveLength(27)
+    expect(new Set(directDshDependencies.map(([, version]) => version))).toEqual(new Set(['0.1.5-rc.1']))
     expect(manifest.engines.node).toBe('>=20')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-ui-primitives']).toContain('^0.1.1-rc.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-ui-primitives']).toContain('^0.1.2-alpha.1')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toContain('^0.1.0-rc.6')
     expect(manifest.peerDependencies['@deepseek-ai/dsh-typert-protocol']).toContain('^0.1.2-alpha.1')
     expect(lockedDshVersions.length).toBeGreaterThan(100)
-    expect(new Set(lockedDshVersions)).toEqual(new Set(['0.1.2-rc.1']))
+    expect(new Set(lockedDshVersions)).toEqual(new Set(['0.1.5-rc.1']))
     expect(new Set(releaseAgeExclusions)).toEqual(new Set(lockedRcReleases))
     expect(releaseAgeExclusions).toHaveLength(new Set(lockedRcReleases).size)
     expect(workspaceConfig).not.toMatch(/^  - ['"]@deepseek-ai\/\*/m)

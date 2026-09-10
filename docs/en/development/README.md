@@ -4,7 +4,9 @@
 
 ## Environment and commands
 
-The plugin's Node engine floor is 20. The pinned complete DSH development profile is the stable 0.1.2-rc.1 release and needs Node `^22.19.0 || >=24.0.0`; use Node 24 for development. Root, Source Client tests and the external artifact consumer use that rc.1 cohort. `dsh-invariants` closes its peer graph, while `dsh-client-store` owns the public selector type used by the subagent projection adapter. Public Node entries are also smoke-tested on Node 20 in CI; an explicit source-overlay workflow remains available for the immediately preceding 0.1.2-alpha.5 tag.
+The plugin's Node engine floor is 20. The pinned complete DSH development profile is the 0.1.5-rc.1 release published on npm latest and needs Node `^22.19.0 || >=24.0.0`; use Node 24 for development. Root, Source Client tests and the external artifact consumer use that rc.1 cohort. `dsh-invariants` closes its peer graph, while `dsh-client-store` owns the public selector type used by the subagent projection adapter. Public Node entries are also smoke-tested on Node 20 in CI; a source-overlay helper remains available for explicitly requested investigations.
+
+DSH 0.1.5 UI primitives import Markdown/highlighting dependencies that its published manifest lists as development dependencies. Root, the three Source packages and the external consumer declare that complete cohort explicitly for standalone Client tests; Host artifacts still use DSH’s provided UI module. Tests use the public async Agent factory and durable `assistant/message` events. `tests/legacy-session-repair.spec.ts` runs the real released Session v0 → v3 migration over a synthetic 0.1.2-produced log, in plain and compressed form, and checks copy-only recovery and cold reopen.
 
 The reviewed rc.1 cohort is enumerated with exact versions under `minimumReleaseAgeExclude` because pnpm 11 may encounter the packages while they are inside its release-age quarantine. A composition test requires that list to equal the rc.1 packages in the lockfile and rejects a scope wildcard, so later `@deepseek-ai` publications remain quarantined.
 
@@ -121,17 +123,11 @@ The previous DSH 0.1.1-rc.2 line does not fully unload every Client module on bu
 
 For the Documents archive regression, use `pnpm e2e:serve --document-archive`. Create and activate a disposable exact-write Memory Space, create a document and archive it from the workbench. A title containing `REJECT` deliberately proposes an invalid destination; verify that the document stays active and no index appears. Rename it and retry. Send `archive-tool-222 prepare`, `archive-tool-222 update`, and `archive-tool-222` in separate Mnemon E2E conversation turns to drive real create → update → archive tools and assert the returned lineage. Only model decisions are scripted; storage, tools, transport and the browser remain real. The same fixture can reproduce the legacy receipt-index mismatch when used with the old Host build.
 
-## Manual DSH 0.1.2-alpha.5 source compatibility
+## Optional DSH source overlay
 
-To run the optional source-only `dsh-v0.1.2-alpha.5` compatibility check with a built Harness checkout:
+Registry packages are the default and were used for the 0.1.5 checks. For a maintainer-requested investigation, `pnpm dsh:link-source` can link a separately built Harness checkout selected through `DSH_SOURCE_ROOT`; `pnpm dsh:restore-registry` restores the original links. It changes generated `node_modules` only, never the published dependency versions or tsconfig source paths. The linked checkout must supply the current package cohort; run checks appropriate to that target.
 
-```sh
-DSH_SOURCE_ROOT=/absolute/path/to/deepseek-harness pnpm dsh:link-source
-pnpm_config_verify_deps_before_run=false pnpm verify
-pnpm dsh:restore-registry
-```
-
-Build Harness with its own `pnpm install --frozen-lockfile && pnpm build:lib` first. Linking changes generated `node_modules` only, not committed dependency versions. It overlays the Starter's complete DSH graph, including Store, Invariants and the additional Layout dependency, plus every installed plugin workspace's Cordis identity; every original pnpm link is recorded and restored. Plugin Client test dependencies remain workspace-local on rc.1 while the built Starter exercises alpha.5 Client APIs. Disable pnpm's pre-run dependency verification for this invocation so nested scripts do not restore the registry links. This overlay is an explicit maintainer compatibility check rather than part of the minimal per-PR CI graph. The [isolated rc.1/rc.2 WebUI evidence](../../pr-assets/dsh-rc1-compat/README.md) records the released Host behavior.
+The historical 0.1.2-alpha.5 full-suite procedure belongs to its recorded revision, not this checkout: current fixtures require the 0.1.5 Session migration and message contracts. See [earlier registry/source evidence](../../pr-assets/main-rebase-20260904/README.md) and [current 0.1.5 verification](../../pr-assets/issue-223-dsh-015/README.md).
 
 ## Releasing
 

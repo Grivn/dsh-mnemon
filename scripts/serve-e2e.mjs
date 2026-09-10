@@ -134,10 +134,10 @@ try {
   const preset = join(dshHome, '.agent-presets/mnemon-e2e')
   await mkdir(preset, { recursive: true })
   await writeFile(join(preset, 'preset.yml'), 'name: Mnemon E2E\ndescription: Isolated memory UI test (no Shell).\norder: 0\n')
-  await writeFile(join(preset, 'agent.cordis.yml'), "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    text: You are testing the Mnemon memory UI.\n")
+  await writeFile(join(preset, 'agent.cordis.yml'), "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    prefix: You are testing the Mnemon memory UI.\n")
   // Leave the entire real WebUI/plugin stack enabled. Only unrelated native
   // PTY/search tools are disabled so a test cannot launch workspace commands.
-  const disabled = ['subprocess', 'bash-sandbox', 'pwsh-sandbox', 'tool-bash', 'tool-pwsh', 'permission', 'tool-fs-search', 'directory-picker']
+  const disabled = ['subprocess', 'open-in-app', 'bash-sandbox', 'pwsh-sandbox', 'tool-bash', 'tool-pwsh', 'permission', 'tool-fs-search', 'directory-picker']
   const browsePicker = `- id: agent-presets
   config:
     default: mnemon-e2e
