@@ -11,14 +11,16 @@ The reusable fixture is [issue-223-legacy-v0.jsonl](../../../tests/fixtures/issu
 
 ## Result
 
+Command entrypoint follow-up: `a389438a4e12a77f953c80ce79828e221653ee8f`. The final full local verification passes at that revision, including a regression that invokes the npm-style executable symlink for help and repair preview. The WebUI captures below cover the unchanged Runtime/UI implementation.
+
 Implementation: `595e197670574f6a731e445b896dbc5c78271027`; base: `1790251919ec731f9dd49b43da78f78b37890a00`. Captured on 2026-09-10 with Node 25.1.0, pnpm 11.19.0, Playwright 1.63.0 / Chromium 153, macOS arm64, and Mnemon Native 0.2.8. The UI shows package version 0.5.6 because the changeset has not yet performed the release version bump. [Machine-readable results and screenshot hashes](./verification.json).
 
 | Check | Result |
 |---|---|
-| Frozen install and `pnpm verify` | Passed: 1193 tests, 7 opt-in skips; types, deterministic build, docs, Headless, strict package checks |
+| Frozen install and `pnpm verify` | Passed: 1194 tests, 7 opt-in skips; types, deterministic build, docs, Headless, strict package checks |
 | `pnpm verify:plugins` | Passed: 16 standalone plugin repositories, 17 packed artifacts, external SDK/Client consumer, real DSH packed upgrade and optional Strategy composition |
 | Real Native integration | Passed: 1 opt-in test, disposable write/recall/delete |
-| Repair regression | Passed: 16 tests including real v0 → v3 loaders, both encodings, cold reopen, byte preservation, exclusive output, checksum/truncation and rejection paths |
+| Repair regression | Passed: 17 tests including real v0 → v3 loaders, both encodings, cold reopen, byte preservation, exclusive output, checksum/truncation and rejection paths |
 | Node 20 repair preview | Passed on the same v0 JSONL fixture; 2 repairs, original preserved |
 | DSH 0.1.2-rc.1 Headless | Passed with the current plugin: 39 tools / 8 representative Mnemon tools, settings migration, restart, disable whole Starter |
 | DSH 0.1.5-rc.1 Headless | Passed: 38 tools / 8 representative Mnemon tools, the same restart and disable checks |

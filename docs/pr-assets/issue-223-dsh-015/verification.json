@@ -11,14 +11,15 @@
   "platform": "macOS arm64",
   "nativeCli": "0.2.8",
   "tests": {
-    "passed": 1193,
+    "passed": 1194,
     "skipped": 7,
-    "rootPassed": 870,
+    "rootPassed": 871,
     "pluginPassed": 323,
-    "repairPassed": 16,
+    "repairPassed": 17,
     "nativeOptInPassed": 1,
     "independentPluginRepositories": 16,
-    "packedArtifacts": 17
+    "packedArtifacts": 17,
+    "npmExecutableSymlinkPassed": true
   },
   "headless": {
     "current": {
@@ -162,5 +163,7 @@
     "Loopback fixed model responses; no model-quality claim",
     "No live third-party Provider accounts",
     "DSH 0.1.2 Headless only; older releases retain historical evidence"
-  ]
+  ],
+  "cliEntrypointRevision": "a389438a4e12a77f953c80ce79828e221653ee8f",
+  "finalLocalVerificationRevision": "a389438a4e12a77f953c80ce79828e221653ee8f"
 }
