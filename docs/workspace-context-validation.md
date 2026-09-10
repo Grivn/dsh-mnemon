@@ -240,3 +240,32 @@ The final `pnpm verify` passed 845 root tests across 80 files, all plugin checks
 390 像素页面中，宿主导航后仅剩 98 像素。插件入口通过 DSH 公开弹窗打开完整表单，内容区为 286 像素；表单与页面均无横向溢出。长表单的标题、关闭按钮保持可见，基础设置的保存与放弃栏始终可达。返回后重开保留基础展示设置草稿，放弃修改恢复原值；Escape 仅关闭插件弹窗并恢复焦点。验收后恢复原有“跟随系统”主题与桌面视口。
 
 最终 `pnpm verify` 通过 80 个文件中的 845 项根测试、全部插件检查和构建，以及 Headless、包内容、公开入口与包规范检查。定向测试覆盖预览与保存校验、只读字段、多行列表编辑、窄屏焦点和基础草稿保留。新增 9 张截图如上，检查日志保存在独立服务目录。
+
+## Main synchronization and DSH 0.1.5 — 2026-09-10
+
+Merged `main` at `2fa306b` (v0.5.7) into `codex/composable-workspace-context`. The upstream HTTP 405 and legacy-session fixes from PR #226 are retained. The expanded plugin graph uses the published `@deepseek-ai/*` 0.1.5-rc.1 development cohort, the npm `latest` version at this checkpoint; no DSH source checkout or source changes are involved.
+
+The merge preserves default runtime capacity maintenance while keeping exact-call DSH approval for actions with external authority. Journal capture accepts category-only feedback without inventing a text record. Both workspace storage modes preserve the visible inspection selection; Global and Custom modes follow the active conversation. The centralized storage directory form wraps below the compact storage choices.
+
+| Gate | Result |
+|---|---|
+| `pnpm verify` | Passed: 935 root tests, 5 opt-in skips; all 35 independent plugin checks/builds, deterministic Root builds, package and public-entry checks |
+| `pnpm verify:plugins` | Passed: 35 standalone plugin repositories and 36 tarballs, external public SDK/Client consumer, real DSH Starter installation and optional Strategy activation |
+| Real DSH Headless | Passed on 0.1.5-rc.1: 38 tools including 8 Mnemon tools, restart, canonical Builtin and disabled Starter checks |
+| Real Mnemon | Passed with Mnemon 0.2.7: isolated space creation, View write, keyword recall and forget |
+
+A fresh, separate `services-dsh-015` profile starts the released DSH Web stack with the complete workspace composition and the real Mnemon executable. The previous service profile and its synthetic history remain unchanged. Browser navigation was blocked by the client (`ERR_BLOCKED_BY_CLIENT`) in both the in-app browser and Chrome, so this checkpoint has no new WebUI acceptance or screenshots. The dated screenshots above document the earlier UI revisions and are not evidence of a visual recheck after this merge. Centralized storage layout and the combined settings flow still need a browser recheck when local navigation is available. The local model remains deterministic; external model quality is outside this validation.
+
+Command logs remain outside the repository in `../services/logs/sync-main-verify.log`, `sync-main-plugin-artifacts.log` and `sync-main-native-integration.log`. Runtime logs and authentication links are not included in repository evidence.
+
+CI now builds the complete plugin graph in dependency order before integrated type checking and tests; its previous four-package selection omitted the new public SDKs on a clean checkout.
+
+已将 `main` 的 `2fa306b`（v0.5.7）合入独立分支，保留 PR #226 中 HTTP 405 与旧会话副本修复。完整插件依赖图同步到当时 npm `latest` 的正式制品 0.1.5-rc.1，没有修改 DSH 源码或引用源码 checkout。
+
+合并保留默认运行时容量维护，并让需要外部权限的动作继续经过逐次 DSH 审批。日志允许只有分类、没有文字的反馈事件，不生成虚构原文；两种工作区存储模式保留显式检查对象，全局与自定义模式跟随当前会话。集中式目录表单在紧凑选项下方独占一行。
+
+`pnpm verify` 通过 935 项根测试（另 5 项 opt-in 跳过）、35 个独立插件检查与构建、确定性构建及包验证。真实 DSH 0.1.5 Headless 通过 38 个工具（其中 8 个 Mnemon 工具）、重启、内置工作区与停用 Starter 检查。真实 Mnemon 0.2.7 通过隔离空间创建、View 写入、关键词召回和删除。
+
+`pnpm verify:plugins` 通过 35 个独立插件仓库、36 个制品、外部公开 SDK/Client 消费者，以及真实 DSH 的 Starter 安装和可选策略启用。CI 现在先按依赖顺序构建全部插件，再进行集成类型检查与测试，避免全新 checkout 缺少原来四包列表之外的公开 SDK。
+
+新的 `services-dsh-015` 独立环境已启动完整组合，之前的服务目录及合成历史保持原状。本轮内置浏览器和 Chrome 均以 `ERR_BLOCKED_BY_CLIENT` 阻止访问，因此没有新的 WebUI 验收或截图。上面的历史截图只对应其注明的版本；集中式存储布局及合并后的设置流程仍需在本机浏览器访问恢复后复查。固定响应模型只验证编排，不代表外部模型质量。命令日志保存在仓库外，运行日志和认证链接不进入验收材料。

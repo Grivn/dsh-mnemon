@@ -95,19 +95,21 @@ export function apply(rawContext: unknown, config: MnemonConfig = {}): void {
     migrate()
     return () => { disposed = true; unsubscribe() }
   }, 'dsh-mnemon: canonical displayMode migration')
-  const coordinator = new MnemonSubagentCoordinator(ctx.subagents, runtime, ctx, () => {
+  const coordinator: MnemonSubagentCoordinator = new MnemonSubagentCoordinator(ctx.subagents, runtime, ctx, () => {
     const taskAgentModel = runtime.config.taskAgentModel
     if (taskAgentModel.mode !== 'fixed') return undefined
     const provider = taskAgentModel.provider?.trim()
     const model = taskAgentModel.model?.trim()
     if (provider === undefined || provider === '' || model === undefined || model === '') return undefined
     return { provider, model }
-  }, () => runtime.config.runtimeMemory.maintenanceMaxTokens)
+  }, () => runtime.config.runtimeMemory.maintenanceMaxTokens,
+  (scope, signal, operation) => lifecycle.runRuntimeMaintenanceTask(scope, signal, operation))
   const lifecycle = new MnemonLifecycle(ctx, coordinator, runtime.config, runtime)
   ctx.effect(() => {
     const stop = lifecycle.start()
-    return () => {
+    return async () => {
       stop()
+      await coordinator.dispose()
       disposePrepared()
       runtime.dispose()
     }

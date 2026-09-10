@@ -40,7 +40,7 @@
 
 **记忆空间（memory space）** 是由 Provider 承载、可以独立命名和激活的长期证据范围，其中包含多条具体记忆。
 
-Sidebar、对话工具与 Headless 使用同一套数据。全局、工作区与自定义范围明确可选。直接检索不创建 Mnemon 任务 Agent；Agent 查询、语义写入和整理可能使用已配置的模型。[流程与调用开销](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/reference/workflows.md)。
+Sidebar、对话工具与 Headless 使用同一套数据。全局、工作区、集中工作区与自定义范围明确可选。直接检索不创建 Mnemon 任务 Agent；Agent 查询、语义写入和整理可能使用已配置的模型。[流程与调用开销](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/reference/workflows.md)。
 
 ## 从默认组合开始
 
@@ -57,6 +57,8 @@ Headless 使用同一个包：`dsh plugin --profile headless add dsh-mnemon`。
 打开**记忆系统 → 状态**，然后添加一条运行时记忆。创建档案前先选择 DSH 工作区，全局存储也需要工作区身份。需要长期沉淀时，人工选择 Provider 并创建记忆空间。默认以 Sidebar 展示，可选 Builtin 使用同一组页面。
 
 从 v0.4 升级保留熟悉的配置、数据与工作流。三个可选增强仅在**设置 → 记忆系统**中透出，不增加 View 页或通用记忆插件管理器。[升级清单](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/reference/compatibility.md)。
+
+当前开发基线为 npm `latest` 发布的 DSH `0.1.5-rc.1`。现有会话若报 `source summary requires notice form`，需要显式执行 `dsh-mnemon-repair-session --input FILE --output NEW_FILE` 生成修复副本；替换任何文件前请阅读[旧会话恢复流程](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/zh-CN/guides/operations.md#dsh-015-兼容与旧会话恢复)。
 
 ## Source + Strategy → View
 

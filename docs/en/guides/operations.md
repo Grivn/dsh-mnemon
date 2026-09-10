@@ -49,6 +49,26 @@ The Host fixes update commands and arguments. The browser cannot supply either; 
 
 The opt-in SQLite incompatibility first called out for DSH rc.8 remains in DSH 0.1.1-rc.2. It applies only to `@deepseek-ai/dsh-session-persistence-sqlite`, which shipped profiles do not select. The rc.2 backend uses schema version 17, rejects older schemas, and provides no migration path: deployments that mounted it manually should back up and recreate the DSH session database. dsh-mnemon's Runtime, Documents, Memory Spaces, and Provider data use separate storage roots and are unaffected.
 
+## DSH 0.1.5 compatibility and legacy Session recovery
+
+DSH `0.1.5-rc.1` is the npm `latest` release verified by this checkout. Restart the Web Profile after upgrading Mnemon: the Starter patch gives the owning `connection` entry both `webRuntime` and `webServer`. This restores all seven Mnemon RPC channels when **Memory System** or its Settings page previously returned HTTP 405. Custom profiles that install the Host without the Starter must apply the same dependency declaration to their connection entry, preserving any additional dependencies in their own composition. No DSH package source is changed; browser authentication and Mnemon grants still apply.
+
+The separate error `source summary requires notice form; source v0 artifact remains unchanged` comes from older Mnemon messages in DSH Session logs. New recall/instruction messages omit that invalid summary. Updating the plugin does not rewrite an existing Session. To repair one affected log:
+
+1. Stop the owning DSH process. Back up its entire Session storage root, including every generation, separately from a Mnemon Pack. Use the exact `raw log` path reported by DSH; do not search or rewrite unrelated sessions.
+2. With the updated Mnemon package installed, preview the command below against a **backup copy**. Use Node `22.19+` or `24+` for `.jsonl.zstd`; plain `.jsonl` also works on Node 20.
+3. Write to a new path outside the Session directory. Review `repairedMessages` and the SHA-256 report. Only the two known Mnemon `recall` / `instructions` summary strings are removed; all other decoded bytes, message IDs and event order are retained. Other plugins and unfamiliar summaries are untouched. Existing output files are rejected.
+4. In a disposable copy of the Profile, replace only the affected `session.jsonl` or `session.jsonl.zstd` with the repaired copy, retaining the original backup. Let DSH load and resume it, then restart and verify the conversation. Repeat that explicit replacement in the stopped original Profile only after validating the copy. The command itself never replaces the input or a live Session.
+
+```sh
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd --output /backup/repaired-session.jsonl.zstd
+```
+
+The executable is installed with `dsh-mnemon`; a Profile-local installation can use `pnpm exec dsh-mnemon-repair-session` from that Profile. In a checkout use `node bin/repair-legacy-session.mjs`. The tool accepts only v0, valid UTF-8 JSON records and complete ordinary Zstandard frames, with a 128 MiB limit on both stored and decoded input. Malformed input, incomplete frames and ambiguous duplicate message-path keys are refused without publishing output. It does not recover unrelated corruption or assert that every possible Session is migratable; the official DSH loader remains the validator.
+
+DSH migrates old Sessions to immutable v3 generations when opening for write. Mnemon Runtime, Documents and Memory Spaces retain their existing formats. To roll DSH back, restore the pre-upgrade Session backup in a separate old-version Profile; do not open v3 generations with an older DSH. See [verification and screenshots](../../pr-assets/issue-223-dsh-015/README.md).
+
 ## Backup and recovery
 
 ### Recommended: Settings ZIP
@@ -98,7 +118,7 @@ Generate an inventory or checksums and rehearse recovery in isolation. A normal 
 
 ## Changing storage scope
 
-Saving `global` / `workspace` / `custom` initializes a new runtime graph before switching atomically. The page reloads automatically, but **data is not migrated**:
+Saving `global` / `workspace` / `custom` / `workspaces` initializes a new runtime graph before switching atomically. The page reloads automatically, but **data is not migrated**:
 
 ```text
 old scope -- save --> new empty or existing root
@@ -110,13 +130,16 @@ no automatic delete
 
 Recommended migration: export from the old scope → switch and confirm the new root → import → verify. In Workspace mode, confirm both inspection and execution targets.
 
+With `workspaces`, back up the complete central directory for every workspace, or export a Pack for the selected workspace only. A renamed/moved workspace receives a new path hash; restoring its old data is an explicit operator action.
+
+
 Existing turns and delegated child activations may still use the old runtime. Wait for them to finish or cancel them before moving or retiring its data. Parent completion alone does not release an asynchronous child's delegation; a newly created or cold-resumed activation captures its own authorized generation.
 
 <a id="cloud-hosted-webui"></a>
 
-## Cloud-hosted WebUI on stable DSH 0.1.2-rc.1
+## Cloud-hosted WebUI on DSH 0.1.5-rc.1
 
-Stable DSH 0.1.2-rc.1 is the recommended registry target. It authenticates the page, every RPC, and every stream through an authority-bound browser session created from the launch-token URL printed by the Host. `--trusted-host` remains a Host/Origin fence; it does not replace HTTPS or deployment access controls.
+DSH 0.1.5-rc.1 is the recommended registry target. It authenticates the page, every RPC, and every stream through an authority-bound browser session created from the launch-token URL printed by the Host. `--trusted-host` remains a Host/Origin fence; it does not replace HTTPS or deployment access controls.
 
 1. Terminate HTTPS at a reverse proxy or access gateway and protect the public entry for its intended users. Proxy the same-origin `/` and `/api` traffic, including streams, to `http://127.0.0.1:3080` while preserving the external `Host` authority.
 2. Start the loopback service with the external authority. Use a bare `host[:port]`, not a URL:
@@ -205,7 +228,7 @@ For v0.5.5 authenticated Gateway clients, `remoteAccess: trusted-host` grants ma
 - Provider catalogs and management responses are redacted; the UI receives configured field names, never saved credential values.
 - The WebUI follows the Host's writable settings snapshot instead of inferring capability from transport locality; an unavailable settings channel renders an explicit diagnostic rather than an empty page.
 - The WebUI neither reads SQLite, starts processes, calls remote providers, nor supplies arbitrary update commands; provider network access remains inside the Host.
-- Workers use persona, tool allowlists, schema-validated one-run result tools, and `maxDepth: 1`.
+- Workers use persona, tool allowlists, and `maxDepth: 1`. A stable result tool accepts only the current child's revocable request ID and validates each operation's result schema.
 - Distillation and supervised writeback workers cannot call `mnemon_forget`. Idle review has only the create-only Documents tool for document writes, so it cannot replace user originals or archive documents to make room. These restrictions are enabled by default and do not require an enhancement plugin.
 - Queries, candidates, Document bodies, and historical memory are treated as untrusted data.
 
@@ -222,6 +245,7 @@ Report vulnerabilities privately through [SECURITY.md](../../../SECURITY.md), no
 | Symptom | Check and resolution |
 |---|---|
 | Mnemon unavailable | macOS/Linux: run `command -v mnemon`, `mnemon --version`. Windows PowerShell: run `Get-Command mnemon`, `Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"`. Set `MNEMON_CLI_PATH` or `mnemon.cliPath`, then restart |
+| Electron desktop Host cannot run npm CLI scripts | Verified npm launchers use child-only `ELECTRON_RUN_AS_NODE=1`. If the desktop shell disables the [Electron `runAsNode` fuse](https://www.electronjs.org/docs/latest/tutorial/fuses#runasnode), this flag is ignored; set `mnemon.cliPath` to the official native binary (`mnemon.exe` on Windows). Automatic npm updates still require a Host that can run the JavaScript launcher |
 | Headless Agent has no Mnemon tools | Plugins are profile-local. Run `dsh plugin --profile headless add dsh-mnemon`; a Web-profile installation does not carry over |
 | Memory System entry missing | Check `tabEnabled=true`; `displayMode=sidebar` uses the sidebar, while `displayMode=builtin` uses the open conversation's tabs. For a local link run `pnpm run build`, then restart the profile |
 | A retained `buildin` preference opens a conversation tab after upgrading | v0.4.2 restores that preference and saves it as `builtin`; select Sidebar to keep the standalone entry. Memory scope and stored data are unchanged |
@@ -269,3 +293,13 @@ There is no formal fixed DSH / Mnemon support matrix. The main Web interface is 
 ## Optional workspace services
 
 See [Composable workspace services](workspace-services.md) for independent Sources, policies, activation, data ownership and retained acceptance evidence.
+
+## Document archive recovery
+
+Document archive no longer asks the worker to number remember/recall receipts. If an older attempt left a cold index while the document stayed active, retrying can reuse an index whose exact path and content hash match the current revision. Updated documents need a matching new revision index. Providers with asynchronous extraction or no safe forget are rejected before indexing. A cleanup failure names the destination and newly created id; keep existing data until the outcome is established.
+
+## Runtime archive recovery
+
+Capacity archival requires an active Memory Space whose Provider supports exact writes and safe forget. Asynchronous extraction targets, including Hindsight, are excluded before any archive write. If no eligible target remains, activate a suitable space or increase `runtimeMemory.memoryLimitBytes`; the rejected mutation and existing hot entries stay unchanged. Direct Provider writes retain their existing asynchronous behavior.
+
+If an archive receipt or local commit fails, the Host attempts to forget only entries proven newly created by this attempt. Skipped or reused entries are preserved. A changed or unreadable Runtime revision after a commit error is treated as uncertain: archive entries are retained to avoid losing committed memory. Cleanup errors identify the remaining destination and item ids. A Provider request that fails without receipts may have an unknown remote outcome, so this is not a distributed transaction; inspect that Provider before retrying.

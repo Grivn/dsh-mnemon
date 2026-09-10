@@ -675,3 +675,8 @@
 .fullSettingsContent { min-height: 0; overflow-y: auto; padding: 0 24px 20px; }
 .fullSettingsBody { min-width: 0; outline: none; }
 .fullSettingsBody .pageHeader { display: none; }
+
+.storageChoiceGrid > :last-child { grid-column: 1 / -1; }
+.preferenceRow:has(.workspaceStorageLocation) { flex-wrap: wrap; }
+.workspaceStorageLocation { min-width: 0; flex-basis: 100%; }
+.workspaceStorageLocation > p { margin: 10px 0 0; color: var(--dsw-alias-label-caption); font-size: 12px; line-height: 1.5; }

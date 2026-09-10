@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
+import type { MessageSourceMap } from '@deepseek-ai/dsh-llm'
 import type { ResolvedConfig } from './config.ts'
 import type {
   CreateHostAgentOptions,
@@ -90,7 +91,7 @@ interface PromptAssemblyContext {
   signal?: AbortSignal
 }
 
-function createPluginMessage(text: string, form: 'recall' | 'notice' | 'instructions', summary?: string): HostUserMessage {
+function createPluginMessage(text: string, form: 'recall' | 'instructions'): HostUserMessage {
   return structuredClone({
     id: crypto.randomUUID(),
     role: 'user' as const,
@@ -99,8 +100,7 @@ function createPluginMessage(text: string, form: 'recall' | 'notice' | 'instruct
       kind: 'plugin',
       plugin: MNEMON_PLUGIN_SOURCE,
       form,
-      ...(summary === undefined ? {} : { summary }),
-    },
+    } satisfies MessageSourceMap['plugin'],
   })
 }
 
@@ -268,6 +268,7 @@ class MnemonAgentLifecycle {
         this.primePending = true
         this.cueInjected = false
         this.injectedMemoryText = undefined
+        this.lastError = undefined
         this.mark('prime')
       }) as never),
       this.agent.ctx.on('session/event', ((session: HostAgent['session'], event: HostSessionEvent) => this.sessionEvent(session, event)) as never),
@@ -366,7 +367,7 @@ class MnemonAgentLifecycle {
     const text = wake.text
     if (text.trim() === '' || text === this.injectedMemoryText) return undefined
     this.injectedMemoryText = text
-    return createPluginMessage(text, 'recall', 'Memory View snapshot')
+    return createPluginMessage(text, 'recall')
   }
 
   private async preStep(payload: PreStepPayload, next: () => Promise<HostPreStepDecision>): Promise<HostPreStepDecision> {
@@ -410,7 +411,7 @@ class MnemonAgentLifecycle {
     if (this.config.recallMode === 'guided') this.counters.recallCues += 1
     if (this.config.writebackMode === 'guided' && this.config.writeEnabled) this.counters.writebackCues += 1
     this.mark(this.config.recallMode === 'guided' ? 'recall' : 'writeback')
-    return { kind: 'enter', messages: withSnapshot([...decision.messages, createPluginMessage(reminder, 'instructions', 'Optional memory recall and remember reminder')]) }
+    return { kind: 'enter', messages: withSnapshot([...decision.messages, createPluginMessage(reminder, 'instructions')]) }
   }
 
   private async assemblePrompt(assembly: PromptAssembly, context: PromptAssemblyContext, next: () => Promise<PromptAssembly>): Promise<PromptAssembly> {
@@ -477,6 +478,7 @@ class MnemonAgentLifecycle {
       this.lastReviewScore = triggeredScore
       this.lastReviewDocumentIds = result.documentIds
       this.turnActivity.clear()
+      this.lastError = undefined
       this.mark('review')
     } catch (error) {
       if (!controller.signal.aborted) this.fail(error)
@@ -570,14 +572,16 @@ class MnemonAgentLifecycle {
   private mark(phase: LifecyclePhase): void {
     this.lastPhase = phase
     this.lastAt = new Date().toISOString()
-    this.lastError = undefined
   }
 
   private fail(error: unknown): void {
     this.counters.failures += 1
     this.lastPhase = 'error'
     this.lastAt = new Date().toISOString()
-    this.lastError = error instanceof Error ? error.message : String(error)
+    this.lastError = (error instanceof Error ? error.message : String(error))
+      .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/gu, '[redacted]')
+      .replace(/\s+/gu, ' ').trim().slice(0, 500)
+    console.warn(`[dsh-mnemon] idle review failed: ${this.lastError}`)
   }
 
 }
@@ -752,6 +756,14 @@ export class MnemonLifecycle {
 
   runtime(sessionId: string, request: RuntimeMemoryMutation, signal = new AbortController().signal) {
     return this.coordinator.runtime(this.liveAgent(sessionId), request, signal)
+  }
+
+  manageSource(graph: import('./runtime.ts').MnemonRuntimeGraph, request: import('../core/contracts/index.ts').MemorySourceManagementRequest) {
+    return this.coordinator.manageSource(graph, request)
+  }
+
+  runRuntimeMaintenanceTask<T>(scope: import('../core/contracts/index.ts').MemoryOperationScope, signal: AbortSignal, operation: (agent: HostAgent) => Promise<T>): Promise<T> {
+    return this.runTaskAgent('', scope.workspaceId, signal, operation)
   }
 
   documents(sessionId: string) {

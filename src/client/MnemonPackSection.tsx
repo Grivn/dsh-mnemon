@@ -77,7 +77,7 @@ export function MnemonPackSection({ connection, sessionId, workspaceId, refreshK
     return () => { active = false }
   }, [client, refreshKey])
 
-  const scopeLabel = (scope: string): string => scope === 'global' ? t('config.global') : scope === 'workspace' ? t('config.workspace') : t('config.custom')
+  const scopeLabel = (scope: string): string => scope === 'global' ? t('config.global') : scope === 'workspace' ? t('config.workspace') : scope === 'workspaces' ? t('config.workspaces') : t('config.custom')
 
   const exportZip = async (): Promise<void> => {
     if (client === null || busy !== null) return

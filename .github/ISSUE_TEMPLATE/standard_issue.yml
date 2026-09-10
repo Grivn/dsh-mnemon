@@ -5,8 +5,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        请保持本模板完整并填写所有必填部分。删除必填部分的 Issue 将被自动关闭。可复现的 Bug 请使用“Bug 报告 / Bug report”表单。
-        Keep this template intact and complete every required field. Issues with required sections removed will be closed automatically. Use the “Bug 报告 / Bug report” form for reproducible bugs.
+        请填写请求、预期结果、使用场景和相关环境。信息不足时机器人会提示补充，模板检查不会自动关闭 Issue。Bug 请使用“Bug 报告 / Bug report”表单。
+        Describe the request, expected outcome, use case and relevant environment. Missing information prompts a request for details; template checks do not close issues. Use the “Bug 报告 / Bug report” form for bugs.
+
+        通过 CLI/API 提交时可使用相同段落标题组织正文；补充信息可直接编辑原 Issue，机器人会更新已有提示。
+        CLI/API reports may use the same section headings. Edit the original issue to add information; the bot updates its existing reminder.
 
         提交前请先搜索确认没有重复 / Search for existing issues before submitting: [Issues](https://github.com/omdsh-dev/dsh-mnemon/issues?q=is%3Aissue)
 

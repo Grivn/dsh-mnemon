@@ -40,7 +40,7 @@ Runtime context, searchable documents and long-term evidence share a familiar Si
 
 A **memory space** is one named, Provider-backed scope for long-term evidence. It contains individual memories and can be activated independently. The Chinese product term is **记忆空间**.
 
-Use the same data from Sidebar, conversation tools or Headless. Global, workspace and custom storage scopes are explicit. Direct retrieval does not spawn a Mnemon task Agent; Agent Query, semantic writes and maintenance may use the configured model. [Workflows and costs](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/reference/workflows.md).
+Use the same data from Sidebar, conversation tools or Headless. Global, workspace, centralized workspace and custom storage scopes are explicit. Direct retrieval does not spawn a Mnemon task Agent; Agent Query, semantic writes and maintenance may use the configured model. [Workflows and costs](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/reference/workflows.md).
 
 ## Start with the default installation
 
@@ -51,6 +51,8 @@ mnemon --version
 dsh plugin --profile web add dsh-mnemon
 dsh web
 ```
+
+The current development baseline is DSH `0.1.5-rc.1` (npm `latest`). Existing Sessions with `source summary requires notice form` need the explicit `dsh-mnemon-repair-session --input FILE --output NEW_FILE` copy repair; see [legacy Session recovery](https://github.com/omdsh-dev/dsh-mnemon/blob/main/docs/en/guides/operations.md#dsh-015-compatibility-and-legacy-session-recovery) before replacing any artifact.
 
 For Headless, add the same package to that profile with `dsh plugin --profile headless add dsh-mnemon`.
 

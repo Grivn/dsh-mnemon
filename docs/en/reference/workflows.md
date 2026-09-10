@@ -173,21 +173,22 @@ The user profile is never sent to Memory Spaces. The worker has no tool permissi
 ## MEMORY.md Archival and Compaction
 
 ```text
-MEMORY add exceeds 10 KiB
+Default Strategy: pending MEMORY mutation exceeds the configured limit (10 KiB by default)
           |
           v
 snapshot revision + committed entries eligible for archival
 (exclude the pending add and the entry being replaced or removed)
           |
           v
-Host selects existing active writable Memory Spaces
+Host selects existing active writable Memory Spaces within this operation's Source and namespace scope
           |
           v
-spawn a no-tool planner
-  output: complete source-index routes + bounded compacted candidates
+One destination: Host routes directly
+Several destinations: independent no-tool worker returns source-index routes only
+  On model execution failure, Host falls back within eligible destinations
           |
           v
-Host validates exact source coverage, destinations, candidates, and byte budget
+Host validates exact source coverage, destinations, authority, and source revision
           |
           +-- invalid/revision changed -> no Provider writes; preserve Runtime
           |
@@ -195,6 +196,9 @@ Host validates exact source coverage, destinations, candidates, and byte budget
 Host writes each original entry exactly to its planned existing Space
   - committed receipt -> bind destination digest
   - skipped -> require exact Recall evidence
+          |
+          v
+Host retains exact hot entries by importance within its byte budget
           |
           v
 CAS compactAndMutate(revision, compaction, original mutation, lineage)

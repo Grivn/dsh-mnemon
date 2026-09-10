@@ -61,5 +61,43 @@
       "classes": 29,
       "classesSha256": "c2eeeb8d1e00063d29bfe2949339820184f3e8b22f631c362edd85aad8bfe573"
     }
+  },
+  "centralizedWorkspaces": {
+    "page": {
+      "rules": 1068,
+      "rulesSha256": "45b2036ac30794e47cb9b862e5d8f3f2c968567dc8a953167db5622d727ccd3a"
+    },
+    "sidebar": {
+      "rules": 286,
+      "rulesSha256": "66a37faa5c5875bc114a284b2711ce521e3cf5fab6f3b5c56fe1a15adaf86bdd"
+    },
+    "en": {
+      "keys": 977,
+      "sha256": "ee02f8169a503bd28d28ef60ea4cfeb0f9c396e01e7ee45a638ca91bad64796c"
+    },
+    "zh": {
+      "keys": 977,
+      "sha256": "00725a3de722df41e269a43dca686c2cc0981762e36bcfdc05c73cc55936db4b"
+    }
+  },
+  "documentArchivePlan": {
+    "en": {
+      "keys": 980,
+      "sha256": "fd5fd65888a8675dc5f0fc67cb1e616c98d557178d0eaaab4c995e6e578e36eb"
+    },
+    "zh": {
+      "keys": 980,
+      "sha256": "a9e7d82c5bb9f9ced7bb45b326002756d9d94ba0c1665d43db6b2906befe69a8"
+    }
+  },
+  "idleReviewWarning": {
+    "en": {
+      "keys": 980,
+      "sha256": "f08ccf3c1de45c07c4f2564d4b1904d272240d2288fa5a6f608417022a325224"
+    },
+    "zh": {
+      "keys": 980,
+      "sha256": "12817b8c6f44c3bfd5ed5f0a0b5cb09e36cc06f490e551bfe0049edf33d72e9e"
+    }
   }
 }

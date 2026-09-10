@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { createPortal } from 'react-dom'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ClientSettingsScope, Config } from "../host/protocol.ts"
+import { isWorkspaceStorageScope } from '../host/protocol.ts'
 import type { MnemonClientContext } from "./dsh-context.ts"
 import type { MnemonTranslate } from './locales.ts'
 import { MnemonWorkbench, type MnemonWorkspaceSelection } from './MnemonWorkbench.tsx'
@@ -131,9 +132,9 @@ export function MnemonWorkspaceHost(props: MnemonWorkspaceHostProps): JSX.Elemen
     : workspaces.items.find(workspace => normalizePath(workspace.path) === normalizePath(currentCwd))
   const fallbackWorkspace = effectiveWorkspace ?? workspaces.items[0]
   const selectedExists = selectedWorkspaceId !== undefined && workspaces.items.some(workspace => String(workspace.workspaceId) === selectedWorkspaceId)
-  // Only Workspace mode exposes a persistent inspection picker. Other modes
+  // Workspace storage modes expose a persistent inspection picker. Other modes
   // follow the current conversation so an invisible old selection cannot win.
-  const resolvedSelectedId = storageMode === 'workspace' && selectedExists ? selectedWorkspaceId : fallbackWorkspace === undefined ? undefined : String(fallbackWorkspace.workspaceId)
+  const resolvedSelectedId = isWorkspaceStorageScope(storageMode) && selectedExists ? selectedWorkspaceId : fallbackWorkspace === undefined ? undefined : String(fallbackWorkspace.workspaceId)
 
   useEffect(() => {
     if (resolvedSelectedId !== selectedWorkspaceId) setSelectedWorkspaceId(resolvedSelectedId)

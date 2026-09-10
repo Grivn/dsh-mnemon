@@ -300,7 +300,7 @@ describe('VersionUpdateManager', () => {
   })
 
   function cliNpmFixture() {
-    const root = directory('npm-cli')
+    const root = directory('npm cli with spaces')
     const globalRoot = join(root, 'lib/node_modules')
     const packageRoot = join(globalRoot, '@mnemon-dev/mnemon')
     const launcher = join(packageRoot, 'bin/mnemon.js')
@@ -313,7 +313,7 @@ describe('VersionUpdateManager', () => {
     const state = { current: '0.2.8', globalRoot, npm: true, broken: false, installed: '0.2.9' }
     const run = vi.fn<ProcessRunner>(async (_command, args) => {
       if (args.includes('--version')) return { stdout: state.broken ? '' : `mnemon version ${state.current}`, stderr: state.broken ? 'missing native binary' : '', exitCode: state.broken ? 1 : 0 }
-      if (args[0] === 'root') return { stdout: state.globalRoot, stderr: '', exitCode: 0 }
+      if (args.includes('root')) return { stdout: state.globalRoot, stderr: '', exitCode: 0 }
       if (args.includes('update')) { state.current = state.installed; return { stdout: 'updated', stderr: '', exitCode: 0 } }
       throw new Error('Unexpected process call')
     })
@@ -364,6 +364,38 @@ describe('VersionUpdateManager', () => {
     const f = cliNpmFixture()
     f.state.installed = '0.2.8'
     await expect(f.manager.update('mnemon')).rejects.toThrow('did not activate version')
+  })
+
+  it.each([false, true])('checks and updates npm installations in an Electron Host (Windows shims: %s)', async windowsShims => {
+    const f = cliNpmFixture()
+    vi.stubEnv('ELECTRON_RUN_AS_NODE', '0')
+    vi.stubEnv('npm_config_prefix', f.root)
+    const shim = join(f.root, 'lib', 'mnemon.cmd')
+    const npm = join(f.root, 'lib', 'npm.cmd')
+    const npmCli = join(f.root, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    mkdirSync(join(f.root, 'lib', 'node_modules', 'npm', 'bin'), { recursive: true })
+    writeFileSync(shim, '@"%dp0%\\node_modules\\@mnemon-dev\\mnemon\\bin\\mnemon.js" %*')
+    writeFileSync(npm, 'fixture')
+    writeFileSync(npmCli, 'fixture')
+    const execute = f.run.getMockImplementation()!
+    f.run.mockImplementation(async (command, args, options) => {
+      // Electron starts a GUI instead of the requested script without this flag.
+      if (command === process.execPath && options.env?.ELECTRON_RUN_AS_NODE !== '1') return { stdout: '', stderr: '', exitCode: 0 }
+      return execute(command, args, options)
+    })
+    const manager = new VersionUpdateManager({ ...f.options,
+      ...(windowsShims ? { mnemonCliPath: () => shim, resolveExecutable: (name: string) => name === shim ? shim : name === 'npm' ? npm : undefined } : {}),
+    })
+    expect((await manager.check()).components[0]).toMatchObject({ current: '0.2.8', installMode: 'npm', updateSupported: true, updateHint: 'npm' })
+    await expect(manager.update('mnemon')).resolves.toMatchObject({ previousVersion: '0.2.8', currentVersion: '0.2.9', updated: true })
+    const launcher = windowsShims ? f.launcher : realpathSync(f.launcher)
+    const nodeCalls = f.run.mock.calls.filter(([command]) => command === process.execPath)
+      .map(([, args, options]) => ({ args, timeoutMs: options.timeoutMs, runAsNode: options.env?.ELECTRON_RUN_AS_NODE, prefix: options.env?.npm_config_prefix }))
+    expect(nodeCalls).toContainEqual({ args: [launcher, '--version'], timeoutMs: 10_000, runAsNode: '1', prefix: f.root })
+    expect(nodeCalls).toContainEqual({ args: [launcher, 'update'], timeoutMs: 600_000, runAsNode: '1', prefix: f.root })
+    if (windowsShims) expect(nodeCalls).toContainEqual({ args: [npmCli, 'root', '--global'], timeoutMs: 10_000, runAsNode: '1', prefix: f.root })
+    else expect(f.run.mock.calls.find(([command]) => command === '/fake/npm')?.[2].env).toBeUndefined()
+    expect(process.env.ELECTRON_RUN_AS_NODE).toBe('0')
   })
 
   function subpackageFixture() {

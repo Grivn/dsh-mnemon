@@ -16,7 +16,7 @@ Older media remain available with their original version labels in [historical e
 
 The Memory System sidebar entry always opens its workspace, including after visiting Task Board or SSH. Clicking it again keeps the current page open; use Back to conversation to close it.
 
-With `displayMode: builtin`, open Memory System from the conversation's tabs instead; the Sidebar entry is absent. The header omits storage-mode and workspace-selection controls because the Host uses the owning session's global, workspace or custom scope. All Source pages and dialogs below are shared, and conversation shortcuts open the matching tab. See [scope mapping](../reference/configuration.md#entry-placement-displaymode-and-tabenabled).
+With `displayMode: builtin`, open Memory System from the conversation's tabs instead; the Sidebar entry is absent. The header omits storage-mode and workspace-selection controls because the Host uses the owning session's global, workspace, centralized workspaces or custom scope. All Source pages and dialogs below are shared, and conversation shortcuts open the matching tab. See [scope mapping](../reference/configuration.md#entry-placement-displaymode-and-tabenabled).
 
 Primary pages remain **Status, Runtime, Documents, Memory Spaces**. Memory Spaces adds **Overview, Recall, Content, Entities**, with **Remember** and **Distillation strategy** at the top right. A generated View is an internal per-turn runtime artifact, not a navigation page; Status does not own plugin discovery or installation.
 
@@ -64,6 +64,10 @@ A switch applies immediately to future turns; it never rewrites a turn that alre
 
 The header summarizes User Profile (`USER.md`) and Working Memory (`MEMORY.md`). A shared card style lists items below. Filter by source, text, category, and importance; clicking the current filter again never breaks the page. Long fields truncate within their own block and reveal the complete value on hover.
 
+Runtime entries display their creation time, newest first, across both targets and text filters. Editing an older entry keeps its original position. Show more continues in the same order.
+
+When Working Memory reaches capacity, the Host archives the exact original entries. If a routing batch fails or returns an invalid proposal, that entire batch uses the eligible default Memory Space (or the first eligible space when no default is available). Earlier valid batches keep their destinations, and the maintenance summary records the fallback reason. Caller cancellation still stops the operation.
+
 Runtime items should be compact, independent, and repeatedly useful. Working Memory items can carry an optional branch scope (comma-separated git branch names in the add and edit forms): scoped items show a branch badge and are projected into the model context only while the session workspace is checked out on a listed branch; leaving the field empty keeps an item visible on every branch. The scope never affects this page or the on-disk `USER.md`/`MEMORY.md` projections. Identity, preferences, and explicit collaboration rules belong in User Profile. Project facts, environment, decisions, and tool lessons belong in Working Memory. Temporary progress and raw logs do not.
 
 ## 3. Documents: preserve complete project narratives
@@ -74,9 +78,15 @@ Select a DSH workspace first: Documents needs a workspace identity even with glo
 
 Switch between active and archived directories. Repeatedly clicking the selected entry keeps it selected; it never closes the reader. The right pane preserves title, retrieval description, provenance, revision, hash, size, and full Markdown, and resets to the top when selection changes.
 
-When foreground Document management needs more active capacity, an independent task Agent creates a Mnemon cold reference for the least-recently-used Document. The Host moves the original to archived only after verification. Failure or revision conflict preserves the active original.
+Active and archived lists, including search matches, display creation dates and sort newest first before loading more documents. Updating an older document does not move it to the top.
+
+For explicit archive or foreground capacity maintenance, an independent task Agent proposes a summary and one existing eligible Memory Space. It has no memory tools. The Host validates the proposal, adds the exact cold path and content hash, stores the index and builds lineage from its own receipt before moving the original. The destination must be active and support exact writes and safe forget; configure a suitable space before archiving.
+
+An invalid proposal leaves both the active document and Memory Spaces unchanged. If moving the document fails, the Host attempts to remove only the newly created index. Existing verified indexes are reused and never deleted by this cleanup. If cleanup fails or the Provider outcome is uncertain, inspect the reported destination and index before retrying; this is compensating cleanup, not a cross-Provider database transaction.
 
 Background review preserves existing document bodies. It searches first, skips covered candidates, and creates a separate supplementary document only for substantial new knowledge. It cannot update or archive existing documents; if capacity is exhausted, it skips creation. Normal explicit edits remain available.
+
+Review reuses complete overviews, file excerpts, rules, and tool results already inherited from the completed conversation. It cannot reopen files or call another plugin's overview tools. Missing evidence permits a bounded Document search; if that is insufficient, review skips the candidate.
 
 Title and retrieval description determine discoverability, source path preserves provenance, and the body keeps Markdown structure. Source project files remain read-only; the workbench creates a managed copy.
 
@@ -172,6 +182,8 @@ Settings centralizes stable user choices and reusable **service configuration**:
 - API Keys use a conventional password field whose eye button toggles visible/hidden; there is no clear-credential checkbox, dedicated Remove row, or saved-secret caption;
 - the three enhancement switches apply immediately; the footer Save action persists all other changes without waiting for discovery or recall. Health belongs on Status and instances belong on Overview;
 - global / workspace / custom tags show effective scope; Providers with the same scope semantics reuse Mnemon's configuration framework.
+- Choose **Settings → Memory System → Memory scope → Centralized · isolated by workspace** to collect project-isolated memory in one directory. Its optional **Central root directory** field is in the same section; leave it empty for `MNEMON_DATA_DIR` or `~/.mnemon`. The independent **Global user profile** option remains available.
+
 - User profile scope is independent: **Global user profile** combines global USER.md with workspace/custom MEMORY.md without moving either source.
 
 Each default layer has one master switch. “On” permits on-demand use; it does not force Recall on every turn.

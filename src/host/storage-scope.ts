@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { ResolvedConfig } from './config.ts'
 import type { StorageRoot } from './storage-root.ts'
+import { createStorageRoot } from './storage-root.ts'
 import type { StorageAreaInventory, StorageAreaKind, StorageAreaStatus, StorageScopeCatalog, StorageScopeInventory, StorageScopeKind } from "./protocol.ts"
 
 export type { StorageAreaInventory, StorageAreaKind, StorageAreaStatus, StorageScopeCatalog, StorageScopeInventory, StorageScopeKind } from "./protocol.ts"
@@ -147,7 +148,7 @@ function inspect(kind: StorageScopeKind, rawRoot: string | undefined, activeRoot
   }
 }
 
-/** Read-only catalog of the three storage domains. It never creates, moves, or repairs files. */
+/** Read-only storage catalog. It never creates, moves, or repairs files. */
 export class StorageScopeInspector {
   constructor(private readonly runner: Pick<StorageRoot, 'effectiveDataDir'>, private readonly config: Pick<ResolvedConfig, 'dataDir' | 'storageScope'>) {}
 
@@ -158,6 +159,7 @@ export class StorageScopeInspector {
     const configuredDataDir = this.config.dataDir === undefined ? undefined : canonical(this.config.dataDir)
     const activeKind: StorageScopeKind = this.config.storageScope
     const custom = configuredDataDir !== undefined && configuredDataDir !== global && configuredDataDir !== workspace ? configuredDataDir : undefined
+    const workspaces = workspace === undefined ? undefined : createStorageRoot({ ...this.config, storageScope: 'workspaces' }, workspaceRoot).effectiveDataDir()
     return {
       activeKind,
       activeRoot,
@@ -165,7 +167,8 @@ export class StorageScopeInspector {
         inspect('global', activeKind === 'global' ? activeRoot : global, activeRoot),
         inspect('workspace', activeKind === 'workspace' ? activeRoot : workspace, activeRoot),
         inspect('custom', activeKind === 'custom' ? activeRoot : custom, activeRoot),
-      ],
+        inspect('workspaces', activeKind === 'workspaces' ? activeRoot : workspaces, activeRoot),
+      ].map(scope => ({ ...scope, active: scope.kind === activeKind })),
       generatedAt: new Date().toISOString(),
     }
   }
@@ -174,6 +177,7 @@ export class StorageScopeInspector {
 export function validateCustomStorageRoot(value: string): string {
   const path = value.trim()
   if (path === '') throw new Error('custom storage directory is required')
+  if (path.includes('\0')) throw new Error('custom storage directory must not contain a null byte')
   const expanded = expandHome(path)
   if (!isAbsolute(expanded)) throw new Error('custom storage directory must be an absolute path or start with ~/')
   return canonical(path)

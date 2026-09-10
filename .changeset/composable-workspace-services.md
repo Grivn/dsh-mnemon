@@ -30,3 +30,5 @@ Add reviewed execution and delivery plans, persistent operation receipts, exact 
 Support the expanded independent artifact graph and external consumer checks. Fix Global/Custom workbench project selection to follow the active conversation while preserving Workspace inspection selection.
 
 Align settings with DSH theme controls and compact rows. Expose Strategy parameters in expandable rows with composition summaries, and open a full native dialog when the host content column is too narrow for the form.
+
+Align independent workspace plugins with the published DSH 0.1.5 contracts, accept feedback events without text, and retain explicit inspection in centralized workspace storage. Preserve default capacity maintenance alongside exact-call approval for actions requiring external authority.

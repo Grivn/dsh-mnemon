@@ -59,6 +59,9 @@ Use `global` for a common local root, `custom` for an explicitly agreed root, or
 
 `storageScope` determines the entire root, not just the Mnemon databases. The `workspace` scope resolves an independent `<workspace>/.mnemon` for every registered DSH workspace. The opt-in `runtimeUserScope=global` is the sole split-root exception: Runtime reads USER.md from the global root while MEMORY.md and every other component remain under the selected root. Workbench tasks use the inspected workspace; conversation tools and lifecycle hooks use their owning session's cwd and pinned View. `state/memory-providers.json` stores third-party endpoints, target URIs, identities, and optional credentials. Its mode is `0600`; the Host returns configured field names, never saved credential values.
 
+The `workspaces` layout keeps all four areas under `<central-root>/workspaces/<workspace-path-hash>/`; Host path resolution never creates files or changes old roots. Only explicit `runtimeUserScope: global` places USER.md outside that workspace subtree.
+
+
 ## Runtime Memory
 
 ### Semantics
@@ -101,7 +104,9 @@ branches (optional)
 | `USER.md` | 4 KiB | A local no-tool worker merges conservatively; content never enters a Memory Space |
 | `MEMORY.md` | 10 KiB | The Host archives exact committed entries, then deterministically packs the hot remainder |
 
-Capacity is measured from the actual UTF-8 bytes of the projection body. A single item is limited to 8 KiB. On an overflowing `add`, `replace`, or `remove`, the Host rechecks the source revision before any Provider write. With one eligible writable Memory Space it routes without a model; with several spaces, workers see only bounded routing excerpts and return destination ids, never rewritten memory. Mnemon Native entries are imported once per destination through a schema-v1 draft, while other Providers use their adapter write semantics. The Host requires one exact terminal receipt per source (and exact Recall evidence for a skipped duplicate), then selects the retained entries by importance within a byte budget and commits that remainder together with the pending mutation under the original revision fence. A Provider cannot share the local filesystem transaction, so a later revision conflict may leave already archived duplicates; retry remains safe because durable duplicate detection is preserved.
+With the default three-tier Strategy, capacity maintenance starts when an authorized write would exceed the limit. Named tools, generic Actions, background child Agents and browser management share the same Host workflow. Browser writes use the selected storage scope without requiring an open user conversation. Archive failures preserve hot memory and return an error. Standalone Sources retain their own storage semantics; custom Strategies do not implicitly inherit default archival.
+
+Capacity is measured from the actual UTF-8 bytes of the projection body. A single item is limited to 8 KiB. On an overflowing `add`, `replace`, or `remove`, the Host rechecks the source revision before any Provider write. With one eligible writable Memory Space it routes without a model; with several spaces, workers see only bounded routing excerpts and return destination ids, never rewritten memory. Mnemon Native reuses exact content from a readonly namespace snapshot, groups identical pending entries, and imports the remaining originals once per destination through a schema-v1 draft with `--no-diff`. Similar but distinct facts cannot be skipped or semantically replace each other during archival. Other Providers use their adapter write semantics. The Host requires one exact terminal receipt per source (and exact Recall evidence for a skipped duplicate), then selects the retained entries by importance within a byte budget and commits that remainder together with the pending mutation under the original revision fence. A Provider cannot share the local filesystem transaction, so a later revision conflict or concurrent external write may leave already archived duplicates; existing hot facts remain protected by the revision fence.
 
 ## Project Documents
 
@@ -131,7 +136,7 @@ User profiles, ordinary conversation, temporary progress, raw large logs, and se
 
 The physical sharing scope of Documents is determined by `storageScope`:
 
-- `workspace`: normally isolated with the project;
+- `workspace` / `workspaces`: normally isolated with the project;
 - `global` / `custom`: multiple workspaces may share the same `documents/index.json`.
 
 Therefore, “Project Documents” describes the content type and does not guarantee physical isolation by workspace. The current session workspace constrains only `sourcePaths` on new writes.

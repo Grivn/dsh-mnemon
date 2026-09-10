@@ -173,21 +173,22 @@ Host 校验：
 ## MEMORY.md 归档与压缩
 
 ```text
-MEMORY 新增后超过 10 KiB
+默认策略下，本次 MEMORY 写入将超过配置上限（默认 10 KiB）
           |
           v
 snapshot revision + 可归档的已提交 entries
 （排除待提交 add，以及正被 replace/remove 的 entry）
           |
           v
-Host 选择已有、active、可写的 Memory Spaces
+Host 在本次操作的 Source / 命名空间范围内选择已有、active、可写的 Memory Spaces
           |
           v
-spawn 无工具 planner
-  output: 完整 source-index 路由 + 有界压缩候选
+单个目标：Host 直接路由
+多个目标：独立无工具 worker 只返回 source-index 路由
+  模型执行失败时，Host 在合格目标中确定性兜底
           |
           v
-Host 校验精确 source coverage、目标、候选和字节预算
+Host 校验精确 source coverage、目标、权限与源修订
           |
           +-- 无效/revision 已变 -> 不写 Provider；保留 Runtime
           |
@@ -195,6 +196,9 @@ Host 校验精确 source coverage、目标、候选和字节预算
 Host 把每条原始 entry 精确写入规划的已有 Space
   - committed receipt -> 绑定目标 digest
   - skipped -> 必须取得完全一致的 Recall evidence
+          |
+          v
+Host 按重要性与字节预算保留原始热记忆条目
           |
           v
 CAS compactAndMutate(revision, compaction, original mutation, lineage)

@@ -49,6 +49,26 @@ Go 更新还要求当前执行文件确实位于本机 Go 的安装输出位置�
 
 DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然存在。它只针对 `@deepseek-ai/dsh-session-persistence-sqlite`，内置 profile 默认不启用。rc.2 后端使用 schema 17，会拒绝旧 schema，且不提供迁移路径；手工挂载过它的部署应先备份，再重建 DSH 会话数据库。dsh-mnemon 的 Runtime、Documents、Memory Spaces 与 Provider 数据位于独立存储根，不受影响。
 
+## DSH 0.1.5 兼容与旧会话恢复
+
+本 checkout 验证的 npm `latest` 版本为 DSH `0.1.5-rc.1`。升级 Mnemon 后重启 Web Profile：Starter 补丁为拥有路由的 `connection` Entry 同时声明 `webRuntime` 和 `webServer`，恢复此前在“记忆系统”或其设置页返回 HTTP 405 的全部七个 RPC 通道。绕过 Starter 独立安装 Host 的自定义 Profile，也应在自己的 connection Entry 声明这两个依赖，并保留自定义组合原有的其他依赖。不修改 DSH 包源码；浏览器认证和 Mnemon grant 仍然生效。
+
+另一项 `source summary requires notice form; source v0 artifact remains unchanged` 错误来自旧版 Mnemon 写入的 DSH 会话消息。新消息已移除 recall/instructions 中不合法的 summary；更新插件不会改写现有会话。修复单个受影响日志时：
+
+1. 停止所属 DSH 进程，单独备份完整会话存储根及全部 generation；Mnemon Pack 不包含这些会话。以 DSH 错误中的准确 `raw log` 路径为准，不扫描或改写其他会话。
+2. 安装修复后的 Mnemon，对**备份副本**执行下面的预览命令。`.jsonl.zstd` 使用 Node `22.19+` 或 `24+`；普通 `.jsonl` 也支持 Node 20。
+3. 将结果写入会话目录外的新路径，核对 `repairedMessages` 和 SHA-256 报告。工具只移除 Mnemon 的 `recall` / `instructions` 两个已知错误 summary 字符串；其余解压后的字节、消息 ID、事件顺序均保留。不处理其他插件或陌生 summary，并拒绝覆盖已有输出。
+4. 先在一次性的 Profile 副本中，用修复副本替换对应 `session.jsonl` 或 `session.jsonl.zstd`，保留原始备份。让 DSH 加载、续写，重启后再验证会话。副本验证通过后，才在已停止的原 Profile 中执行同样的明确替换。命令本身绝不替换输入或正在使用的会话。
+
+```sh
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd --output /backup/repaired-session.jsonl.zstd
+```
+
+可执行命令随 `dsh-mnemon` 安装；Profile 内安装可在该目录使用 `pnpm exec dsh-mnemon-repair-session`。源码 checkout 使用 `node bin/repair-legacy-session.mjs`。工具只接受 v0、合法 UTF-8 JSON 记录和完整的普通 Zstandard 帧，原始与解压输入均限制为 128 MiB。格式损坏、不完整帧、消息路径中的歧义重复键会在发布输出前被拒绝。工具不会修复其他损坏，也不保证任意会话都能迁移；最终仍以 DSH 官方加载器校验为准。
+
+DSH 以写权限打开旧会话时，会迁移为不可变的 v3 generation。Mnemon Runtime、档案与记忆空间维持原有格式。回滚 DSH 时，在独立旧版本 Profile 中恢复升级前会话备份；不要让旧 DSH 打开 v3 generation。参见[验证与截图](../../pr-assets/issue-223-dsh-015/README.zh-CN.md)。
+
 ## 备份与恢复
 
 ### 推荐：设置页 ZIP
@@ -98,7 +118,7 @@ DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然�
 
 ## 切换存储范围
 
-保存 `global` / `workspace` / `custom` 后，Host 先初始化新运行图，再原子切换；页面自动重新读取，但**不会迁移数据**：
+保存 `global` / `workspace` / `custom` / `workspaces` 后，Host 先初始化新运行图，再原子切换；页面自动重新读取，但**不会迁移数据**：
 
 ```text
 旧范围 -- 保存设置 --> 新的空目录或既有目录
@@ -110,13 +130,16 @@ DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然�
 
 推荐迁移流程：在旧范围导出 ZIP → 切换到新范围并确认显示目录 → 导入 ZIP → 验证。工作区模式下先确认查看工作区与会话执行工作区是否是预期目标。
 
+使用 `workspaces` 时，备份整个集中目录可覆盖所有工作区，导出 Pack 则只覆盖所选工作区。移动或重命名工作区会产生新路径哈希；恢复旧数据需要操作者显式执行。
+
+
 现有回合和已委托的子 Agent activation 可能仍使用旧运行图。迁移或停用其数据前，应等待它们结束或取消这些任务。父回合结束本身不会释放异步子任务的委托；新创建或冷恢复的 activation 会捕获自己获准使用的 generation。
 
 <a id="cloud-hosted-webui"></a>
 
-## 稳定版 DSH 0.1.2-rc.1 的云端 WebUI
+## DSH 0.1.5-rc.1 的云端 WebUI
 
-稳定版 DSH 0.1.2-rc.1 是推荐的 registry 安装目标。页面、每个 RPC 与每条 stream 都通过 Host 输出的启动 token URL 建立同一份、与 authority 绑定的浏览器会话。`--trusted-host` 仍只是 Host/Origin 防线，不能替代 HTTPS 或部署层访问控制。
+DSH 0.1.5-rc.1 是推荐的 registry 安装目标。页面、每个 RPC 与每条 stream 都通过 Host 输出的启动 token URL 建立同一份、与 authority 绑定的浏览器会话。`--trusted-host` 仍只是 Host/Origin 防线，不能替代 HTTPS 或部署层访问控制。
 
 1. 在反向代理或访问网关终止 HTTPS，并只向预期用户开放公网入口。把同源的 `/` 与 `/api` 流量（包括 stream）代理到 `http://127.0.0.1:3080`，同时保留外部 `Host` authority。
 2. 使用外部 authority 启动回环服务。参数应为裸 `host[:port]`，不是 URL：
@@ -205,7 +228,7 @@ HTTP 403 可能来自 Host/Origin 不匹配，或旧远程 Client 仍调用独�
 - Provider 目录和管理响应始终脱敏；界面只显示已配置字段名，不返回已保存凭据值。
 - WebUI 依据 Host 返回的可写 settings snapshot 判断产品能力，不再根据传输位置猜测权限；设置通道不可用时会显示明确诊断，而不是空白页。
 - WebUI 不直接读取 SQLite、启动进程、调用远程 Provider 或指定任意更新命令；Provider 网络访问只发生在 Host。
-- worker 使用 persona、工具白名单、经过 schema 校验的一次性结果工具与 `maxDepth: 1`。
+- worker 使用 persona、工具白名单与 `maxDepth: 1`。固定结果工具仅接受当前子任务的可撤销请求 ID，并按每次操作的 schema 校验结果。
 - 蒸馏和 supervised writeback worker 不能调用 `mnemon_forget`；后台审查的档案写入只开放仅创建工具，不能覆盖用户原文，也不能通过归档腾出容量。这些限制默认启用，无需增强插件。
 - 查询、候选、档案正文与历史记忆全部按不可信数据处理。
 
@@ -222,6 +245,7 @@ HTTP 403 可能来自 Host/Origin 不匹配，或旧远程 Client 仍调用独�
 | 现象 | 检查与处理 |
 |---|---|
 | Mnemon 不可用 | macOS/Linux 运行 `command -v mnemon`、`mnemon --version`；Windows PowerShell 运行 `Get-Command mnemon`、`Test-Path "$env:LOCALAPPDATA\Programs\mnemon\mnemon.exe"`。设置 `MNEMON_CLI_PATH` 或 `mnemon.cliPath` 后重启 |
+| Electron 桌面 Host 无法运行 npm CLI 脚本 | 经过验证的 npm 启动器仅在子进程中设置 `ELECTRON_RUN_AS_NODE=1`。如果桌面壳关闭了 [Electron `runAsNode` fuse](https://www.electronjs.org/docs/latest/tutorial/fuses#runasnode)，该变量会被忽略；请将 `mnemon.cliPath` 指向官方原生二进制（Windows 为 `mnemon.exe`）。npm 自动更新仍需要 Host 能够运行 JavaScript 启动器 |
 | Headless Agent 没有 Mnemon 工具 | 插件按 profile 独立安装；运行 `dsh plugin --profile headless add dsh-mnemon`，Web profile 的安装不会自动带入 |
 | 找不到“记忆系统”入口 | 检查 `tabEnabled=true`；`displayMode=sidebar` 使用侧边栏，`displayMode=builtin` 使用已打开会话的标签页。本地 link 先 `pnpm run build` 再重启 profile |
 | 保留的 `buildin` 偏好在升级后打开了会话标签页 | v0.4.2 恢复该偏好并保存为 `builtin`；如果希望继续使用独立入口，请选择 Sidebar。记忆范围与已存数据不变 |
@@ -269,3 +293,13 @@ HTTP 403 可能来自 Host/Origin 不匹配，或旧远程 Client 仍调用独�
 ## 可选工作区服务
 
 独立 Source、策略、启用方式、数据职责及验收证据见[可组合的工作区服务](workspace-services.md)。
+
+## 文档归档恢复
+
+文档归档不再要求子代理为 remember/recall 回执编号。旧版本失败后若留下冷索引而文档仍为 active，重试可复用精确路径与当前内容哈希一致的索引；文档更新后需要匹配新修订的索引。异步提取或不支持安全删除的 Provider 会在写入前被拒绝。清理失败会报告目标空间和本次新建的 id；确认结果前应保留已有数据。
+
+## 运行时归档恢复
+
+容量归档要求已激活的记忆空间，其 Provider 必须支持精确写入和安全删除。Hindsight 等异步提取目标会在任何归档写入前被排除。如果没有合适的目标，请激活支持这些能力的记忆空间，或增大 `runtimeMemory.memoryLimitBytes`；被拒绝的 mutation 不会改变现有热记忆。直接向 Provider 写入仍保持原有的异步行为。
+
+归档回执或本地提交失败时，Host 仅尝试删除回执能证明由本次操作新建的条目，保留跳过或复用的既有条目。本地提交报错后，如果 Runtime 修订已变更或无法读取，则提交结果不确定：保留归档条目，避免丢失已提交的记忆。清理失败会标出剩余目标空间和条目 id。Provider 请求失败且没有返回回执时，远端结果可能不确定，因此这不是分布式事务；重试前应检查对应 Provider。

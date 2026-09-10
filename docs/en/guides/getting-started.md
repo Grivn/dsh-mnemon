@@ -10,19 +10,19 @@ If installation is complete, jump to [First verification](#6-complete-first-veri
 
 You need:
 
-- Node.js `^22.19.0 || >=24.0.0` for the DSH 0.1.2-rc.1 baseline;
+- Node.js `^22.19.0 || >=24.0.0` for the DSH 0.1.5-rc.1 baseline;
 - a DSH Web or Headless profile that starts successfully;
 - a locally executable `mnemon` CLI;
 - a DSH model route capable of creating independent task Agents.
 
-Regular semantic work prefers a provider named `spawn` with `toolFilter`, `persona`, and `depthLimit`. Mnemon supplies a schema-validated, one-run result tool instead of depending on the Provider's `outputSchema` path. Optional score-based background review additionally requires a provider named `fork` with `inheritsParentContext=true`. Missing `fork` does not block deterministic pages or regular manual actions.
+Regular semantic work prefers a provider named `spawn` with `toolFilter`, `persona`, and `depthLimit`. Mnemon keeps one stable `mnemon_subagent_result` tool registered and issues a revocable `requestId` for each child. The child returns `{ requestId, result }`; the Host validates `result` against that operation's schema and rejects stale or foreign submissions, without depending on the Provider's `outputSchema` path. Optional score-based background review additionally requires a provider named `fork` with `inheritsParentContext=true`. Missing `fork` does not block deterministic pages or regular manual actions.
 
-The composable v0.5.5 distribution pins a verified combination of sixteen official plugins. Read the [patch notes](../releases/v0.5.5.md) and [compatibility matrix](../reference/compatibility.md). The DSH baseline is 0.1.2-rc.1; its complete profile requires Node `^22.19.0 || >=24.0.0`. Mnemon's Node 20 public-entry checks do not establish full Host compatibility. Current UI examples show v0.5.4 in Light appearance after a backup import into isolated storage; old release records retain their original versions.
+The composable v0.5.6 distribution pins a verified combination of sixteen official plugins. Read the [patch notes](../releases/v0.5.6.md) and [compatibility matrix](../reference/compatibility.md). The DSH baseline is 0.1.5-rc.1; its complete profile requires Node `^22.19.0 || >=24.0.0`. Mnemon's Node 20 public-entry checks do not establish full Host compatibility. Current UI examples show v0.5.4 in Light appearance after a backup import into isolated storage; old release records retain their original versions.
 
 Install and verify the tested DSH release with:
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.5-rc.1
 dsh --version
 npm view @deepseek-ai/dsh dist-tags
 ```
@@ -93,6 +93,8 @@ $mnemon = Join-Path $mnemonBin 'mnemon.exe'
 
 On Windows, dsh-mnemon discovers native `mnemon.exe` from `PATH`, an exported `GOBIN` or `GOPATH`, the default `%USERPROFILE%\go\bin`, `%LOCALAPPDATA%\Programs\mnemon`, and Program Files. The official npm `mnemon.cmd` launcher is also supported: dsh-mnemon validates its package and invokes its JavaScript entry with Node, without a shell. Other `.cmd` and `.bat` wrappers remain unsupported.
 
+When DSH runs inside an Electron desktop main process, verified npm launchers run with `ELECTRON_RUN_AS_NODE=1` in the child process. This covers memory commands, version checks, and npm updates, while preserving saved embedding settings. The desktop application's own environment is unchanged. If the shell disables Electron's `runAsNode` fuse, point `mnemon.cliPath` at the platform's native Mnemon binary instead; see [Troubleshooting](./operations.md#troubleshooting).
+
 If DSH still cannot find the binary, set `MNEMON_CLI_PATH` or add an absolute path to the user settings file instead of replacing the plugin's profile patch:
 
 ```yaml
@@ -122,7 +124,7 @@ Then start or restart the profile:
 dsh --profile web
 ```
 
-If the Web profile is reached through a cloud hostname, do not publish port 3080 directly. Stable DSH 0.1.2-rc.1 authenticates every Mnemon RPC and stream through a browser session established from the one-time URL printed at Host startup. Configure the HTTPS reverse proxy or access gateway and trusted authority together, then open that launch URL, by following [Cloud-hosted WebUI](./operations.md#cloud-hosted-webui). The same section preserves the different `remoteAccess` procedure required when rolling back to DSH 0.1.1-rc.2.
+If the Web profile is reached through a cloud hostname, do not publish port 3080 directly. DSH 0.1.5-rc.1 authenticates every Mnemon RPC and stream through a browser session established from the one-time URL printed at Host startup. Configure the HTTPS reverse proxy or access gateway and trusted authority together, then open that launch URL, by following [Cloud-hosted WebUI](./operations.md#cloud-hosted-webui). The same section preserves the different `remoteAccess` procedure required when rolling back to DSH 0.1.1-rc.2.
 
 Upgrade and uninstall:
 
@@ -161,6 +163,9 @@ By default, open the dedicated workbench from Memory System in the DSH sidebar. 
 | **Global** (default) | `MNEMON_DATA_DIR` or `~/.mnemon` | Sharing one memory set across workspaces |
 | **Workspace** | `<workspace>/.mnemon` | Project isolation with cross-workspace inspection in the workbench |
 | **Custom** | `dataDir` | A dedicated disk, mounted volume, or explicit directory |
+| **Centralized workspaces** | `<central-root>/workspaces/<workspace-path-hash>/` | Central management with project isolation |
+
+For centralized project isolation, select `storageScope: workspaces` and optionally set `dataDir`; data is stored in `<central-root>/workspaces/<workspace-path-hash>/`. The directory setting appears alongside the scope selector. Existing roots are retained when switching modes.
 
 Save initializes a candidate runtime graph before atomically switching the Host. The page clears stale state and reloads automatically—no browser refresh is needed. Changing scope never migrates, merges, or deletes old data.
 

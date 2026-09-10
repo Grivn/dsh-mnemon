@@ -73,9 +73,10 @@ Code, comments, documentation, commit messages, and PR titles must not contain e
 ## Issue rules
 
 - Search open and closed Issues before submitting;
-- use the bilingual [Bug report form](.github/ISSUE_TEMPLATE/bug_report.yml) for bugs, including reproduction, environment, evidence, smoke tests, code references, and a patch proposal;
+- use the bilingual [Bug report form](.github/ISSUE_TEMPLATE/bug_report.yml) for bugs, describing the symptom, expected outcome, reproduction steps and environment. Evidence may be plain text, JSON or another code block anywhere in the report; separate evidence, smoke tests, code references and patch proposals are optional;
 - use the bilingual [standard Issue form](.github/ISSUE_TEMPLATE/standard_issue.yml) for features, enhancements, documentation, and questions;
-- Issues with missing required information are closed automatically; contributors may request reopening after completing the template;
+- CLI/API submissions may use the same section headings; the bot adds `bug` when the report type is “Bug 报告 / Bug report”, so reporters do not need label permissions;
+- template checks request missing basic information without closing the Issue. Edit the original body to supply details; the bot updates its existing reminder. Maintainers decide whether further investigation or closure is appropriate;
 - see [Issue Triage](./ISSUE_TRIAGE.md) or [Issue 分类标准](./ISSUE_TRIAGE.zh-CN.md) for labels, classification, and closure criteria;
 - report security vulnerabilities privately through [SECURITY.md](./SECURITY.md), not in a public Issue.
 

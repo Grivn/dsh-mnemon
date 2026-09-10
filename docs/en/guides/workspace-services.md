@@ -60,7 +60,7 @@ Send `SIGUSR2` to the printed supervisor PID to restart DSH and retain state. St
 
 Model memory suggestions remain pending until accepted. Session, prompt, process and external-message actions have distinct authority and exact-plan/version checks. Filesystem roots and channel origins are configured explicitly. Cross-session messages and reviewer advice preserve plugin attribution. Execution claims are persisted before effects; uncertain jobs or deliveries require inspection and are not silently replayed.
 
-In Global and Custom storage, project context follows the current conversation. Workspace storage exposes a separate inspection selector with an alignment indicator. Store placement and project identity are distinct. Saved drafts and asynchronous responses cannot cross a changed workspace binding.
+In Global and Custom storage, project context follows the current conversation. Workspace and centralized Workspaces storage expose a separate inspection selector with an alignment indicator. Store placement and project identity are distinct. Saved drafts and asynchronous responses cannot cross a changed workspace binding.
 
 Turning off a Source retains its store. Export or back up data before changing roots; switching a root does not migrate data. Sync transfers declared tracks, keeps history, rejects foreign project identity and never pushes automatically. Interrupted schedules retain their reservations. Cleanup is explicit and preserves live jobs and recent unreferenced assets.
 

@@ -145,7 +145,7 @@ export const Config: z<Config> = z.object({
   // Source/Strategy Entries without double registration.
   // Keep this optional in the schema so legacy dataDir-only installs still
   // resolve to the custom scope instead of being silently reset to global.
-  storageScope: z.union(['global', 'workspace', 'custom'] as const),
+  storageScope: z.union(['global', 'workspace', 'custom', 'workspaces'] as const),
   runtimeUserScope: z.union(['storage', 'global'] as const).default('storage'),
   cliPath: z.string(),
   dataDir: z.string(),
@@ -216,6 +216,7 @@ const CUSTOM_PACK_ID = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/
 function validateCustomDataDir(value: string): string {
   const dataDir = optionalText(value)
   if (dataDir === undefined) throw new Error('dsh-mnemon: custom Pack dataDir is required')
+  if (dataDir.includes('\0')) throw new Error('dsh-mnemon: dataDir must not contain a null byte')
   if (!isAbsolute(dataDir) && dataDir !== '~' && !dataDir.startsWith('~/')) {
     throw new Error('dsh-mnemon: custom Pack dataDir must be absolute or start with ~/')
   }
@@ -332,6 +333,7 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
   if (requestedPackId !== undefined && !CUSTOM_PACK_ID.test(requestedPackId)) throw new Error('dsh-mnemon: customPackId is invalid')
   const store = optionalText(config.store)
   const storageScope = config.storageScope ?? (legacyDataDir === undefined && legacyPacks.length === 0 ? 'global' : 'custom')
+  if (!['global', 'workspace', 'custom', 'workspaces'].includes(storageScope)) throw new Error('dsh-mnemon: unsupported storageScope')
   const runtimeUserScope = config.runtimeUserScope ?? 'storage'
   if (runtimeUserScope !== 'storage' && runtimeUserScope !== 'global') throw new Error(`dsh-mnemon: unsupported Runtime USER.md scope: ${String(runtimeUserScope)}`)
   const selectedPack = requestedPackId === undefined

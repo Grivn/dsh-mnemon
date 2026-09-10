@@ -1,6 +1,11 @@
 # Mount the Mnemon bridge into a DSH profile. A profile's final patch may
 # replace this config row as a whole; use user settings or environment
 # variables for one-field overrides such as cliPath.
+# Connection's generic RPC registry uses its owning Context to mount routes.
+# DSH 0.1.5's Web profile omits this dependency from that service's scope.
+- id: connection
+  inject: [webRuntime, webServer]
+
 - insert:
     # Keep the v0.4 `mnemon` Entry as the public configuration target while
     # making every v0.5 component inherit its enabled state. The expression

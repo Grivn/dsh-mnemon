@@ -10,6 +10,9 @@ export async function captureJournalEvent(store: RecordStore, agent: Agent, even
   const scope = agentMemoryScope(agent), key = `${scope.sessionId}:${event.seq}:${event.type}`
   let record: RecordValue | undefined
   if (event.type === 'feedback/record' && config.captureFeedback !== false) {
+    // Recent DSH versions also record category-only feedback. A journal quote
+    // requires actual user text; the native event remains the category record.
+    if (!event.data.text?.trim()) return false
     record = newRecord('feedback', 'Session feedback', event.data.text.slice(0, 30_000), 'project', scope, { sentiment: 'neutral', category: 'explicit-feedback', eventKey: key, sessionId: scope.sessionId!, seq: Number(event.seq), exactQuote: event.data.text.length <= 30_000, truncated: event.data.text.length > 30_000 })
   } else if (event.type === 'turn/end' && config.captureTurns === true) {
     const events = agent.session.ownEvents(), start = events.findLastIndex(value => value.type === 'turn/start' && value.data.turn === event.data.turn)

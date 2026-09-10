@@ -39,7 +39,7 @@ describe('MnemonWorkbench', () => {
     getSnapshot: () => readOnlySettingsSnapshot,
   } satisfies ClientSettingsScope<Config>
 
-  function createConnection(options: { isLoopback?: boolean; withInactiveBody?: boolean; withSecondActiveBody?: boolean; metadataFailureBodyId?: string; withPlacement?: boolean; withProviderSources?: boolean; listCount?: number; searchCount?: number; entityCount?: number; entityInsightCount?: number; documentCount?: number; runtimeCount?: number; runtimeBranch?: boolean; longContent?: boolean; workspaceMismatch?: boolean; nativeUnhealthy?: boolean; graphPending?: boolean; statusPending?: boolean; directoryPending?: boolean; reconnectPending?: boolean; relatedDeferred?: boolean; versionsDeferred?: boolean; layerSwitches?: Record<'runtime' | 'documents' | 'memory-spaces', boolean> } = {}) {
+  function createConnection(options: { reviewError?: string; isLoopback?: boolean; withInactiveBody?: boolean; withSecondActiveBody?: boolean; metadataFailureBodyId?: string; withPlacement?: boolean; withProviderSources?: boolean; listCount?: number; searchCount?: number; entityCount?: number; entityInsightCount?: number; documentCount?: number; runtimeCount?: number; runtimeBranch?: boolean; longContent?: boolean; workspaceMismatch?: boolean; nativeUnhealthy?: boolean; graphPending?: boolean; statusPending?: boolean; directoryPending?: boolean; reconnectPending?: boolean; relatedDeferred?: boolean; versionsDeferred?: boolean; layerSwitches?: Record<'runtime' | 'documents' | 'memory-spaces', boolean> } = {}) {
     const body = {
       id: 'project',
       provider: MEMORY_PROVIDER_CATALOG.find(item => item.id === 'mnemon-native')!, providerId: 'mnemon-native', providerEnabled: true, providerSettings: {}, configuredSecrets: [],
@@ -132,6 +132,7 @@ describe('MnemonWorkbench', () => {
           lastReviewAt: '2026-08-13T02:59:00.000Z',
           lastReviewAction: 'skipped',
           lastPhase: 'writeback',
+          ...(options.reviewError === undefined ? {} : { lastError: options.reviewError }),
           lastAt: '2026-08-13T03:00:00.000Z',
         },
       },
@@ -377,6 +378,16 @@ describe('MnemonWorkbench', () => {
       }
       cleanup()
     }
+  })
+
+  it.each([true, false])('shows a background-review warning in writable=%s sessions', async writable => {
+    const error = 'CONTEXT_WINDOW_EXCEEDED: request (145508 tokens) exceeds the available context size (98304 tokens)'
+    const { connection } = createConnection({ reviewError: error })
+    render(<MnemonWorkbench connection={connection} settingsScope={writable ? settingsScope : readOnlySettingsScope} t={translateEn} locale="en" />)
+    const warning = await screen.findByRole('alert', { name: 'Background review failed' })
+    expect(within(warning).getByText(error)).toBeTruthy()
+    expect(within(warning).getByText(/context window covers the parent conversation/)).toBeTruthy()
+    expect(screen.queryByText('System nominal')).toBeNull()
   })
 
   it('shows the live graph, sidebar pages, and memory write dialog by default', async () => {
@@ -859,7 +870,7 @@ describe('MnemonWorkbench', () => {
     expect(screen.queryByRole('dialog', { name: '编辑活跃档案' })).toBeNull()
     fireEvent.click(within(documentReader).getByRole('button', { name: '归档' }))
     const documentArchiveDialog = screen.getByRole('dialog', { name: '确认建立 Mnemon 索引并迁移这份档案？' })
-    expect(within(documentArchiveDialog).getByText(/受限的独立任务 Agent 写入可检索的 Mnemon 摘要/)).toBeTruthy()
+    expect(within(documentArchiveDialog).getByText(/Host 校验后写入冷索引/)).toBeTruthy()
     const documentArchiveCancel = within(documentArchiveDialog).getAllByRole('button', { name: '取消' }).at(-1)
     if (documentArchiveCancel === undefined) throw new Error('document archive cancel button missing')
     expect(documentArchiveCancel.closest('footer')?.parentElement).toBe(documentArchiveDialog)

@@ -17,7 +17,7 @@
   background: var(--mn-surface);
 }
 
-.shell .brand { flex: 1 1 auto; gap: 8px; overflow: hidden; }
+.shell .brand { flex: 1 1 auto; flex-wrap: wrap; gap: 4px 8px; }
 .shell .brand h1 {
   flex: 0 0 auto;
   margin: 0;
@@ -41,7 +41,7 @@
 .shell .headerActions { flex: 0 1 auto; gap: 6px; }
 .shell .workspacePicker {
   min-height: 32px;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   gap: 7px;
   padding-left: 9px;
   border: 1px solid var(--dsw-alias-border-l1);

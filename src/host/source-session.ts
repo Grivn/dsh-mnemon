@@ -2,6 +2,7 @@ import { isDefaultSourceInstance } from './protocol.ts'
 import type { MemoryActionOffer, MemoryEvidence, MemoryJsonValue, MemoryMutationReceipt, MemoryOperationScope, MemorySourceManagementRequest } from '../core/contracts/index.ts'
 import type { MemoryGenerationHost } from '../core/index.ts'
 import type { ComposableMemoryTurn, ComposableMemoryTurnManager } from '../core/turns.ts'
+import type { MemoryCompositionGeneration } from '../core/composition.ts'
 
 /** Host-side caller of a Source's JSON protocol, never its implementation. */
 export class SourceSession {
@@ -11,20 +12,40 @@ export class SourceSession {
     readonly typeId: string,
     readonly scope: MemoryOperationScope,
     private readonly pinnedTurn?: ComposableMemoryTurn,
+    private readonly instanceKey?: string,
+    private readonly generation?: MemoryCompositionGeneration,
   ) {}
 
   /** Capture execution identity before awaiting work; never borrow a later turn. */
   forTurn(turn: ComposableMemoryTurn): SourceSession {
     if (turn.scope.agentId !== this.scope.agentId || turn.scope.sessionId !== this.scope.sessionId
       || turn.scope.storage !== this.scope.storage || turn.scope.workspaceId !== this.scope.workspaceId) throw new Error('Source session scope does not match the pinned turn')
-    return new SourceSession(this.generations, this.turns, this.typeId, this.scope, turn)
+    return new SourceSession(this.generations, this.turns, this.typeId, this.scope, turn, this.instanceKey, this.generation)
+  }
+
+  /** Exact instance identity; never fall back to a different Source of the same type. */
+  forInstance(instanceKey: string): SourceSession {
+    return new SourceSession(this.generations, this.turns, this.typeId, this.scope, this.pinnedTurn, instanceKey, this.generation)
+  }
+
+  /** The caller owns this generation's lease for the entire operation. */
+  forGeneration(generation: MemoryCompositionGeneration): SourceSession {
+    return new SourceSession(this.generations, this.turns, this.typeId, this.scope, this.pinnedTurn, this.instanceKey, generation)
   }
 
   read<T>(operation: string, input: unknown = null, signal?: AbortSignal): Promise<T> {
     return this.execute<T>('read', operation, input, signal)
   }
+
+  identity() {
+    return this.selected(this.activeTurn())
+  }
   mutate<T>(operation: string, input: unknown, signal?: AbortSignal): Promise<T> {
     return this.execute<T>('mutate', operation, input, signal)
+  }
+
+  mutateResult<T>(operation: string, input: unknown, signal?: AbortSignal): Promise<{ revision: string; value: T }> {
+    return this.executeResult<T>('mutate', operation, input, signal)
   }
 
   /** Model tools always use the offered Route, never the management channel. */
@@ -69,29 +90,38 @@ export class SourceSession {
     return turn
   }
   private async selected(turn?: ComposableMemoryTurn) {
+    if (this.generation !== undefined) return this.select(this.generation)
     const lease = this.generations.acquire(turn?.view.runtimeGeneration)
     try { return await this.select(lease.generation) } finally { lease.release() }
   }
   private select(generation: import('../core/composition.ts').MemoryCompositionGeneration) {
     const candidates = generation.sourceInstances().filter(source => source.sourceTypeId === this.typeId)
-    const source = candidates.find(source => isDefaultSourceInstance(source.sourceInstanceKey, this.typeId))
+    const source = this.instanceKey !== undefined ? candidates.find(source => source.sourceInstanceKey === this.instanceKey)
+      : candidates.find(source => isDefaultSourceInstance(source.sourceInstanceKey, this.typeId))
       ?? (candidates.length === 1 ? candidates[0] : undefined)
     if (source === undefined) throw new Error('Source ' + this.typeId + ' is ' + (candidates.length === 0 ? 'not installed' : 'ambiguous; select an explicit instance'))
     return source
   }
   private async execute<T>(mode: MemorySourceManagementRequest['mode'], operation: string, input: unknown, signal?: AbortSignal): Promise<T> {
-    const lease = this.generations.acquire(this.activeTurn()?.view.runtimeGeneration)
+    return (await this.executeResult<T>(mode, operation, input, signal)).value
+  }
+
+  private async executeResult<T>(mode: MemorySourceManagementRequest['mode'], operation: string, input: unknown, signal?: AbortSignal): Promise<{ revision: string; value: T }> {
+    const turn = this.activeTurn()
+    const lease = this.generation === undefined ? this.generations.acquire(turn?.view.runtimeGeneration) : undefined
+    const generation = this.generation ?? lease!.generation
     try {
-      const source = await this.select(lease.generation)
-      const expectedRevision = mode === 'mutate' ? await lease.generation.managementRevision(source.sourceInstanceKey, this.scope, signal) : undefined
-      const result = await lease.generation.executeManagement({
+      const source = await this.select(generation)
+      const expectedRevision = mode === 'mutate' ? await generation.managementRevision(source.sourceInstanceKey, this.scope, signal) : undefined
+      if (turn !== undefined) this.assertTurn(turn)
+      const result = await generation.executeManagement({
         sourceInstanceKey: source.sourceInstanceKey, scope: this.scope, mode, operation, input: json(input),
         confirmed: mode === 'mutate',
         ...(expectedRevision === undefined ? {} : { expectedRevision }),
         ...(signal === undefined ? {} : { signal }),
       })
-      return result.value as T
-    } finally { lease.release() }
+      return { revision: result.revision, value: result.value as T }
+    } finally { lease?.release() }
   }
 }
 

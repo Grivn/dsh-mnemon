@@ -9,6 +9,12 @@ export type ThreeTierExtensionValues = {
 }
 export type ThreeTierExtensionSlot = keyof ThreeTierExtensionValues
 
+/** Pure default-product policy. The Host executes it through public Source protocols. */
+export function threeTierActionWorkflow(strategyTypeId: string, sourceTypeId: string, actionId: string): 'runtime-capacity' | undefined {
+  return strategyTypeId === 'default-three-tier' && sourceTypeId === 'runtime' && actionId === 'mutate'
+    ? 'runtime-capacity' : undefined
+}
+
 function keys(value: MemoryJsonValue | undefined, label: string): string[] {
   if (!Array.isArray(value) || value.length > 32 || value.some(key => typeof key !== 'string' || !/^source:[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,292}$/u.test(key))) {
     throw new Error(`${label} must contain at most 32 exact Source instance keys`)

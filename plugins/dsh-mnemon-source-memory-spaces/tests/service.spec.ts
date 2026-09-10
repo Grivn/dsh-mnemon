@@ -809,19 +809,21 @@ describe('MemorySpacesService', () => {
     let draftMode = 0
     let draft: Record<string, unknown> | undefined
     const process = vi.fn<ProcessRunner>(async (_command, args) => {
+      if (args.includes('--readonly')) return { stdout: '[]', stderr: '', exitCode: 0 }
       const importIndex = args.indexOf('import')
       if (importIndex < 0) return { stdout: '{}', stderr: '', exitCode: 0 }
+      expect(args[importIndex + 2]).toBe('--no-diff')
       draftPath = args[importIndex + 1]!
       draftMode = statSync(draftPath).mode & 0o777
       draft = JSON.parse(readFileSync(draftPath, 'utf8')) as Record<string, unknown>
       return {
         stdout: JSON.stringify({
-          imported: 1,
-          updated: 1,
+          imported: 2,
+          updated: 0,
           skipped: 0,
           errors: 0,
           results: [
-            { index: 1, id: 'release-2', content: '发布前执行金丝雀检查。', action: 'updated' },
+            { index: 1, id: 'release-2', content: '发布前执行金丝雀检查。', action: 'added' },
             { index: 0, id: 'project-1', content: '项目使用 pnpm。', action: 'added' },
           ],
         }),
@@ -838,7 +840,7 @@ describe('MemorySpacesService', () => {
       { content: '发布前执行金丝雀检查。', category: 'context', importance: 5, source: 'agent', memoryBodyId: 'work' },
     ])).resolves.toEqual([
       expect.objectContaining({ id: 'project-1', action: 'added', memoryBodyId: 'work' }),
-      expect.objectContaining({ id: 'release-2', action: 'updated', memoryBodyId: 'work' }),
+      expect.objectContaining({ id: 'release-2', action: 'added', memoryBodyId: 'work' }),
     ])
     expect(process.mock.calls.filter(([, args]) => args.includes('import'))).toHaveLength(1)
     expect(process.mock.calls.some(([, args]) => args.includes('remember'))).toBe(false)
@@ -857,6 +859,7 @@ describe('MemorySpacesService', () => {
   it('rejects a partial Native archive import and removes its temporary draft', async () => {
     let draftPath = ''
     const process = vi.fn<ProcessRunner>(async (_command, args) => {
+      if (args.includes('--readonly')) return { stdout: '[]', stderr: '', exitCode: 0 }
       const importIndex = args.indexOf('import')
       draftPath = args[importIndex + 1]!
       return {

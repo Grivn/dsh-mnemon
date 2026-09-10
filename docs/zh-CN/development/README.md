@@ -4,7 +4,9 @@
 
 ## 环境与命令
 
-插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 是稳定版 0.1.2-rc.1，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root、Source Client 测试和外部制品消费者均使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；直接前序版本 0.1.2-alpha.5 保留显式源码覆盖流程。
+插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 是 npm latest 发布的 0.1.5-rc.1，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root、Source Client 测试和外部制品消费者均使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；源码覆盖工具保留用于明确请求的调查。
+
+DSH 0.1.5 UI primitives 在制品中导入 Markdown/高亮依赖，但其已发布 manifest 将这些包列为开发依赖。Root、三个 Source 与外部消费者显式声明完整依赖族，使独立 Client 测试可执行；Host 制品仍使用 DSH 提供的 UI 模块。测试同步使用公开的异步 Agent 工厂及持久化 `assistant/message` 事件。`tests/legacy-session-repair.spec.ts` 对 0.1.2 实际生成的合成日志执行已发布的 v0 → v3 迁移，覆盖普通和压缩格式、副本修复与冷启动重读。
 
 pnpm 11 可能在 rc.1 仍处于发布时间隔离窗口时安装这组已审核制品，因此 `minimumReleaseAgeExclude` 逐项列出精确版本。组合测试要求该列表与 lockfile 中的 rc.1 包完全一致，并拒绝 scope 通配符，使后续发布的 `@deepseek-ai` 包仍受隔离策略约束。
 
@@ -72,6 +74,25 @@ MNEMON_NATIVE_TEST_CLI=/absolute/path/to/mnemon pnpm --filter dsh-mnemon-source-
 
 该测试不会发现个人数据根或安装二进制。这些检查不等于验证过所有真实远端服务或账号配置。Provider Lab 是需要明确启动的独立集成环境。
 
+可选的 Flash 压力测试使用四个真实 DSH 会话、委派写入者、独立维护任务和临时 Native 存储，保留默认 10 KiB 上限，验证反复归档后的精确原文、命名空间路由和无会话 Web 管理。通过 `DEEPSEEK_API_KEY` 提供 DeepSeek 凭据，通过 `MNEMON_NATIVE_TEST_CLI` 提供已验证的 CLI，然后运行：
+
+```sh
+MNEMON_RUN_FLASH_STRESS=1 MNEMON_FLASH_STRESS_ROUNDS=8 MNEMON_FLASH_STRESS_REPORT=/tmp/mnemon-flash-stress.json pnpm exec vitest run tests/runtime-capacity-flash-stress.spec.ts
+```
+
+测试逐一核对出站请求与返回模型均为 `deepseek-v4-flash`，使用非思考模式，始终不选择 Pro。模型提交前的文本变化与存储后的变化分别计数，所有项目事实均为合成数据，临时存储和会话在完成后清理。目标授权范围是硬性断言，主题归类匹配度单独作为模型质量指标报告。设置 `MNEMON_FLASH_STRESS_JSON_PROMPT=1` 可重跑带引号 JSON 输入诊断。普通 CI 默认跳过，需要明确授权使用真实 API。
+
+另一组自动记忆验收在四个并发 DSH 会话中模拟后端、前端、Android 和运维工作。开发提示包含已确定的决策、纠正和临时诊断，由模型自行选择记忆操作。开发任务实际读写临时 JSON 文件，默认生命周期真实执行空闲审阅；新的召回会话无法访问开发会话历史或配置文件。提供相同的凭据和 CLI 环境变量后运行：
+
+```sh
+MNEMON_RUN_FLASH_QUALITY=1 MNEMON_FLASH_QUALITY_REPORT=/tmp/mnemon-flash-quality.json pnpm exec vitest run tests/runtime-memory-flash-quality.spec.ts
+MNEMON_RUN_FLASH_QUALITY=1 MNEMON_FLASH_QUALITY_WAVES=24 MNEMON_FLASH_QUALITY_REPORT=/tmp/mnemon-flash-quality-long.json pnpm exec vitest run tests/runtime-memory-flash-quality.spec.ts -t 'four preconfigured'
+```
+
+默认每会话 12 轮，扩展工作负载为 24 轮。两者均使用关闭思考的 Flash、guided 召回与写回，以及默认 10,240 字节记忆上限。只将空闲防抖从 30 秒缩短为 5 秒，审阅资格规则不变。测试记录保留事实、临时标记、纠正后的回答、模块归属、禁止写入回合、工具错误和归档。Vitest 成功仅表示实验执行完成：应检查 `finalEvaluation.automatedVerdict`，并逐条审阅过期文档、重复与归属错误，才能判断质量是否验收通过。[2026-09-09 验收报告](../../pr-assets/runtime-memory-quality-flash-20260909/README.zh-CN.md) 同时记录失败发现与通过项。普通 CI 跳过两个真实 API 用例。该模拟不能替代完整应用构建、真人半天工作流或 Windows 验证。
+
+生成的真实运行数据放在仓库外，上述命令已采用这种方式。遵循[证据存放规范](../../pr-assets/README.md)：提交摘要、复现输入与最小样例，完整脱敏数据作为 PR 附件保存，并注明 revision 和 SHA-256。
+
 性能回归对 100 次三 Source View 组合约束 wall/CPU 时间；确定性构建比较所有生成文件 hash。二者不承诺生产网络延迟或 LLM 质量。
 
 默认组合和三插件组合均运行上述性能门槛。
@@ -88,9 +109,13 @@ pnpm e2e:serve
 
 夹具输出临时工作区及 loopback URL，隔离 `DSH_HOME`、`MNEMON_DATA_DIR`、工作区和模型端点。会话选择 **Mnemon E2E**：该测试自有 preset 去除 Shell 依赖，保留 Host 记忆工具。模型固定回复，因此这里只检查 UI/传输，不评价真实模型沉淀质量。Ctrl-C 停止并清理合成测试数据。
 
+`pnpm e2e:serve --review-evidence --strategy-extensions` 添加按 Agent 注册的合成概览工具及固定的父会话 / 审查调用，检查五个完整分块的继承，并在修复前后尝试相同的外部工具读取；见 [Issue #211 验证记录](../../pr-assets/issue-211-20260911/README.zh-CN.md)。`tests/review-evidence-host.spec.ts` 还覆盖真实 DSH native 与 Code Mode 中，在 Provider 的 start Promise 返回前发生的工具执行。
+
 检查无会话 Sidebar、所有一级/二级页面、Runtime 增改删与清空分支、Documents 创建/搜索/读取、Provider 设置与发现、激活、故障态、取消弹窗、存入记忆、布局切换、locale、返回聊天后交互恢复。读写/删除使用临时 Provider 或受控夹具，不能对个人记忆做实验。
 
-另检查 `displayMode` 实时切换：Sidebar 与 Builtin 不得同时挂载，二者使用同一组 Source 页面。Builtin 的全局/工作区/自定义范围读写及任务遵循所属会话，隐藏范围控件，切换会话时清理旧数据与编辑器。验证旧 `buildin` 规范化，以及原生 Sidebar 皮肤和已支持布局插件下的折叠图标。
+验证内嵌 Electron Host 时，使用 `pnpm e2e:serve --electron=/absolute/path/to/electron`（macOS 指向 `Electron.app/Contents/MacOS/Electron`）。单独安装测试用 Electron，并通过 `MNEMON_CLI_PATH` 和 `npm_config_prefix` 指定隔离的 npm 安装。夹具将正式发布的 DSH Web 栈运行在 Electron 主进程内，Host 不设置 `ELECTRON_RUN_AS_NODE`。它为正式 Cordis loader 开放 Node internals，无需重新编译或修改 DSH 包。照常用 Ctrl-C 停止。
+
+另检查 `displayMode` 实时切换：Sidebar 与 Builtin 不得同时挂载，二者使用同一组 Source 页面。Builtin 的全局/工作区/集中工作区/自定义范围读写及任务遵循所属会话，隐藏范围控件，切换会话时清理旧数据与编辑器。验证旧 `buildin` 规范化，以及原生 Sidebar 皮肤和已支持布局插件下的折叠图标。
 
 [2026-09-04 main rebase 验证记录](../../pr-assets/main-rebase-20260904/README.md)列明精确的 v0.4.7/DSH rc.1 revision、registry 与源码覆盖完整测试、独立制品、插件组合重启持久化和真实双入口验证及其限制。
 
@@ -98,17 +123,13 @@ pnpm e2e:serve
 
 上一条 DSH 0.1.1-rc.2 版本线对 Bundle 变化的 Client 卸载并不完整；验证该回滚目标并修改 Client 包/locale 注册后应刷新页面。Mnemon 普通设置仍实时生效。区分上游 Profile/传输告警与 Mnemon 故障，不隐藏控制台。
 
-## 手动 DSH 0.1.2-alpha.5 源码兼容
+文档归档回归使用 `pnpm e2e:serve --document-archive`：创建并启用临时的精确写入记忆空间，新建档案后从工作台归档。标题包含 `REJECT` 时夹具故意选择无效目标，检查档案仍为 active 且没有新增索引，再改名重试。在 Mnemon E2E 对话的三个回合中依次发送 `archive-tool-222 prepare`、`archive-tool-222 update`、`archive-tool-222`，会驱动真实的新建 → 更新 → 归档工具调用，并断言返回的 lineage。只有模型决策由脚本控制，存储、工具、传输和浏览器均为真实实现。搭配旧 Host 构建时，同一夹具可复现旧的回执序号不匹配错误。
 
-需要按需验证源码版 `dsh-v0.1.2-alpha.5` 时，先准备已构建的 Harness 目录：
+## 可选 DSH 源码覆盖
 
-```sh
-DSH_SOURCE_ROOT=/absolute/path/to/deepseek-harness pnpm dsh:link-source
-pnpm_config_verify_deps_before_run=false pnpm verify
-pnpm dsh:restore-registry
-```
+默认使用 registry 制品，本次 0.1.5 验证也全部使用已发布包。维护者明确要求调查源码版时，可通过 `DSH_SOURCE_ROOT` 指定独立构建的 Harness checkout，使用 `pnpm dsh:link-source` 链接，结束后用 `pnpm dsh:restore-registry` 恢复原始链接。工具只更改生成的 `node_modules`，不改已发布依赖版本或 tsconfig 源码路径。目标 checkout 必须提供当前依赖族，再按该目标选择适用检查。
 
-Harness 先运行自己的 `pnpm install --frozen-lockfile && pnpm build:lib`。链接仅更改生成的 `node_modules`，不改提交的依赖版本；它会覆盖 Starter 的完整 DSH 依赖图，包括 Store、Invariants 和新增的 Layout 依赖，并统一每个已安装插件 workspace 的 Cordis 身份；原 pnpm 链接逐项记录并恢复。插件 Client 测试依赖仍以 rc.1 留在各自 workspace 内，构建后的 Starter 负责验证 alpha.5 Client API。本次调用关闭 pnpm 的运行前依赖验证，避免嵌套脚本自动恢复 registry 链接。该覆盖流程是维护者显式执行的兼容检查，不属于最小化的每 PR CI 图；[隔离的 rc.1/rc.2 WebUI 证据](../../pr-assets/dsh-rc1-compat/README.md)记录了正式 Host 行为。
+历史 0.1.2-alpha.5 的完整测试流程只属于原记录对应的 revision；当前夹具需要 0.1.5 的会话迁移和消息契约，不能将旧流程当成本 checkout 的验证命令。参见[早期 registry/源码记录](../../pr-assets/main-rebase-20260904/README.md)与[当前 0.1.5 验证](../../pr-assets/issue-223-dsh-015/README.zh-CN.md)。
 
 ## 发布
 

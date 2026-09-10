@@ -10,19 +10,19 @@
 
 你需要：
 
-- DSH 0.1.2-rc.1 基线所需的 Node.js `^22.19.0 || >=24.0.0`；
+- DSH 0.1.5-rc.1 基线所需的 Node.js `^22.19.0 || >=24.0.0`；
 - 一个可以启动的 DSH Web 或 Headless profile；
 - 本地可执行的 `mnemon` CLI；
 - 一个能够创建独立任务 Agent 的 DSH 模型路由。
 
-普通语义任务优先使用名为 `spawn` 的 Provider，并要求 `toolFilter`、`persona` 与 `depthLimit`。Mnemon 会为每次运行提供一个经过 schema 校验的一次性结果工具，不依赖 Provider 的 `outputSchema` 路径。可选的评分后台审查还要求名为 `fork`、且 `inheritsParentContext=true` 的 Provider。缺少 `fork` 不影响确定性页面读取和普通手动操作。
+普通语义任务优先使用名为 `spawn` 的 Provider，并要求 `toolFilter`、`persona` 与 `depthLimit`。Mnemon 固定注册一个 `mnemon_subagent_result` 工具，并为每个子任务签发可撤销的 `requestId`。子任务返回 `{ requestId, result }`；Host 按该操作的 schema 校验 `result`，拒绝过期或其他子任务提交的结果，不依赖 Provider 的 `outputSchema` 路径。可选的评分后台审查还要求名为 `fork`、且 `inheritsParentContext=true` 的 Provider。缺少 `fork` 不影响确定性页面读取和普通手动操作。
 
-Composable v0.5.5 精确固定经过验证的十六个官方插件组合。请阅读[补丁说明](../releases/v0.5.5.md)和[兼容性矩阵](../reference/compatibility.md)。DSH 基线为 0.1.2-rc.1，完整 profile 需要 Node `^22.19.0 || >=24.0.0`；Mnemon 的 Node 20 公开入口检查不代表完整 Host 兼容。当前界面示例来自 v0.5.4 浅色模式，先将备份导入隔离存储再采集；旧发布记录保留原版本身份。
+Composable v0.5.6 精确固定经过验证的十六个官方插件组合。请阅读[补丁说明](../releases/v0.5.6.md)和[兼容性矩阵](../reference/compatibility.md)。DSH 基线为 0.1.5-rc.1，完整 profile 需要 Node `^22.19.0 || >=24.0.0`；Mnemon 的 Node 20 公开入口检查不代表完整 Host 兼容。当前界面示例来自 v0.5.4 浅色模式，先将备份导入隔离存储再采集；旧发布记录保留原版本身份。
 
 安装并核对已验证的 DSH 版本：
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.1.2-rc.1
+npm install -g @deepseek-ai/dsh@0.1.5-rc.1
 dsh --version
 npm view @deepseek-ai/dsh dist-tags
 ```
@@ -93,6 +93,8 @@ $mnemon = Join-Path $mnemonBin 'mnemon.exe'
 
 Windows 上，dsh-mnemon 会从 `PATH`、导出的 `GOBIN` 或 `GOPATH`、默认 `%USERPROFILE%\go\bin`、`%LOCALAPPDATA%\Programs\mnemon` 和 Program Files 中发现原生 `mnemon.exe`。同时支持官方 npm 的 `mnemon.cmd` 启动器：验证包身份后通过 Node 调用其 JavaScript 入口，全程不使用 shell。其他 `.cmd` 与 `.bat` wrapper 仍不受支持。
 
+DSH 内嵌在 Electron 桌面主进程时，经过验证的 npm 启动器会在子进程中以 `ELECTRON_RUN_AS_NODE=1` 运行，覆盖记忆命令、版本检查和 npm 更新，并保留已保存的 embedding 设置。桌面应用自身的环境变量不变。如果桌面壳关闭了 Electron 的 `runAsNode` fuse，请将 `mnemon.cliPath` 指向当前平台的 Mnemon 原生二进制，详见[故障排查](./operations.md#故障排查)。
+
 如果 DSH 仍无法找到二进制，请设置 `MNEMON_CLI_PATH`，或在用户 settings 中写入绝对路径；不要为此整体替换插件的 profile patch：
 
 ```yaml
@@ -122,7 +124,7 @@ dsh plugin --profile web add "link:/absolute/path/to/dsh-mnemon"
 dsh --profile web
 ```
 
-如果需要通过云端域名访问 Web profile，不要直接发布 3080 端口。稳定版 DSH 0.1.2-rc.1 通过 Host 启动时输出的一次性 URL 建立浏览器会话，并用它认证全部 Mnemon RPC 与 stream。请按[云端 WebUI](./operations.md#cloud-hosted-webui)同时配置 HTTPS 反向代理或访问网关与可信 authority，再打开该启动 URL；同一节也保留了回滚到 DSH 0.1.1-rc.2 时所需的另一套 `remoteAccess` 步骤。
+如果需要通过云端域名访问 Web profile，不要直接发布 3080 端口。DSH 0.1.5-rc.1 通过 Host 启动时输出的一次性 URL 建立浏览器会话，并用它认证全部 Mnemon RPC 与 stream。请按[云端 WebUI](./operations.md#cloud-hosted-webui)同时配置 HTTPS 反向代理或访问网关与可信 authority，再打开该启动 URL；同一节也保留了回滚到 DSH 0.1.1-rc.2 时所需的另一套 `remoteAccess` 步骤。
 
 升级与卸载：
 
@@ -161,6 +163,10 @@ dsh --profile headless "回答前先检查持久化的项目上下文。"
 | **全局**（默认） | `MNEMON_DATA_DIR` 或 `~/.mnemon` | 多个工作区共享同一套记忆 |
 | **工作区** | `<workspace>/.mnemon` | 项目隔离，并允许在工作台切换查看其他工作区 |
 | **自定义** | `dataDir` | 专用磁盘、挂载卷或明确的数据目录 |
+| **集中工作区** | `<集中根>/workspaces/<工作区路径哈希>/` | 在统一目录集中备份，同时按项目隔离 |
+
+如需集中管理且按项目隔离，选择 `storageScope: workspaces` 并按需设置 `dataDir`；数据保存为 `<集中根>/workspaces/<工作区路径哈希>/`。目录设置位于范围选择器旁；切换模式时保留旧根。
+
 
 点击保存后会先初始化新运行图，再原子切换 Host；页面自动清理旧状态并重新读取，无需刷新浏览器。切换范围不会自动迁移、合并或删除旧数据。
 

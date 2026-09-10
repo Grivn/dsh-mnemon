@@ -5,6 +5,7 @@ import {
   DEFAULT_EMBEDDING_PROTOCOL,
   MNEMON_EMBEDDING_PROTOCOLS,
   normalizeDisplayMode,
+  isWorkspaceStorageScope,
   type ClientConnectionHandle,
   type ClientSettingsScope,
   type ClientSettingsSnapshot,
@@ -148,16 +149,16 @@ function topologyOf(descriptor: MemoryCompositionStatus): MemoryTopologyDefiniti
 }
 
 function validation(t: MnemonTranslate, draft: Draft): string | null {
-  if (!['global', 'workspace', 'custom'].includes(draft.storageScope)) return t('config.invalidScope')
+  if (!['global', 'workspace', 'custom', 'workspaces'].includes(draft.storageScope)) return t('config.invalidScope')
   if (!['storage', 'global'].includes(draft.runtimeUserScope)) return t('config.invalidRuntimeUserScope')
-  if (draft.storageScope === 'custom') {
+  if (draft.storageScope === 'custom' || (draft.storageScope === 'workspaces' && draft.dataDir.trim() !== '')) {
     const directory = draft.dataDir.trim()
     if (directory === '') return t('config.customRequired')
     const posixAbsolute = directory.startsWith('/')
     const homeRelative = directory === '~' || directory.startsWith('~/')
     const windowsDriveAbsolute = /^[a-zA-Z]:[\\/]/.test(directory)
     const windowsUncAbsolute = /^\\\\[^\\/]+[\\/][^\\/]+/.test(directory)
-    if (!posixAbsolute && !homeRelative && !windowsDriveAbsolute && !windowsUncAbsolute) return t('config.customAbsolute')
+    if (directory.includes('\0') || (!posixAbsolute && !homeRelative && !windowsDriveAbsolute && !windowsUncAbsolute)) return t('config.customAbsolute')
   }
   if (draft.embeddingEnabled && !validEmbeddingEndpoint(draft.embeddingEndpoint)) return t('config.embeddingEndpointInvalid')
   if (draft.embeddingEnabled && !validEmbeddingModel(draft.embeddingModel)) return t('config.embeddingModelInvalid')
@@ -176,7 +177,7 @@ function useScope<T>(scope: ClientSettingsScope<T>): ClientSettingsSnapshot<T> {
 function operations(fields: readonly DraftField[], dirty: ReadonlySet<Field>, draft: Draft): SettingsOperation[] {
   return fields.flatMap((field): SettingsOperation[] => {
     if (!dirty.has(field)) return []
-    if (field === 'dataDir' && draft.dataDir.trim() === '') return [{ op: 'unset', path: [field] }]
+    if (field === 'dataDir' && draft.dataDir.trim() === '' && draft.storageScope !== 'workspaces') return [{ op: 'unset', path: [field] }]
     const value = draft[field]
     return [{ op: 'set', path: [field], value: typeof value === 'string' ? value.trim() : value }]
   })
@@ -322,7 +323,7 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
   }
 
   const coreUser = useMemo(() => record(coreSnapshot.user), [coreSnapshot.user])
-  const activeScope = coreDraft(coreSnapshot.value).storageScope === 'workspace' ? 'workspace' : 'global'
+  const activeScope = isWorkspaceStorageScope(coreDraft(coreSnapshot.value).storageScope) ? 'workspace' : 'global'
   const error = validation(t, draft)
   const loading = coreSnapshot.status === 'loading' || interactionSnapshot.status === 'loading'
   // A successful writable settings snapshot is the Host's authoritative
@@ -457,10 +458,23 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
           <div className={css.sectionHeading}>
             <div><h2 id="mnemon-storage-heading">{t('config.storageTitle')}</h2><p>{t('config.storageDescription')}</p></div>
           </div>
-          <div className={css.choiceGrid} role="radiogroup" aria-label={t('config.scopeAria')}>
-            <ChoiceCard id="mnemon-storage-global" name="mnemon-storage" label={t('config.global')} detail={t('config.globalScopeHint')} checked={draft.storageScope !== 'workspace'} disabled={coreDisabled} onChange={() => edit('storageScope', draft.dataDir.trim() === '' ? 'global' : 'custom')} />
+          <div className={`${css.choiceGrid} ${css.storageChoiceGrid}`} role="radiogroup" aria-label={t('config.scopeAria')}>
+            <ChoiceCard id="mnemon-storage-global" name="mnemon-storage" label={t('config.global')} detail={t('config.globalScopeHint')} checked={!isWorkspaceStorageScope(draft.storageScope)} disabled={coreDisabled} onChange={() => edit('storageScope', draft.dataDir.trim() === '' ? 'global' : 'custom')} />
             <ChoiceCard id="mnemon-storage-workspace" name="mnemon-storage" label={t('config.workspace')} detail="<workspace>/.mnemon" checked={draft.storageScope === 'workspace'} disabled={coreDisabled} onChange={() => edit('storageScope', 'workspace')} />
+            <ChoiceCard id="mnemon-storage-workspaces" name="mnemon-storage" label={t('config.workspaces')} detail={t('config.workspacesHint')} checked={draft.storageScope === 'workspaces'} disabled={coreDisabled} onChange={() => edit('storageScope', 'workspaces')} />
           </div>
+          {draft.storageScope === 'workspaces' && <div className={css.workspaceStorageLocation}>
+            <div className={css.settingRow}>
+              <label className={css.settingCopy} htmlFor="mnemon-workspaces-directory"><strong>{t('config.workspacesRoot')}</strong><small>{t('config.workspacesRootHint')}</small></label>
+              <div className={css.directoryControl}>
+                <input id="mnemon-workspaces-directory" className={css.directoryInput} type="text" value={draft.dataDir}
+                  aria-label={t('config.workspacesRoot')} aria-invalid={error !== null} placeholder={t('config.workspacesDefault')}
+                  disabled={coreDisabled} autoComplete="off" spellCheck={false} autoCapitalize="none" autoCorrect="off"
+                  onChange={event => edit('dataDir', event.target.value)} />
+              </div>
+            </div>
+            <p className={css.description}>{t('config.workspacesIdentityHint')}</p>
+          </div>}
         </section>
 
         <section className={`${css.section} ${css.preferenceRow}`} aria-labelledby="mnemon-runtime-user-scope-heading">
@@ -507,7 +521,7 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
               <span className={css.providerHeaderMeta}><span className={css.providerScopeTag} data-scope={activeScope}>{t(`config.${activeScope}`)}</span><span className={css.providerState}>{t('config.officialNative')}</span></span>
             </summary>
             <div className={css.providerPanelBody}>
-              <GlobalLocationSetting
+              {draft.storageScope !== 'workspaces' && <GlobalLocationSetting
                 name="mnemon-native-location"
                 ariaLabel={t('config.nativeGlobalLocation')}
                 label={t('config.nativeGlobalLocation')}
@@ -540,7 +554,7 @@ export function MnemonSettingsCard({ scope, interactionScope: suppliedInteractio
                     />
                   </div>
                 </div>
-              </GlobalLocationSetting>
+              </GlobalLocationSetting>}
               <EmbeddingSettingsSection
                 draft={draft}
                 disabled={coreDisabled}

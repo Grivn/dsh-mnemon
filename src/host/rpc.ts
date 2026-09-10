@@ -1,10 +1,10 @@
-import { isDefaultSourceInstance } from './protocol.ts'
+import { isDefaultSourceInstance, isWorkspaceStorageScope } from './protocol.ts'
 import type { HostConnectionHandle, HostRpcAuthority, HostRpcHandler, RpcResult } from './dsh.ts'
 import type { MnemonLifecycle } from './lifecycle.ts'
 import type { LiveMnemonRuntime } from './runtime.ts'
 import { assertParticipation } from './access.ts'
 import { isVersionComponentId, VersionUpdateManager } from './version-updates.ts'
-import type { MemoryCapability, MemoryJsonValue, MemoryOperationScope, MemorySourceManagementInstance } from '../core/contracts/index.ts'
+import type { MemoryCapability, MemoryJsonValue, MemoryOperationScope, MemorySourceManagementInstance, MemorySourceManagementRequest } from '../core/contracts/index.ts'
 import type { CreateMemoryBodyRequest as CreateMemorySpaceRequest, Insight, MemoryBodyCatalog as MemorySpaceCatalog, PreparedMemoryPlacement, RememberRequest } from 'dsh-mnemon-source-memory-spaces/contracts'
 import type { RuntimeMemoryMutation } from 'dsh-mnemon-source-runtime/contracts'
 import type { DocumentMutation } from 'dsh-mnemon-source-documents/contracts'
@@ -87,13 +87,22 @@ async function compositionStatus(runtime: ScopedRuntime) {
   return { evaluation: runtime.graph.memoryComposition.inspect().evaluation, sources: (await catalog(runtime)).sources, configuration: runtime.graph.config.memoryTopology }
 }
 
-async function assisted(runtime: ScopedRuntime, lifecycle: MnemonLifecycle, typeId: string, operation: string, input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
+async function assisted(runtime: ScopedRuntime, lifecycle: MnemonLifecycle, typeId: string, operation: string, input: Record<string, unknown>, signal?: AbortSignal, target?: { sourceInstanceKey: string; expectedRevision: string }): Promise<unknown> {
   const sessionId = runtime.scope.sessionId ?? ''
   const workspaceRoot = runtime.scope.workspaceId
   if (typeId === 'runtime' && operation === 'mutate') {
     requireCapability(runtime, typeId, 'write')
     const request = { ...input, ...(input.oldText ?? input.old_text) === undefined ? {} : { oldText: input.oldText ?? input.old_text } } as unknown as RuntimeMemoryMutation
-    return runtime.aligned && sessionId !== '' ? lifecycle.runtime(sessionId, request, signal) : runtime.source(typeId).mutate('mutate', request, signal)
+    const lease = runtime.graph.memoryComposition.acquire()
+    try {
+      const sourceInstanceKey = target?.sourceInstanceKey ?? (await runtime.source(typeId).identity()).sourceInstanceKey
+      const result = await lifecycle.manageSource(runtime.graph, {
+        scope: runtime.scope, sourceInstanceKey, mode: 'mutate', operation: 'mutate', input: request as unknown as MemoryJsonValue,
+        confirmed: true, expectedRevision: target?.expectedRevision ?? await lease.generation.managementRevision(sourceInstanceKey, runtime.scope, signal),
+        ...(signal === undefined ? {} : { signal }),
+      })
+      return { ...object(result.value), revision: result.revision }
+    } finally { lease.release() }
   }
   if (typeId === 'documents') {
     if (operation === 'archive') {
@@ -207,7 +216,7 @@ export function createReadHandler(input: LiveMnemonRuntime, lifecycle?: MnemonLi
           return success({
             ...status,
             ...(versions === undefined ? {} : { dshMnemonVersion: versions.currentDshMnemonVersion }),
-            ...(lifecycle === undefined ? {} : { lifecycle: lifecycle.snapshot(runtime.scope.sessionId, runtime.graph.config.storageScope === 'workspace' ? runtime.scope.workspaceId : undefined) }),
+            ...(lifecycle === undefined ? {} : { lifecycle: lifecycle.snapshot(runtime.scope.sessionId, isWorkspaceStorageScope(runtime.graph.config.storageScope) ? runtime.scope.workspaceId : undefined) }),
             ...(documents === undefined ? {} : { documents }),
             memorySystem: composition,
             storage: runtime.graph.storage.catalog(runtime.scope.workspaceId),
@@ -284,15 +293,17 @@ export function createWriteHandler(input: LiveMnemonRuntime, lifecycle?: MnemonL
       const runtime = scoped(input, payload, lifecycle)
       requireWritable(runtime)
       if (endpoint === 'source-management-mutate') {
+        const request: MemorySourceManagementRequest = {
+          scope: runtime.scope, sourceInstanceKey: String(payload.sourceInstanceKey ?? ''), mode: 'mutate',
+          operation: String(payload.operation ?? ''), input: (payload.input ?? null) as MemoryJsonValue,
+          confirmed: payload.confirmed === true,
+          ...(typeof payload.expectedRevision === 'string' ? { expectedRevision: payload.expectedRevision } : {}),
+          ...(signal === undefined ? {} : { signal }),
+        }
+        if (lifecycle !== undefined) return success(await lifecycle.manageSource(runtime.graph, request))
         const lease = runtime.graph.memoryComposition.acquire()
         try {
-          return success(await lease.generation.executeManagement({
-            scope: runtime.scope, sourceInstanceKey: String(payload.sourceInstanceKey ?? ''), mode: 'mutate',
-            operation: String(payload.operation ?? ''), input: (payload.input ?? null) as MemoryJsonValue,
-            confirmed: payload.confirmed === true,
-            ...(typeof payload.expectedRevision === 'string' ? { expectedRevision: payload.expectedRevision } : {}),
-            ...(signal === undefined ? {} : { signal }),
-          }))
+          return success(await lease.generation.executeManagement(request))
         } finally { lease.release() }
       }
       if (endpoint === 'source-assistance') {
@@ -301,7 +312,8 @@ export function createWriteHandler(input: LiveMnemonRuntime, lifecycle?: MnemonL
         const operation = String(payload.operation ?? '')
         if (source === undefined || !source.assistance.includes(operation)) throw new Error('Host assistance is not available for this Source instance')
         if (operation !== 'agent-search' && (payload.confirmed !== true || payload.expectedRevision !== source.revision)) throw new Error('Host assistance requires confirmation of the current Source revision')
-        const value = await assisted(runtime, lifecycle, source.sourceTypeId, operation, object(payload.input), signal)
+        const value = await assisted(runtime, lifecycle, source.sourceTypeId, operation, object(payload.input), signal, { sourceInstanceKey: source.sourceInstanceKey, expectedRevision: source.revision })
+        if (source.sourceTypeId === 'runtime') return success({ revision: object(value).revision, value })
         const current = (await catalog(runtime)).sources.find(item => item.sourceInstanceKey === source.sourceInstanceKey)
         return success({ revision: current?.revision ?? source.revision, value })
       }
