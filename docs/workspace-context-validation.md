@@ -260,6 +260,8 @@ Command logs remain outside the repository in `../services/logs/sync-main-verify
 
 CI now builds the complete plugin graph in dependency order before integrated type checking and tests; its previous four-package selection omitted the new public SDKs on a clean checkout.
 
+The first PR CI run also exposed Root declaration compilation including every plugin implementation before their SDKs existed. Root now starts declaration emission only from its own sources and imported contracts; `verify` builds all public artifacts before integrated type checking. The follow-up `pnpm verify` passed after removing all 36 generated output directories, including 935 root tests, all plugin checks and the same 48-file public package. Cached SDK output could not hide this dependency error. Its log is retained outside the repository as `../services/logs/sync-main-clean-verify.log`.
+
 已将 `main` 的 `2fa306b`（v0.5.7）合入独立分支，保留 PR #226 中 HTTP 405 与旧会话副本修复。完整插件依赖图同步到当时 npm `latest` 的正式制品 0.1.5-rc.1，没有修改 DSH 源码或引用源码 checkout。
 
 合并保留默认运行时容量维护，并让需要外部权限的动作继续经过逐次 DSH 审批。日志允许只有分类、没有文字的反馈事件，不生成虚构原文；两种工作区存储模式保留显式检查对象，全局与自定义模式跟随当前会话。集中式目录表单在紧凑选项下方独占一行。
@@ -267,5 +269,7 @@ CI now builds the complete plugin graph in dependency order before integrated ty
 `pnpm verify` 通过 935 项根测试（另 5 项 opt-in 跳过）、35 个独立插件检查与构建、确定性构建及包验证。真实 DSH 0.1.5 Headless 通过 38 个工具（其中 8 个 Mnemon 工具）、重启、内置工作区与停用 Starter 检查。真实 Mnemon 0.2.7 通过隔离空间创建、View 写入、关键词召回和删除。
 
 `pnpm verify:plugins` 通过 35 个独立插件仓库、36 个制品、外部公开 SDK/Client 消费者，以及真实 DSH 的 Starter 安装和可选策略启用。CI 现在先按依赖顺序构建全部插件，再进行集成类型检查与测试，避免全新 checkout 缺少原来四包列表之外的公开 SDK。
+
+首次 PR CI 还发现 Root 声明生成提前编译了所有插件实现，依赖尚不存在的 SDK。现已改为仅从 Root 源码及其导入契约生成声明，并让 `verify` 先构建全部公开制品，再做集成类型检查。清空 36 个生成物目录后，`pnpm verify` 再次通过 935 项根测试、全部插件检查及相同的 48 文件公开包，排除了旧 SDK 产物掩盖问题的可能。日志保存在仓库外的 `../services/logs/sync-main-clean-verify.log`。
 
 新的 `services-dsh-015` 独立环境已启动完整组合，之前的服务目录及合成历史保持原状。本轮内置浏览器和 Chrome 均以 `ERR_BLOCKED_BY_CLIENT` 阻止访问，因此没有新的 WebUI 验收或截图。上面的历史截图只对应其注明的版本；集中式存储布局及合并后的设置流程仍需在本机浏览器访问恢复后复查。固定响应模型只验证编排，不代表外部模型质量。命令日志保存在仓库外，运行日志和认证链接不进入验收材料。

@@ -18,6 +18,8 @@ pnpm run verify:plugins
 
 `verify` 包含类型检查、根包确定性构建、独立插件构建、完整测试集、真实隔离 DSH Headless 和包出口/内容验证。独立插件检查在所有公开制品构建完成后分阶段执行。不要用 `pnpm -r verify` 同时清理重建制品和运行读取它们的测试；整个工作区使用 `pnpm verify`。`verify:plugins` 在工作区**外部**，基于 semver 安装的 tarball 重复验证，并测试外部 Source/Strategy/Provider/Client 消费者；还向真实 DSH 仅安装根包 tarball，从 loopback registry 解析全部十六个官方插件，不使用工作区链接或改写 manifest，再单独验证三个随附增强从默认停用到同时启用。外部消费者还通过完整 Strategy 的打包 SDK 编译自己实现的策略贡献。
 
+全新 checkout 中，Root 声明只以自身源码为编译根并跟随导入的契约，不把独立插件实现列为声明入口。`verify` 与 CI 先构建 Root，再按公开依赖顺序构建全部插件，最后进行集成类型检查，使可选 SDK 的首次构建不依赖旧的 `lib/` 文件。
+
 ## 仓库归属
 
 ```text

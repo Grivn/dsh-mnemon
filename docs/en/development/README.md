@@ -18,6 +18,8 @@ pnpm run verify:plugins
 
 `verify` checks types, deterministic Root builds, independent plugin builds, the full test suite, a real isolated DSH Headless profile and package exports/contents. Independent plugin checks run as separate type/test phases after building all public artifacts. Do not mix `pnpm -r verify` clean builds with tests reading sibling artifacts; use `pnpm verify` for the whole workspace. `verify:plugins` repeats verification **outside** the workspace against semver-installed tarballs and an external Source/Strategy/Provider/Client consumer. It also installs only the packed Root into real DSH, resolving all sixteen official plugins from a loopback registry without workspace links or manifest rewrites, then separately verifies the three shipped enhancements moving from disabled defaults to simultaneous activation. The external consumer compiles its own Strategy extension against the owning Strategy's packed SDK.
 
+On a clean checkout, Root declarations start from Root sources and follow their imported contracts; independent plugin implementations are not declaration roots. `verify` and CI build Root, then every plugin in public dependency order, before integrated type checking. This lets optional SDKs bootstrap without relying on a previous build's `lib/` files.
+
 ## Repository ownership
 
 ```text
