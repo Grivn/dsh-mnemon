@@ -119,6 +119,8 @@ pnpm e2e:serve
 
 上一条 DSH 0.1.1-rc.2 版本线对 Bundle 变化的 Client 卸载并不完整；验证该回滚目标并修改 Client 包/locale 注册后应刷新页面。Mnemon 普通设置仍实时生效。区分上游 Profile/传输告警与 Mnemon 故障，不隐藏控制台。
 
+文档归档回归使用 `pnpm e2e:serve --document-archive`：创建并启用临时的精确写入记忆空间，新建档案后从工作台归档。标题包含 `REJECT` 时夹具故意选择无效目标，检查档案仍为 active 且没有新增索引，再改名重试。在 Mnemon E2E 对话的三个回合中依次发送 `archive-tool-222 prepare`、`archive-tool-222 update`、`archive-tool-222`，会驱动真实的新建 → 更新 → 归档工具调用，并断言返回的 lineage。只有模型决策由脚本控制，存储、工具、传输和浏览器均为真实实现。搭配旧 Host 构建时，同一夹具可复现旧的回执序号不匹配错误。
+
 ## 手动 DSH 0.1.2-alpha.5 源码兼容
 
 需要按需验证源码版 `dsh-v0.1.2-alpha.5` 时，先准备已构建的 Harness 目录：

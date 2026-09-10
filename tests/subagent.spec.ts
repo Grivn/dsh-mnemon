@@ -13,7 +13,7 @@ import type { MnemonAgentRuntimeSource, MnemonRuntimeGraph } from '../src/host/r
 import { agentScope } from '../src/host/runtime.ts'
 import { AgentMemoryTurn } from '../src/host/agent-memory-turn.ts'
 import { MemoryExecutions } from '../src/host/memory-executions.ts'
-import type { SourceSession } from '../src/host/source-session.ts'
+import { SourceSession } from '../src/host/source-session.ts'
 import type { ComposableMemoryTurn } from '../src/core/turns.ts'
 import { sourceFixture } from './fixtures/sources.ts'
 import { compositionFixture } from './fixtures/composition.ts'
@@ -53,7 +53,7 @@ function service(): SpaceData {
     provider: {
       id: 'mnemon-native',
       label: 'Mnemon Native',
-      capabilities: { search: true, remember: true },
+      capabilities: { search: true, remember: true, forget: true, writeMode: 'exact' },
     },
   }
   const catalog = {
@@ -168,7 +168,7 @@ interface SpaceData {
   remember(request: RememberRequest, signal?: AbortSignal): Promise<unknown>
   rememberMany(requests: readonly RememberRequest[], signal?: AbortSignal): Promise<unknown[]>
   link(): Promise<unknown>
-  forget(): Promise<unknown>
+  forget(id?: string, signal?: AbortSignal, memoryBodyId?: string): Promise<unknown>
   createBody(): Promise<unknown>
   updateBody(): unknown
   mergeBodies(): Promise<unknown>
@@ -188,6 +188,7 @@ function pinnedTurn(turnId: string, viewId: string, memoryBodyIds: string[] = ['
 }
 function managedSession(client: MemoryTestManagementClient) {
   return {
+    forGeneration() { return this },
     read: vi.fn(async <T,>(operation: string, input: unknown = null): Promise<T> => (await client.read(operation, input as MemoryJsonValue)).value as T),
     mutate: vi.fn(async <T,>(operation: string, input: unknown): Promise<T> => (await client.mutate(operation, input as MemoryJsonValue, { confirmed: true })).value as T),
     mutateResult: vi.fn(async (operation: string, input: unknown) => client.mutate(operation, input as MemoryJsonValue, { confirmed: true })),
@@ -217,6 +218,9 @@ function runtimeSource(
     return policy
   }
   const spaceSession = {
+    forGeneration() { return this },
+    forInstance() { return this },
+    identity: async () => ({ sourceInstanceKey: 'source:mnemon-source-memory-spaces' }),
     forTurn: (turn: ComposableMemoryTurn) => ({ ...spaceSession, route: (operation: string, input: MemoryJsonValue, signal: AbortSignal) => {
       const route = { id: 'space/' + operation, sourceInstanceKey: 'source:mnemon-source-memory-spaces', sourceRouteId: operation, readGrantId: 'space-grant', maxCalls: 4 }
       return policyFor(turn).query({ route: route as never, input, signal }, async input => {
@@ -235,6 +239,7 @@ function runtimeSource(
       throw new Error('Unexpected Source read: ' + operation)
     },
     async mutate(operation: string, input: Record<string, unknown>, signal?: AbortSignal) {
+      if (operation === 'forget') return spaces.forget(String(input.id), signal, String(input.memoryBodyId))
       if (operation === 'remember-many') return spaces.rememberMany(input.requests as RememberRequest[], signal)
       if (operation === 'remember') return spaces.remember(input as unknown as RememberRequest, signal)
       throw new Error('Unexpected Source mutation: ' + operation)
@@ -263,7 +268,7 @@ function runtimeSource(
     if (!turn.view.readGrants.some(grant => grant.id === 'doc-grant')) turn.view.readGrants.push({ id: 'doc-grant', sourceInstanceKey: 'docs', schema: 'dsh-mnemon.documents/v1' } as never)
     return policyFor(turn).query({ route: { id: 'docs/search', sourceInstanceKey: 'docs', sourceRouteId: operation, readGrantId: 'doc-grant' } as never, input, signal }, async () => ({ id: 'docs', viewId: turn.view.id, routeId: 'docs/search', sourceInstanceKey: 'docs', observedAt: 'now', items: [], truncated: false }))
   } }) }
-  const graph = { config, composableTurns: turns, source: (type: string) => type === 'runtime' ? runtimeSession : type === 'documents' ? documentSession : spaceSession } as unknown as MnemonRuntimeGraph
+  const graph = { config, memoryComposition: { acquire: () => ({ generation: {}, release: () => {} }) }, composableTurns: turns, source: (type: string) => type === 'runtime' ? runtimeSession : type === 'documents' ? documentSession : spaceSession } as unknown as MnemonRuntimeGraph
   const source = { config, forAgent: vi.fn((_agent: HostAgent) => graph), bindAgentRuntime: vi.fn(() => () => {}) }
   return { ...source, executions: new MemoryExecutions(source) }
 }
@@ -337,7 +342,226 @@ function emitSuccessfulToolResult(
   return execution
 }
 
+async function documentArchiveFixture(proposal: unknown = { action: 'planned', summary: 'Preserve the release gates.', memoryBodyId: 'project' }) {
+  const workspace = mkdtempSync(join(tmpdir(), 'dsh-mnemon-document-archive-'))
+  temporaryDirectories.push(workspace)
+  const documents = await sourceFixture({ dataDir: join(workspace, '.mnemon'), workspace })
+  releases.push(documents.dispose)
+  const controller = managedSession(documents.documents)
+  const created = await controller.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Release design', content: 'Canary before production. Keep the exact original.' })
+  const spaces = service()
+  vi.mocked(spaces.search).mockResolvedValue({ query: '', mode: 'keyword', results: [] })
+  const host = subagents(proposal)
+  const agent = { ...parent(), session: { header: { cwd: workspace }, events: [] } } as HostAgent
+  const runtime = runtimeSource(undefined, spaces, controller)
+  const coordinator = new MnemonSubagentCoordinator(host.value, runtime, toolRegistry().value)
+  return { controller, document: created.document, spaces, host, agent, runtime, coordinator,
+    archive: (signal = new AbortController().signal) => coordinator.archiveDocument(agent, created.document.id, signal) }
+}
+
 describe('Mnemon memory subagent coordinator', () => {
+  it('archives a document with Host lineage without model-counted recall receipts (issue 222)', async () => {
+    const f = await documentArchiveFixture()
+    const result = await f.archive()
+    const request = vi.mocked(f.spaces.rememberMany).mock.calls[0]![0][0]!
+    expect(request.content).toContain(`.mnemon/documents/archived/${f.document.filename}`)
+    expect(request.content).toContain(f.document.contentHash)
+    expect(result).toMatchObject({ action: 'archived', document: { status: 'archived', content: f.document.content }, maintenance: { memoryBodyIds: ['project'] } })
+    expect(result.lineage).toEqual([{
+      source: { layerId: 'documents', reference: `document:${f.document.id}:1`, digest: f.document.contentHash },
+      destination: { layerId: 'memory-spaces', reference: expect.stringContaining('memory-space:project/item:'), digest: createHash('sha256').update(request.content).digest('hex') },
+    }])
+    expect(f.host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({ toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] } }))
+    expect(f.spaces.rememberMany).toHaveBeenCalledOnce()
+    expect(f.spaces.remember).not.toHaveBeenCalled()
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { action: 'planned', summary: 'Invalid destination.', memoryBodyId: 'invented' },
+    { action: 'planned', summary: ' ', memoryBodyId: 'project' },
+    { action: 'planned', summary: 'x'.repeat(1001), memoryBodyId: 'project' },
+    { action: 'failed', summary: 'No safe index.', memoryBodyId: 'project' },
+  ])('rejects an invalid document archive proposal before any write: %j', async proposal => {
+    const f = await documentArchiveFixture(proposal)
+    await expect(f.archive()).rejects.toThrow()
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.spaces.remember).not.toHaveBeenCalled()
+    expect(f.spaces.createBody).not.toHaveBeenCalled()
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('active')
+  })
+
+  it('compensates only the newly created cold index when the document commit fails', async () => {
+    const f = await documentArchiveFixture()
+    vi.spyOn(f.controller, 'mutate').mockRejectedValueOnce(new Error('document revision conflict'))
+    await expect(f.archive()).rejects.toThrow('document revision conflict')
+    const content = vi.mocked(f.spaces.rememberMany).mock.calls[0]![0][0]!.content
+    expect(f.spaces.forget).toHaveBeenCalledWith(`stored-${createHash('sha256').update(content).digest('hex').slice(0, 8)}`, expect.any(AbortSignal), 'project')
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('active')
+  })
+
+  it('reuses an existing exact cold index after a failed attempt without deleting it on conflict', async () => {
+    const f = await documentArchiveFixture()
+    const content = `Prior archive index. .mnemon/documents/archived/${f.document.filename} ${f.document.contentHash}`
+    vi.mocked(f.spaces.search).mockResolvedValue({ query: '', mode: 'keyword', results: [{ id: 'pre-existing', content, memoryBodyId: 'project' } as Insight] })
+    vi.spyOn(f.controller, 'mutate').mockRejectedValueOnce(new Error('document revision conflict'))
+    await expect(f.archive()).rejects.toThrow('document revision conflict')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+    await expect(f.archive()).resolves.toMatchObject({ action: 'archived' })
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+  })
+
+  it('cleans a new index with a fresh signal after caller cancellation', async () => {
+    const f = await documentArchiveFixture()
+    const abort = new AbortController()
+    vi.mocked(f.spaces.rememberMany).mockImplementationOnce(async requests => {
+      abort.abort(new Error('caller canceled'))
+      return [{ action: 'added', id: 'canceled-index', memoryBodyId: requests[0]!.memoryBodyId }]
+    })
+    await expect(f.archive(abort.signal)).rejects.toThrow('caller canceled')
+    expect(f.spaces.forget).toHaveBeenCalledWith('canceled-index', expect.any(AbortSignal), 'project')
+    expect(vi.mocked(f.spaces.forget).mock.calls[0]![1]!.aborted).toBe(false)
+  })
+
+  it('reports a failed cleanup with the exact destination for recovery', async () => {
+    const f = await documentArchiveFixture()
+    vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([{ action: 'added', id: 'orphan-index', memoryBodyId: 'project' }])
+    vi.spyOn(f.controller, 'mutate').mockRejectedValueOnce(new Error('disk unavailable'))
+    vi.mocked(f.spaces.forget).mockRejectedValueOnce(new Error('provider unavailable'))
+    await expect(f.archive()).rejects.toThrow(/cleanup failed.*project.*orphan-index/)
+  })
+
+  it('preserves the cold index if the document committed before a transport failure', async () => {
+    const f = await documentArchiveFixture()
+    const mutate = f.controller.mutate.bind(f.controller)
+    vi.spyOn(f.controller, 'mutate').mockImplementationOnce(async (...args) => {
+      await mutate(...args)
+      throw new Error('response interrupted after commit')
+    })
+    await expect(f.archive()).rejects.toThrow('index cleanup failed')
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('archived')
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the document revision after planning and before writing the index', async () => {
+    const f = await documentArchiveFixture()
+    const start = f.host.start.getMockImplementation()!
+    f.host.start.mockImplementationOnce(async () => {
+      await f.controller.mutate('mutate', { action: 'update', id: f.document.id, content: 'New revision.' })
+      return start()
+    })
+    await expect(f.archive()).rejects.toThrow('revision conflict before archive indexing')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+  })
+
+  it('rechecks destination eligibility after planning and before index writes', async () => {
+    const f = await documentArchiveFixture()
+    const start = f.host.start.getMockImplementation()!
+    f.host.start.mockImplementationOnce(async () => {
+      f.spaces.bodyDirectory().items[0]!.active = false
+      return start()
+    })
+    await expect(f.archive()).rejects.toThrow('no longer eligible')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+  })
+
+  it.each(['before planning', 'during planning'])('honors the live global read-only policy %s', async moment => {
+    const f = await documentArchiveFixture()
+    const disable = () => Object.defineProperty(f.runtime, 'config', { value: { ...f.runtime.config, writeEnabled: false } })
+    if (moment === 'before planning') disable()
+    else {
+      const start = f.host.start.getMockImplementation()!
+      f.host.start.mockImplementationOnce(async () => { disable(); return start() })
+    }
+    await expect(f.archive()).rejects.toThrow('read-only')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('active')
+    if (moment === 'before planning') expect(f.host.start).not.toHaveBeenCalled()
+  })
+
+  it('accepts a deduplicated index only with exact Host readback and never rolls it back', async () => {
+    const f = await documentArchiveFixture()
+    vi.mocked(f.spaces.rememberMany).mockImplementationOnce(async requests => {
+      vi.mocked(f.spaces.search).mockResolvedValue({ query: '', mode: 'keyword', results: [{ id: 'existing-index', content: requests[0]!.content, memoryBodyId: 'project' } as Insight] })
+      return [{ action: 'skipped', id: 'existing-index', memoryBodyId: 'project' }]
+    })
+    await expect(f.archive()).resolves.toMatchObject({ action: 'archived', lineage: [{ destination: { reference: 'memory-space:project/item:existing-index' } }] })
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+  })
+
+  it('archives and compensates through real composed Documents and Holographic Sources', async () => {
+    const f = await compositionFixture()
+    releases.push(f.dispose)
+    const body = await f.memorySpace()
+    const spaces = f.graph.source('memory-spaces')
+    await spaces.mutate('body-update', { memoryBodyId: body.id, request: { active: true } })
+    const documents = f.graph.source('documents')
+    const created = await documents.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Composed archive', content: 'Keep the original code.' })
+    const host = subagents({ action: 'planned', summary: 'Cold index for the original code.', memoryBodyId: body.id })
+    const coordinator = new MnemonSubagentCoordinator(host.value, f.live, toolRegistry().value)
+    const agent = { ...parent(), session: { header: { cwd: f.workspace }, events: [] } } as HostAgent
+    await expect(coordinator.archiveDocument(agent, created.document.id, new AbortController().signal)).resolves.toMatchObject({ action: 'archived', lineage: [{ source: { digest: created.document.contentHash } }] })
+    const indexed = await spaces.read<{ results: Insight[] }>('search', { query: created.document.contentHash, memoryBodyIds: [body.id] })
+    expect(indexed.results).toHaveLength(1)
+    expect(indexed.results[0]!.content).toContain(created.document.contentHash)
+    const rejected = await documents.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Conflict archive', content: 'A separate original that must stay active.' })
+    const original = SourceSession.prototype.mutate
+    const failCommit = vi.spyOn(SourceSession.prototype, 'mutate').mockImplementation(function (this: SourceSession, operation, input, signal) {
+      if (this.typeId === 'documents' && operation === 'archive') return Promise.reject(new Error('injected document commit failure'))
+      return original.call(this, operation, input, signal)
+    })
+    try {
+      await expect(coordinator.archiveDocument(agent, rejected.document.id, new AbortController().signal)).rejects.toThrow('injected document commit failure')
+    } finally { failCommit.mockRestore() }
+    const after = await spaces.read<{ results: Insight[] }>('search', { query: rejected.document.contentHash, memoryBodyIds: [body.id] })
+    expect(after.results.filter(item => item.content.includes(rejected.document.contentHash))).toEqual([])
+    expect((await documents.read<DocumentView>('document', { id: rejected.document.id })).status).toBe('active')
+    const originalIndex = await spaces.read<{ results: Insight[] }>('search', { query: created.document.contentHash, memoryBodyIds: [body.id] })
+    expect(originalIndex.results.some(item => item.id === indexed.results[0]!.id)).toBe(true)
+  })
+
+  it('rejects a destination activated outside the current View namespace grant', async () => {
+    const f = await compositionFixture()
+    releases.push(f.dispose)
+    const body = await f.memorySpace()
+    const spaces = f.graph.source('memory-spaces')
+    await spaces.mutate('body-update', { memoryBodyId: body.id, request: { active: true } })
+    const documents = f.graph.source('documents')
+    const created = await documents.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Scoped document', content: 'Must not escape the active View.' })
+    const agent = { ...parent(), session: { header: { cwd: f.workspace }, events: [] } } as HostAgent
+    const turn = await f.graph.composableTurns.beginTurn('archive-scoped', agentScope(agent, f.config), 'test')
+    const outside = await spaces.mutate<{ id: string }>('body-create', { name: 'Outside pinned scope', description: 'Not in the immutable namespace grant.', providerId: 'holographic' })
+    await spaces.mutate('body-update', { memoryBodyId: outside.id, request: { active: true } })
+    const host = subagents({ action: 'planned', summary: 'No bypass.', memoryBodyId: outside.id })
+    const coordinator = new MnemonSubagentCoordinator(host.value, f.live, toolRegistry().value)
+    try {
+      await expect(coordinator.archiveDocument(agent, created.document.id, new AbortController().signal)).rejects.toThrow('ineligible Memory Space')
+      expect((await documents.read<DocumentView>('document', { id: created.document.id })).status).toBe('active')
+    } finally { await f.graph.composableTurns.endTurn(turn.turnId) }
+  })
+
+  it.each(['accepted', 'updated', 'skipped'])('never deletes an ambiguous or existing document index receipt: %s', async action => {
+    const f = await documentArchiveFixture()
+    vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([{ action, id: 'not-proven-new', memoryBodyId: 'project' }])
+    await expect(f.archive()).rejects.toThrow()
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('active')
+  })
+
+  it.each(['inactive', 'disabled', 'async', 'no-forget'])('rejects an unsafe archive destination before model work: %s', async state => {
+    const f = await documentArchiveFixture()
+    const body = f.spaces.bodyDirectory().items[0]!
+    if (state === 'inactive') body.active = false
+    if (state === 'disabled') body.providerEnabled = false
+    if (state === 'async') body.provider.capabilities.writeMode = 'async-extracting'
+    if (state === 'no-forget') body.provider.capabilities.forget = false
+    await expect(f.archive()).rejects.toThrow(/archive.*Memory Space/)
+    expect(f.host.start).not.toHaveBeenCalled()
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+  })
+
   it('keeps a shared maintenance View until all concurrent children finish', async () => {
     const f = await compositionFixture()
     releases.push(f.dispose)
@@ -1233,49 +1457,34 @@ describe('Mnemon memory subagent coordinator', () => {
     const controller = managedSession(documents.documents)
     const old = await controller.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Old architecture', content: 'a'.repeat(220) })
     const resultTools = toolRegistry()
-    const indexedContent = `Old architecture index. Cold path: .mnemon/documents/archived/${old.document.filename}. Content SHA-256: ${old.document.contentHash}`
-    const structured = {
-      summary: 'Archived with exact cold path.',
-      action: 'archived',
-      memoryBodyIds: ['architecture'],
-      lineage: [{
-        sourceIndex: 1,
-        sourceDigest: old.document.contentHash,
-        destinationReceiptIndex: 1,
-        destinationMemoryBodyId: 'architecture',
-        destinationId: 'document-index-1',
-      }],
-    }
-    const host = observedSubagents(resultTools, child => {
-      emitSuccessfulToolResult(resultTools, child, 'mnemon_remember', { content: indexedContent, memoryBodyId: 'architecture' }, {
-        action: 'added', id: 'document-index-1', memoryBodyId: 'architecture', memoryBodyName: 'Architecture',
-      })
-    }, 'completed', structured)
+    const memoryService = service()
+    const host = subagents({ summary: 'Archived with exact cold path.', action: 'planned', memoryBodyId: 'project' })
+    vi.mocked(memoryService.rememberMany).mockResolvedValueOnce([{ action: 'added', id: 'document-index-1', memoryBodyId: 'project' }])
     const archive = vi.spyOn(controller, 'mutate')
-    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(undefined, service(), controller), resultTools.value)
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(undefined, memoryService, controller), resultTools.value)
     const agent = { ...parent(), session: { header: { cwd: workspace }, events: [] } } as HostAgent
 
     const result = await coordinator.document(agent, { action: 'create', title: 'New architecture', content: 'b'.repeat(220) }, new AbortController().signal)
     expect(result).toMatchObject({
       action: 'created',
-      maintenance: { archivedDocumentIds: [old.document.id], memoryBodyIds: ['architecture'] },
+      maintenance: { archivedDocumentIds: [old.document.id], memoryBodyIds: ['project'] },
     })
     expect(await controller.read<DocumentView>('document', { id: old.document.id })).toMatchObject({ status: 'archived', archiveSummary: 'Archived with exact cold path.' })
     expect(archive).toHaveBeenCalledWith('archive', expect.objectContaining({
       id: old.document.id, documentRevision: old.document.revision,
-      memoryBodyIds: ['architecture'],
+      memoryBodyIds: ['project'],
       lineage: [{
         source: { layerId: 'documents', reference: `document:${old.document.id}:${old.document.revision}`, digest: old.document.contentHash },
         destination: {
           layerId: 'memory-spaces',
-          reference: 'memory-space:architecture/item:document-index-1',
-          digest: createHash('sha256').update(indexedContent).digest('hex'),
+          reference: 'memory-space:project/item:document-index-1',
+          digest: createHash('sha256').update(vi.mocked(memoryService.rememberMany).mock.calls[0]![0][0]!.content).digest('hex'),
         },
       }],
     }), expect.any(AbortSignal))
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
-      persona: expect.stringContaining('cold-document archive worker'),
-      toolFilter: { allow: expect.arrayContaining(['mnemon_memory_bodies', 'mnemon_recall', 'mnemon_remember', 'mnemon_memory_body_create']) },
+      persona: expect.stringContaining('cold-document archive planner'),
+      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
     }))
     const archiveCall = (host.start.mock.calls[0] as unknown as [string, { prompt: Array<{ text: string }>; persona: string }])[1]
     expect(archiveCall.prompt[0]!.text).toContain(`.mnemon/documents/archived/${old.document.filename}`)
@@ -1283,38 +1492,16 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(coordinator.snapshot()).toMatchObject({ documentArchives: 1, lastOperation: 'document-archive' })
   })
 
-  it('keeps a document active when its destination receipt omits the exact cold reference', async () => {
-    const workspace = mkdtempSync(join(tmpdir(), 'dsh-mnemon-document-lineage-'))
-    temporaryDirectories.push(workspace)
-    const documents = await sourceFixture({ dataDir: join(workspace, '.mnemon'), workspace })
-    releases.push(documents.dispose)
-    const controller = managedSession(documents.documents)
-    const created = await controller.mutate<DocumentMutationResult>('mutate', { action: 'create', title: 'Release gates', content: 'Canary before production.' })
-    const resultTools = toolRegistry()
-    const host = observedSubagents(resultTools, child => {
-      emitSuccessfulToolResult(resultTools, child, 'mnemon_remember', { content: 'An unrelated release note.', memoryBodyId: 'release' }, {
-        action: 'added', id: 'release-note-1', memoryBodyId: 'release', memoryBodyName: 'Release',
-      })
-    }, 'completed', {
-      summary: 'Indexed.',
-      action: 'archived',
-      memoryBodyIds: ['release'],
-      lineage: [{
-        sourceIndex: 1,
-        sourceDigest: created.document.contentHash,
-        destinationReceiptIndex: 1,
-        destinationMemoryBodyId: 'release',
-        destinationId: 'release-note-1',
-      }],
-    })
-    const archive = vi.spyOn(controller, 'mutate')
-    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(undefined, service(), controller), resultTools.value)
-    const agent = { ...parent(), session: { header: { cwd: workspace }, events: [] } } as HostAgent
-
-    await expect(coordinator.archiveDocument(agent, created.document.id, new AbortController().signal))
-      .rejects.toThrow('does not contain the exact cold path and content digest')
-    expect(archive).not.toHaveBeenCalled()
-    expect((await controller.read<DocumentView>('document', { id: created.document.id })).status).toBe('active')
+  it('does not accept a near-match or another space as an existing document index', async () => {
+    const f = await documentArchiveFixture()
+    const cold = `.mnemon/documents/archived/${f.document.filename}`
+    vi.mocked(f.spaces.search).mockResolvedValue({ query: '', mode: 'keyword', results: [
+      { id: 'near-match', content: `Old revision ${cold} wrong-digest`, memoryBodyId: 'project' },
+      { id: 'wrong-space', content: `${cold} ${f.document.contentHash}`, memoryBodyId: 'other' },
+    ] as Insight[] })
+    await expect(f.archive()).resolves.toMatchObject({ action: 'archived' })
+    expect(f.spaces.rememberMany).toHaveBeenCalledOnce()
+    expect(f.spaces.forget).not.toHaveBeenCalled()
   })
 
   it('uses bounded routing excerpts, then batch-archives exact sources and commits atomically', async () => {

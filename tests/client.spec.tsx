@@ -859,7 +859,7 @@ describe('MnemonWorkbench', () => {
     expect(screen.queryByRole('dialog', { name: '编辑活跃档案' })).toBeNull()
     fireEvent.click(within(documentReader).getByRole('button', { name: '归档' }))
     const documentArchiveDialog = screen.getByRole('dialog', { name: '确认建立 Mnemon 索引并迁移这份档案？' })
-    expect(within(documentArchiveDialog).getByText(/受限的独立任务 Agent 写入可检索的 Mnemon 摘要/)).toBeTruthy()
+    expect(within(documentArchiveDialog).getByText(/Host 校验后写入冷索引/)).toBeTruthy()
     const documentArchiveCancel = within(documentArchiveDialog).getAllByRole('button', { name: '取消' }).at(-1)
     if (documentArchiveCancel === undefined) throw new Error('document archive cancel button missing')
     expect(documentArchiveCancel.closest('footer')?.parentElement).toBe(documentArchiveDialog)

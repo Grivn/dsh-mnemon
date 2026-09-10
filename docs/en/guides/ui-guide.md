@@ -78,7 +78,9 @@ Switch between active and archived directories. Repeatedly clicking the selected
 
 Active and archived lists, including search matches, display creation dates and sort newest first before loading more documents. Updating an older document does not move it to the top.
 
-When foreground Document management needs more active capacity, an independent task Agent creates a Mnemon cold reference for the least-recently-used Document. The Host moves the original to archived only after verification. Failure or revision conflict preserves the active original.
+For explicit archive or foreground capacity maintenance, an independent task Agent proposes a summary and one existing eligible Memory Space. It has no memory tools. The Host validates the proposal, adds the exact cold path and content hash, stores the index and builds lineage from its own receipt before moving the original. The destination must be active and support exact writes and safe forget; configure a suitable space before archiving.
+
+An invalid proposal leaves both the active document and Memory Spaces unchanged. If moving the document fails, the Host attempts to remove only the newly created index. Existing verified indexes are reused and never deleted by this cleanup. If cleanup fails or the Provider outcome is uncertain, inspect the reported destination and index before retrying; this is compensating cleanup, not a cross-Provider database transaction.
 
 Background review preserves existing document bodies. It searches first, skips covered candidates, and creates a separate supplementary document only for substantial new knowledge. It cannot update or archive existing documents; if capacity is exhausted, it skips creation. Normal explicit edits remain available.
 
