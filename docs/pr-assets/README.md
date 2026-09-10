@@ -12,6 +12,7 @@ For new evaluations, commit the reusable harness, workload generator, concise bi
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [v0.5.7 release](./release-v0.5.7/README.md) / [中文](./release-v0.5.7/README.zh-CN.md) | Versioned package checks and real DSH 0.1.5 archival / 版本化制品验证与真实 DSH 0.1.5 归档 |
 | [DSH 0.1.5 compatibility — issue #223](./issue-223-dsh-015/README.md) / [中文](./issue-223-dsh-015/README.zh-CN.md) | HTTP 405, legacy Session copy recovery, real WebUI and restart / HTTP 405、旧会话副本修复、真实 WebUI 与重启 |
 | [Documents archive — issue #222](./issue-222-document-archive/README.md) | Host-owned indexing and lineage, compensation, real WebUI and cross-turn tools / Host 索引与回执、补偿清理、真实 WebUI 与跨回合工具 |
 | [Built-in centralized workspaces — issue #189](./issue-189-core-workspaces/README.md) / [中文](./issue-189-core-workspaces/README.zh-CN.md) | Core/Host storage scope, Source isolation, real WebUI and restart / 内置存储范围、Source 隔离、真实 WebUI 与重启 |
