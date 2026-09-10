@@ -1,4 +1,4 @@
-import { allowedDirectories, readBoundedFile, runBoundedProcess, digest } from 'dsh-mnemon-workspace-kit'
+import { allowedDirectories, readBoundedFile, resolveRipgrepPath, runBoundedProcess, digest } from 'dsh-mnemon-workspace-kit'
 import type { VisibleMessage } from 'dsh-mnemon-workspace-kit/dsh'
 import { resolve } from 'node:path'
 
@@ -25,10 +25,10 @@ export function parseImportedSession(text: string, path: string): ImportedSessio
   }
   return { id: 'imported-' + digest(path).slice(0, 24), path, ...(cwd ? { cwd } : {}), messages: messages.length ? messages : fallback, malformed }
 }
-export async function importedSessions(roots: string[], workspaceId: string | undefined, signal: AbortSignal, rgPath = 'rg'): Promise<{ sessions: ImportedSession[]; truncated: boolean }> {
+export async function importedSessions(roots: string[], workspaceId: string | undefined, signal: AbortSignal, rgPath?: string): Promise<{ sessions: ImportedSession[]; truncated: boolean }> {
   if (!roots.length) return { sessions: [], truncated: false }
   const allowed = await allowedDirectories(roots)
-  const listing = await runBoundedProcess(rgPath, ['--no-config', '--files', '--null', '--glob', '*.jsonl', '--', ...allowed], { signal, maxBytes: 256 * 1024 })
+  const listing = await runBoundedProcess(await resolveRipgrepPath(rgPath), ['--no-config', '--files', '--null', '--glob', '*.jsonl', '--', ...allowed], { signal, maxBytes: 256 * 1024 })
   if (listing.code !== 0 && listing.code !== 1 && !listing.truncated) throw new Error('Imported session discovery failed')
   const files = listing.stdout.split('\0').filter(Boolean).sort().reverse()
   const sessions: ImportedSession[] = []

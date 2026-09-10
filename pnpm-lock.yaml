@@ -1826,6 +1826,9 @@ importers:
 
   plugins/dsh-mnemon-workspace-kit:
     dependencies:
+      '@vscode/ripgrep':
+        specifier: 1.18.0
+        version: 1.18.0
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2

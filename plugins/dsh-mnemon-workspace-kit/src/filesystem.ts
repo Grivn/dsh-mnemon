@@ -62,6 +62,13 @@ export async function readBoundedFile(roots: readonly string[], value: string, m
 }
 
 export interface ProcessResult { code: number | null; stdout: string; stderr: string; truncated: boolean }
+
+/** Resolve the declared platform binary lazily; explicit local overrides remain supported. */
+export async function resolveRipgrepPath(configured?: string): Promise<string> {
+  if (configured?.trim()) return configured
+  return (await import('@vscode/ripgrep')).rgPath
+}
+
 /** An argv-only child, bounded in time and output, with process-group cancellation. */
 export function runBoundedProcess(command: string, args: readonly string[], options: { cwd?: string; signal?: AbortSignal; timeoutMs?: number; maxBytes?: number; env?: NodeJS.ProcessEnv; stdin?: string; onOutput?(stream: 'stdout' | 'stderr', text: string): void } = {}): Promise<ProcessResult> {
   options.signal?.throwIfAborted()

@@ -32,3 +32,5 @@ Support the expanded independent artifact graph and external consumer checks. Fi
 Align settings with DSH theme controls and compact rows. Expose Strategy parameters in expandable rows with composition summaries, and open a full native dialog when the host content column is too narrow for the form.
 
 Align independent workspace plugins with the published DSH 0.1.5 contracts, accept feedback events without text, and retain explicit inspection in centralized workspace storage. Preserve default capacity maintenance alongside exact-call approval for actions requiring external authority.
+
+Bootstrap public SDKs from a clean checkout before integrated checks. Declare the platform search executable for file, skill and imported-session lookup while preserving explicit local overrides.

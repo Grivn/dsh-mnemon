@@ -3,12 +3,12 @@ import { open, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { lock } from 'proper-lockfile'
 import { withMemoryStorageLock } from 'dsh-mnemon/extension-sdk'
-import { allowedDirectories, allowedFile, digest, readBoundedFile, runBoundedProcess } from 'dsh-mnemon-workspace-kit'
+import { allowedDirectories, allowedFile, digest, readBoundedFile, resolveRipgrepPath, runBoundedProcess } from 'dsh-mnemon-workspace-kit'
 
 export async function listSkillFiles(roots: string[], signal?: AbortSignal): Promise<string[]> {
   const allowed = await allowedDirectories(roots)
   if (!allowed.length) return []
-  const result = await runBoundedProcess('rg', ['--no-config', '--files', '--glob', '*.md', '--', ...allowed], {
+  const result = await runBoundedProcess(await resolveRipgrepPath(), ['--no-config', '--files', '--glob', '*.md', '--', ...allowed], {
     ...(signal ? { signal } : {}), maxBytes: 256 * 1024, timeoutMs: 5000,
   })
   if (result.code !== 0 && result.code !== 1) throw new Error('Could not list configured skill files')

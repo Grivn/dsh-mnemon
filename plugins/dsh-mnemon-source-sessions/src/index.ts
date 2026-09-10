@@ -16,7 +16,7 @@ import { importedSessions } from './imported.ts'
 export const name = 'dsh-mnemon-source-sessions'
 export const inject = ['mnemonMemory', 'agentPresets', 'sessionQuery', 'agents', 'workspaceRegistry', 'llm', 'sessionTitle']
 export interface Config extends RecordSourceConfig { historyRoots?: string[]; rgPath?: string }
-export const Config = z.object({ dataDir: z.string(), historyRoots: z.array(z.string()).default([]), rgPath: z.string().default('rg') }) as z<Config>
+export const Config = z.object({ dataDir: z.string(), historyRoots: z.array(z.string()).default([]), rgPath: z.string().default('') }) as z<Config>
 export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'Conversations', 'zh-CN': '会话资料' }, description: { en: 'Visible conversation search, bookmarks and explicit session actions.', 'zh-CN': '可见对话检索、轮次书签和会话操作。' }, roles: ['source'], provides: [{ id: 'source' }, { id: 'source.session-history' }] })
 const queryProperties = { query: { type: 'string', maxLength: 1000 }, sessionId: { type: 'string' }, origin: { type: 'string', enum: ['all', 'native', 'imported'] }, sort: { type: 'string', enum: ['relevance', 'newest', 'oldest'] }, limit: { type: 'integer', minimum: 1, maximum: 100 }, active: { type: 'boolean' }, requestId: { type: 'string' } }
 export function createSessionsSource(config: Config = {}, adapter?: DshWorkspaceAdapter, llm?: LlmRuntime): MemorySourceDefinition {

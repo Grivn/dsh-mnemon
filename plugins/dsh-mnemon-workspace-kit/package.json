@@ -110,6 +110,7 @@
     }
   },
   "dependencies": {
+    "@vscode/ripgrep": "1.18.0",
     "proper-lockfile": "^4.1.2"
   }
 }

@@ -2,13 +2,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from 'schemastery'
 import type { MemoryJsonValue, MemorySourceDefinition } from 'dsh-mnemon/contracts'
 import { defineMemoryPlugin, installMemory, memoryConfigurationDigest, memoryInputInteger, memoryInputRecord, memoryInputText } from 'dsh-mnemon/extension-sdk'
-import { allowedDirectories, allowedFile, createRecordSource, digest, readBoundedFile, runBoundedProcess, withLookupRoutes, type LookupResult, type RecordSourceConfig } from 'dsh-mnemon-workspace-kit'
+import { allowedDirectories, allowedFile, createRecordSource, digest, readBoundedFile, resolveRipgrepPath, runBoundedProcess, withLookupRoutes, type LookupResult, type RecordSourceConfig } from 'dsh-mnemon-workspace-kit'
 import { relative } from 'node:path'
 
 export const name = 'dsh-mnemon-source-files'
 export const inject = ['mnemonMemory']
 export interface Config extends RecordSourceConfig { roots?: string[]; rgPath?: string }
-export const Config = z.object({ dataDir: z.string(), roots: z.array(z.string()).default([]), rgPath: z.string().default('rg') }) as z<Config>
+export const Config = z.object({ dataDir: z.string(), roots: z.array(z.string()).default([]), rgPath: z.string().default('') }) as z<Config>
 export const memoryPlugin = defineMemoryPlugin({ packageName: name, label: { en: 'File search', 'zh-CN': '文件检索' }, description: { en: 'Bounded file discovery and content search in registered directories.', 'zh-CN': '在已登记目录内检索文件名和正文。' }, roles: ['source'], provides: [{ id: 'source' }, { id: 'source.file-search' }] })
 const documentGlob = '*.{md,mdx,txt,rst,adoc,org,csv,tsv,json,jsonl,yaml,yml,toml,xml,html,htm,tex,log,pdf,docx,odt}'
 const searchProperties = { query: { type: 'string', maxLength: 500 }, mode: { type: 'string', enum: ['name', 'content'] }, types: { type: 'string', enum: ['documents', 'all'] }, root: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 100 }, requestId: { type: 'string' } }
@@ -43,7 +43,7 @@ export function createFilesSource(config: Config = {}): MemorySourceDefinition {
       if (!['name', 'content'].includes(String(mode)) || input.types !== undefined && !['documents', 'all'].includes(String(input.types))) throw new Error('Unsupported search mode or file type selection')
       const limit = memoryInputInteger(input.limit, 30, 1, 100)
       const args = ['--no-config', ...(input.types === 'all' ? [] : ['--glob', documentGlob]), '--glob', '!**/.env*', '--glob', '!**/credentials*']
-      const result = await runBoundedProcess(config.rgPath ?? 'rg', mode === 'name'
+      const result = await runBoundedProcess(await resolveRipgrepPath(config.rgPath), mode === 'name'
         ? [...args, '--files', '--null', '--', ...selected]
         : [...args, '--json', '--fixed-strings', '--ignore-case', '--max-count', '20', '--max-filesize', '2M', '--', query, ...selected], { signal, timeoutMs: 10_000, maxBytes: 1024 * 1024 })
       if (result.code !== 0 && result.code !== 1 && !result.truncated) throw new Error('File search failed: ' + result.stderr.slice(0, 500))

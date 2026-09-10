@@ -1,9 +1,21 @@
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
-import { allowedDirectories, readBoundedFile, runBoundedProcess } from '../src/filesystem.ts'
+import { allowedDirectories, readBoundedFile, resolveRipgrepPath, runBoundedProcess } from '../src/filesystem.ts'
 describe('bounded process and file operations', () => {
+  it('searches with the declared binary when no system command is on PATH', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'mnemon-search-'))
+    try {
+      await writeFile(join(directory, 'note.md'), 'portable search sentinel')
+      const result = await runBoundedProcess(await resolveRipgrepPath(), ['--no-config', '--fixed-strings', '--', 'portable search sentinel', directory], {
+        env: { ...process.env, PATH: '' }, maxBytes: 1024,
+      })
+      expect(result.code).toBe(0)
+      expect(result.stdout).toContain('portable search sentinel')
+      expect(result.truncated).toBe(false)
+    } finally { await rm(directory, { recursive: true, force: true }) }
+  })
   it('passes shell-looking text as a literal argument and bounds runaway output', async () => {
     const result = await runBoundedProcess(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', '$(echo intrusion); literal'])
     expect(result.stdout).toBe('$(echo intrusion); literal')

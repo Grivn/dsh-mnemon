@@ -8,6 +8,10 @@ Shared implementation utilities for independently installed Sources. This packag
 
 `RecordStore` provides atomic revision-fenced persistence and per-record history. `createRecordSource` adapts an owned collection to the public memory contracts. `./client` supplies a browser-only collection editor.
 
+`resolveRipgrepPath` lazily resolves the platform binary from the declared `@vscode/ripgrep` dependency, or retains an explicit local override. Search callers still use bounded argv-only processes with cancellation and output limits; they do not depend on a system `rg` command.
+
+`resolveRipgrepPath` 按需从声明的 `@vscode/ripgrep` 依赖解析平台程序，或保留显式本地覆盖。检索仍通过有时间、输出和取消限制的 argv 进程执行，不依赖系统预装 `rg`。
+
 Run `pnpm verify` to typecheck, test and build the package in isolation.
 
 The optional `./dsh` export adapts published DSH services for project-scoped transcript reads, session creation, completed-turn forks and provenance-preserving delivery. It does not register tools or grant external authority. Interprocess record writes use a renewable lock and flush the temporary file before atomic replacement.
