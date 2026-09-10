@@ -467,6 +467,20 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(f.spaces.rememberMany).not.toHaveBeenCalled()
   })
 
+  it.each(['before planning', 'during planning'])('honors the live global read-only policy %s', async moment => {
+    const f = await documentArchiveFixture()
+    const disable = () => Object.defineProperty(f.runtime, 'config', { value: { ...f.runtime.config, writeEnabled: false } })
+    if (moment === 'before planning') disable()
+    else {
+      const start = f.host.start.getMockImplementation()!
+      f.host.start.mockImplementationOnce(async () => { disable(); return start() })
+    }
+    await expect(f.archive()).rejects.toThrow('read-only')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect((await f.controller.read<DocumentView>('document', { id: f.document.id })).status).toBe('active')
+    if (moment === 'before planning') expect(f.host.start).not.toHaveBeenCalled()
+  })
+
   it('accepts a deduplicated index only with exact Host readback and never rolls it back', async () => {
     const f = await documentArchiveFixture()
     vi.mocked(f.spaces.rememberMany).mockImplementationOnce(async requests => {

@@ -1748,7 +1748,7 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
 
   private async assertAutomaticMemoryWrite(parent: HostAgent): Promise<SourceSession> {
     const graph = this.runtimeSource.forAgent(parent)
-    if (!graph.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only')
+    if (!graph.config.writeEnabled || !this.runtimeSource.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only')
     assertParticipation(graph.config, 'memory-spaces', 'write', 'automatic')
     return this.writableSourceFor(parent, 'memory-spaces', 'remember')
   }
