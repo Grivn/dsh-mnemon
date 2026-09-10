@@ -4,7 +4,7 @@
 
 ## English
 
-Verified on 2026-09-10 in an independent worktree based on `main` at `1790251919ec731f9dd49b43da78f78b37890a00`. The tested implementation is `179589d152b3220ce32f2401de9f757ae421fe06`; the following evidence commit adds this report and screenshots only.
+Verified on 2026-09-10 in an independent worktree based on `main` at `1790251919ec731f9dd49b43da78f78b37890a00`. The full WebUI journey (screenshots 01–12) tested `179589d152b3220ce32f2401de9f757ae421fe06`. Final automated checks and the additional WebUI archive smoke (screenshot 13) tested `90eb1d21eaf3d251937dafe6232a72c2509cc60c`, which also rechecks the live global read-only policy before planning and indexing.
 
 Environment: macOS 15.6 arm64, Node 25.1.0, pnpm 11.19.0, published DSH 0.1.2-rc.1 Web profile, local dsh-mnemon 0.5.6 build, official npm Mnemon CLI 0.2.8, Chromium 153.0.8010.12 / Playwright 1.63.0, 1440×1050 viewport. Every profile, workspace, memory store and model endpoint was disposable. No live model API or personal memory was used.
 
@@ -19,13 +19,14 @@ The fixed worker has only its terminal result tool. It proposes a summary and de
 | Command / boundary | Result |
 |---|---|
 | Targeted regressions against the legacy Host | 7 expected failures, 7 passes in the selected subset |
-| `pnpm exec vitest run tests/subagent.spec.ts` | 83 passed, including 23 added cases |
-| `pnpm verify` | 1,197 passed executions: 874 Root + 323 plugins; 7 opt-in skips; types, deterministic builds, real Headless activation and package validation passed |
+| Live read-only policy regressions before the final guard | 2 expected failures; both pass with the guard |
+| `pnpm exec vitest run tests/subagent.spec.ts` | 85 passed, including 25 added cases |
+| `pnpm verify` | 1,199 passed executions: 876 Root + 323 plugins; 7 opt-in skips; types, deterministic builds, real Headless activation and package validation passed |
 | `pnpm verify:plugins` | 16 independent plugin repositories, 17 packed artifacts and external SDK/Client/real DSH composition passed |
 | `MNEMON_NATIVE_TEST_CLI=... pnpm --filter dsh-mnemon-source-memory-spaces exec vitest run tests/native-integration.spec.ts` | 1 passed; real isolated Native write, recall and forget |
 | `pnpm release:intent`, `pnpm verify:docs`, `git diff --check` | Passed |
 
-The regression suite covers malformed/failed plans, invalid or changed destinations, immutable View namespace grants, LRU capacity archival, revision conflicts before and after indexing, caller cancellation, deduplication readback, existing-index reuse, wrong-space/near-match recall, asynchronous or ambiguous receipts, failed cleanup, and preserving an index after the document has already committed. A composed Documents + Holographic test performs real persistence and verifies that compensation removes the new index while retaining the original document and an earlier index. The seven ordinary-suite skips are optional live-model/Native/Windows cases; the portable Native integration was run separately above.
+The regression suite covers live global read-only changes before and during planning, malformed/failed plans, invalid or changed destinations, immutable View namespace grants, LRU capacity archival, revision conflicts before and after indexing, caller cancellation, deduplication readback, existing-index reuse, wrong-space/near-match recall, asynchronous or ambiguous receipts, failed cleanup, and preserving an index after the document has already committed. A composed Documents + Holographic test performs real persistence and verifies that compensation removes the new index while retaining the original document and an earlier index. The seven ordinary-suite skips are optional live-model/Native/Windows cases; the portable Native integration was run separately above.
 
 ### WebUI evidence
 
@@ -38,9 +39,10 @@ The regression suite covers malformed/failed plans, invalid or changed destinati
 | Corrected retry | [Rename and retry succeeds; two archives](./08-after-retry-success.png); exactly two indexes after the retry |
 | No eligible destination | [Inactive space rejected before model work or indexing](./09-after-inactive-rejected.png) |
 | Restart | [Two archived originals and one active rejected document survive](./10-after-restart.png); inactive space state also persists |
+| Final build after reactivation | [Previously rejected document archives at revision 2](./13-after-final-build-archive.png); exactly three indexes and three archived originals in that profile |
 | Actual named tools | [Three conversation turns: create, update, archive](./11-after-tool-roundtrip.png); [revision-2 content archived at revision 3](./12-after-tool-archived-original.png) |
 
-Dialog cancellation preserved the active document. All four final document bodies were read from disk and matched their stored SHA-256, including all three archived originals. The named-tool case asserted the actual returned lineage's source revision/digest and Provider destination. See [minimal structured evidence](./verification.json) for exact synthetic ids, hashes and selected model-fixture events. All twelve screenshots were visually reviewed.
+Dialog cancellation preserved the active document. All four final document bodies were read from disk and matched their stored SHA-256. After the final smoke all four were archived, across two disposable profiles. The named-tool case asserted the actual returned lineage's source revision/digest and Provider destination. See [minimal structured evidence](./verification.json) for exact synthetic ids, hashes and selected model-fixture events. All thirteen screenshots were visually reviewed.
 
 ### Repeat locally
 
@@ -59,15 +61,15 @@ Windows and the reporter's original desktop installation were not available. Thi
 
 ## 中文
 
-2026-09-10，从 `main` 的 `1790251` 创建独立 worktree，实测修复提交为 `179589d`。环境为 macOS 15.6 arm64、Node 25.1.0、pnpm 11.19.0、正式 DSH 0.1.2-rc.1 Web profile、本地 dsh-mnemon 0.5.6 构建、官方 npm Mnemon CLI 0.2.8，以及 Chromium 153 / Playwright 1.63。所有工作区、记忆和模型端点均为临时夹具，没有调用真实模型服务或读取私人记忆。
+2026-09-10，从 `main` 的 `1790251` 创建独立 worktree，完整 WebUI 流程（截图 01–12）实测提交为 `179589d`；最终自动校验和追加 WebUI 归档复验（截图 13）实测 `90eb1d2`，后者增加规划前及索引写入前的实时全局只读检查。环境为 macOS 15.6 arm64、Node 25.1.0、pnpm 11.19.0、正式 DSH 0.1.2-rc.1 Web profile、本地 dsh-mnemon 0.5.6 构建、官方 npm Mnemon CLI 0.2.8，以及 Chromium 153 / Playwright 1.63。所有工作区、记忆和模型端点均为临时夹具，没有调用真实模型服务或读取私人记忆。
 
 旧构建通过真实 WebUI、归档任务和 Native Provider 复现了报告中的完整现象：脚本子代理先空召回、再实际写入冷索引，随后错误引用第 1 份回执；Host 抛出同样的 lineage 匹配错误，档案仍为 active，空间却多出一条索引。用户原始模型轨迹不可得，因此这证明的是同类失败路径，而不是声称还原了用户模型的具体思考过程。
 
 修复后，子代理只拟定摘要和目标空间，Host 在写入前校验方案，补齐精确路径与哈希，根据自己的持久回执生成 lineage，再移动原文。无效方案没有索引副作用；旧的精确索引可复用；文档提交失败时仅补偿本次新建的索引，不删除已有或结果不确定的数据。
 
-`pnpm verify` 共通过 1,197 次测试执行（Root 874、插件 323），另有 7 项 opt-in 跳过；类型、确定性构建、真实 Headless 激活及包校验全部通过。独立验证通过 16 个插件仓库、17 个制品和外部组合；真实 Native 写入、召回、删除冒烟另行通过。子代理套件共 83 项，新增 23 项，覆盖无效方案、修订冲突、取消、重复索引、清理失败、已提交状态保护、受限 View 与 LRU 归档；真实 Documents + Holographic 组合验证了补偿清理和原文保留。
+`pnpm verify` 共通过 1,199 次测试执行（Root 876、插件 323），另有 7 项 opt-in 跳过；类型、确定性构建、真实 Headless 激活及包校验全部通过。独立验证通过 16 个插件仓库、17 个制品和外部组合；真实 Native 写入、召回、删除冒烟另行通过。子代理套件共 85 项，新增 25 项；追加的两项实时只读回归在补充检查前均失败、修复后均通过。套件覆盖实时只读变化、无效方案、修订冲突、取消、重复索引、清理失败、已提交状态保护、受限 View 与 LRU 归档；真实 Documents + Holographic 组合验证了补偿清理和原文保留。
 
-上表保留了 12 张实测截图：旧错误与孤儿索引、正常归档和召回、revision 2 的拒绝路径与索引数量不变、修正后重试、停用目标后的提前拒绝、重启持久化，以及三个真实用户回合中的 `mnemon_document_manage` 新建、更新和归档。最终三个归档原文和一个仍为 active 的文档，磁盘正文 SHA-256 均与索引一致。真实工具回执包含指向 revision 2 的 source lineage，归档后文档 revision 为 3。精简事件、id 和哈希见 [verification.json](./verification.json)。
+上表保留了 13 张实测截图：旧错误与孤儿索引、正常归档和召回、revision 2 的拒绝路径与索引数量不变、修正后重试、停用目标后的提前拒绝、重启持久化，以及三个真实用户回合中的 `mnemon_document_manage` 新建、更新和归档。最终构建重启后重新启用目标空间，原先被拒绝的文档成功归档，该 Profile 恰好有三个归档原文和三条索引。两个临时 Profile 的四个文档最终均已归档，磁盘正文 SHA-256 与记录的内容哈希均一致。真实工具回执包含指向 revision 2 的 source lineage，归档后文档 revision 为 3。精简事件、id 和哈希见 [verification.json](./verification.json)。
 
 复跑命令和测试指令见上方；`REJECT` 标题用于拒绝路径，`archive-tool-222 prepare`、`archive-tool-222 update`、`archive-tool-222` 分别触发三个真实工具回合。夹具只控制模型决策，不模拟工具或存储。停止服务会清理临时数据。
 
