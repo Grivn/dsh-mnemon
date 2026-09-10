@@ -4,7 +4,9 @@
 
 ## 环境与命令
 
-插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 是稳定版 0.1.2-rc.1，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root、Source Client 测试和外部制品消费者均使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；直接前序版本 0.1.2-alpha.5 保留显式源码覆盖流程。
+插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 是 npm latest 发布的 0.1.5-rc.1，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root、Source Client 测试和外部制品消费者均使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；源码覆盖工具保留用于明确请求的调查。
+
+DSH 0.1.5 UI primitives 在制品中导入 Markdown/高亮依赖，但其已发布 manifest 将这些包列为开发依赖。Root、三个 Source 与外部消费者显式声明完整依赖族，使独立 Client 测试可执行；Host 制品仍使用 DSH 提供的 UI 模块。测试同步使用公开的异步 Agent 工厂及持久化 `assistant/message` 事件。`tests/legacy-session-repair.spec.ts` 对 0.1.2 实际生成的合成日志执行已发布的 v0 → v3 迁移，覆盖普通和压缩格式、副本修复与冷启动重读。
 
 pnpm 11 可能在 rc.1 仍处于发布时间隔离窗口时安装这组已审核制品，因此 `minimumReleaseAgeExclude` 逐项列出精确版本。组合测试要求该列表与 lockfile 中的 rc.1 包完全一致，并拒绝 scope 通配符，使后续发布的 `@deepseek-ai` 包仍受隔离策略约束。
 
@@ -119,17 +121,11 @@ pnpm e2e:serve
 
 上一条 DSH 0.1.1-rc.2 版本线对 Bundle 变化的 Client 卸载并不完整；验证该回滚目标并修改 Client 包/locale 注册后应刷新页面。Mnemon 普通设置仍实时生效。区分上游 Profile/传输告警与 Mnemon 故障，不隐藏控制台。
 
-## 手动 DSH 0.1.2-alpha.5 源码兼容
+## 可选 DSH 源码覆盖
 
-需要按需验证源码版 `dsh-v0.1.2-alpha.5` 时，先准备已构建的 Harness 目录：
+默认使用 registry 制品，本次 0.1.5 验证也全部使用已发布包。维护者明确要求调查源码版时，可通过 `DSH_SOURCE_ROOT` 指定独立构建的 Harness checkout，使用 `pnpm dsh:link-source` 链接，结束后用 `pnpm dsh:restore-registry` 恢复原始链接。工具只更改生成的 `node_modules`，不改已发布依赖版本或 tsconfig 源码路径。目标 checkout 必须提供当前依赖族，再按该目标选择适用检查。
 
-```sh
-DSH_SOURCE_ROOT=/absolute/path/to/deepseek-harness pnpm dsh:link-source
-pnpm_config_verify_deps_before_run=false pnpm verify
-pnpm dsh:restore-registry
-```
-
-Harness 先运行自己的 `pnpm install --frozen-lockfile && pnpm build:lib`。链接仅更改生成的 `node_modules`，不改提交的依赖版本；它会覆盖 Starter 的完整 DSH 依赖图，包括 Store、Invariants 和新增的 Layout 依赖，并统一每个已安装插件 workspace 的 Cordis 身份；原 pnpm 链接逐项记录并恢复。插件 Client 测试依赖仍以 rc.1 留在各自 workspace 内，构建后的 Starter 负责验证 alpha.5 Client API。本次调用关闭 pnpm 的运行前依赖验证，避免嵌套脚本自动恢复 registry 链接。该覆盖流程是维护者显式执行的兼容检查，不属于最小化的每 PR CI 图；[隔离的 rc.1/rc.2 WebUI 证据](../../pr-assets/dsh-rc1-compat/README.md)记录了正式 Host 行为。
+历史 0.1.2-alpha.5 的完整测试流程只属于原记录对应的 revision；当前夹具需要 0.1.5 的会话迁移和消息契约，不能将旧流程当成本 checkout 的验证命令。参见[早期 registry/源码记录](../../pr-assets/main-rebase-20260904/README.md)与[当前 0.1.5 验证](../../pr-assets/issue-223-dsh-015/README.zh-CN.md)。
 
 ## 发布
 

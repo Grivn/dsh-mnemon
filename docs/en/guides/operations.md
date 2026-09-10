@@ -49,6 +49,26 @@ The Host fixes update commands and arguments. The browser cannot supply either; 
 
 The opt-in SQLite incompatibility first called out for DSH rc.8 remains in DSH 0.1.1-rc.2. It applies only to `@deepseek-ai/dsh-session-persistence-sqlite`, which shipped profiles do not select. The rc.2 backend uses schema version 17, rejects older schemas, and provides no migration path: deployments that mounted it manually should back up and recreate the DSH session database. dsh-mnemon's Runtime, Documents, Memory Spaces, and Provider data use separate storage roots and are unaffected.
 
+## DSH 0.1.5 compatibility and legacy Session recovery
+
+DSH `0.1.5-rc.1` is the npm `latest` release verified by this checkout. Restart the Web Profile after upgrading Mnemon: the Starter patch gives the owning `connection` entry both `webRuntime` and `webServer`. This restores all seven Mnemon RPC channels when **Memory System** or its Settings page previously returned HTTP 405. Custom profiles that install the Host without the Starter must apply the same dependency declaration to their connection entry, preserving any additional dependencies in their own composition. No DSH package source is changed; browser authentication and Mnemon grants still apply.
+
+The separate error `source summary requires notice form; source v0 artifact remains unchanged` comes from older Mnemon messages in DSH Session logs. New recall/instruction messages omit that invalid summary. Updating the plugin does not rewrite an existing Session. To repair one affected log:
+
+1. Stop the owning DSH process. Back up its entire Session storage root, including every generation, separately from a Mnemon Pack. Use the exact `raw log` path reported by DSH; do not search or rewrite unrelated sessions.
+2. With the updated Mnemon package installed, preview the command below against a **backup copy**. Use Node `22.19+` or `24+` for `.jsonl.zstd`; plain `.jsonl` also works on Node 20.
+3. Write to a new path outside the Session directory. Review `repairedMessages` and the SHA-256 report. Only the two known Mnemon `recall` / `instructions` summary strings are removed; all other decoded bytes, message IDs and event order are retained. Other plugins and unfamiliar summaries are untouched. Existing output files are rejected.
+4. In a disposable copy of the Profile, replace only the affected `session.jsonl` or `session.jsonl.zstd` with the repaired copy, retaining the original backup. Let DSH load and resume it, then restart and verify the conversation. Repeat that explicit replacement in the stopped original Profile only after validating the copy. The command itself never replaces the input or a live Session.
+
+```sh
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd --output /backup/repaired-session.jsonl.zstd
+```
+
+The executable is installed with `dsh-mnemon`; a Profile-local installation can use `pnpm exec dsh-mnemon-repair-session` from that Profile. In a checkout use `node bin/repair-legacy-session.mjs`. The tool accepts only v0, valid UTF-8 JSON records and complete ordinary Zstandard frames, with a 128 MiB limit on both stored and decoded input. Malformed input, incomplete frames and ambiguous duplicate message-path keys are refused without publishing output. It does not recover unrelated corruption or assert that every possible Session is migratable; the official DSH loader remains the validator.
+
+DSH migrates old Sessions to immutable v3 generations when opening for write. Mnemon Runtime, Documents and Memory Spaces retain their existing formats. To roll DSH back, restore the pre-upgrade Session backup in a separate old-version Profile; do not open v3 generations with an older DSH. See [verification and screenshots](../../pr-assets/issue-223-dsh-015/README.md).
+
 ## Backup and recovery
 
 ### Recommended: Settings ZIP
@@ -117,9 +137,9 @@ Existing turns and delegated child activations may still use the old runtime. Wa
 
 <a id="cloud-hosted-webui"></a>
 
-## Cloud-hosted WebUI on stable DSH 0.1.2-rc.1
+## Cloud-hosted WebUI on DSH 0.1.5-rc.1
 
-Stable DSH 0.1.2-rc.1 is the recommended registry target. It authenticates the page, every RPC, and every stream through an authority-bound browser session created from the launch-token URL printed by the Host. `--trusted-host` remains a Host/Origin fence; it does not replace HTTPS or deployment access controls.
+DSH 0.1.5-rc.1 is the recommended registry target. It authenticates the page, every RPC, and every stream through an authority-bound browser session created from the launch-token URL printed by the Host. `--trusted-host` remains a Host/Origin fence; it does not replace HTTPS or deployment access controls.
 
 1. Terminate HTTPS at a reverse proxy or access gateway and protect the public entry for its intended users. Proxy the same-origin `/` and `/api` traffic, including streams, to `http://127.0.0.1:3080` while preserving the external `Host` authority.
 2. Start the loopback service with the external authority. Use a bare `host[:port]`, not a URL:

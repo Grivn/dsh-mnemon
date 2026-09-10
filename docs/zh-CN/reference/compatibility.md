@@ -6,14 +6,15 @@ Starter 固定经过测试的官方插件组合。下表记录验证范围，不
 
 | 组件 | 基线 | 已验证的范围 |
 |---|---|---|
-| DSH | `0.1.2-rc.1` | 正式发布的契约、WebUI 与隔离 Headless 激活 |
-| 上一条 DSH 版本线 | `0.1.1-rc.2` | 定向回滚与 Sidebar/Builtin 回归证据；不是默认开发依赖 |
+| DSH | `0.1.5-rc.1` | 正式发布的契约、WebUI 与隔离 Headless 激活 |
+| 上一条 DSH 版本线 | `0.1.2-rc.1` | 当前插件在隔离 Headless 中激活并重启；其合成会话经副本修复后由 0.1.5 公开加载器完成迁移 |
+| 历史 DSH 证据 | `0.1.1-rc.2` | 早期 Sidebar/Builtin 记录保留各自 revision；本次未重跑 |
 | Node.js | `22.19`、`24` | 分别用于源码 CI 与打包制品 CI；开发要求 `^22.19.0 || >=24.0.0` |
 | Node.js 20 | 仅公开包入口导入 | 不代表 DSH Host 能在 Node 20 运行 |
-| Mnemon Native CLI | `0.2.5` | 显式启用的真实 CLI 与临时数据测试；CLI 需要另外安装 |
+| Mnemon Native CLI | `0.2.8` | 显式启用的真实 CLI 与临时数据测试；CLI 需要另外安装 |
 | 三方 Provider | 适配契约与夹具 | 不代表真实云账号一致性或上游服务可用性已验证 |
 
-参见[宿主兼容证据](../../pr-assets/dsh-rc1-compat/README.md)、[升级证据](../../pr-assets/main-rebase-20260904/README.md)与[当前开发检查](../development/README.md)。机制测试通过不是 LLM 质量评测通过；特定 OS 与真实 CLI 检查在没有对应环境时可能跳过。
+参见[DSH 0.1.5 验证](../../pr-assets/issue-223-dsh-015/README.zh-CN.md)、[宿主兼容证据](../../pr-assets/dsh-rc1-compat/README.md)、[升级证据](../../pr-assets/main-rebase-20260904/README.md)与[当前开发检查](../development/README.md)。机制测试通过不是 LLM 质量评测通过；特定 OS 与真实 CLI 检查在没有对应环境时可能跳过。
 
 历史 v0.5.2 采集发现 390px 设置布局不可用，[失败证据](../../pr-assets/documentation-refresh/README.md)保留原版本身份。[v0.5.4 浅色采集](../../assets/webui-v0.5.4/README.md)覆盖双语桌面浏览，以及 390 × 844 下的记忆空间导航、创建与版本维护。长卡片名称和部分指标会截断；本次没有复测所有 Host 设置页或真实手机，因此不将早期设置限制标为已解决。
 

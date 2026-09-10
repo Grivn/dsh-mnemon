@@ -57,7 +57,7 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-ui-primitives": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.1.5-rc.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.0.0",
     "@types/react": "^18.3.0",
@@ -78,7 +78,23 @@
     "tsdown": "^0.22.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0",
-    "lightningcss": "^1.33.0"
+    "lightningcss": "^1.33.0",
+    "clsx": "^2.1.1",
+    "@shikijs/langs": "^4.3.1",
+    "anser": "^2.3.5",
+    "katex": "^0.16.47",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "mdast-util-math": "^3.0.0",
+    "micromark-core-commonmark": "^2.0.3",
+    "micromark-extension-gfm": "^3.0.0",
+    "micromark-extension-math": "^3.1.0",
+    "micromark-factory-space": "^2.0.1",
+    "micromark-util-character": "^2.1.1",
+    "micromark-util-classify-character": "^2.0.1",
+    "micromark-util-sanitize-uri": "^2.0.1",
+    "micromark-util-symbol": "^2.0.1",
+    "shiki": "^4.3.1"
   },
   "peerDependenciesMeta": {
     "react": {

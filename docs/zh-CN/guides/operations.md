@@ -49,6 +49,26 @@ Go 更新还要求当前执行文件确实位于本机 Go 的安装输出位置�
 
 DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然存在。它只针对 `@deepseek-ai/dsh-session-persistence-sqlite`，内置 profile 默认不启用。rc.2 后端使用 schema 17，会拒绝旧 schema，且不提供迁移路径；手工挂载过它的部署应先备份，再重建 DSH 会话数据库。dsh-mnemon 的 Runtime、Documents、Memory Spaces 与 Provider 数据位于独立存储根，不受影响。
 
+## DSH 0.1.5 兼容与旧会话恢复
+
+本 checkout 验证的 npm `latest` 版本为 DSH `0.1.5-rc.1`。升级 Mnemon 后重启 Web Profile：Starter 补丁为拥有路由的 `connection` Entry 同时声明 `webRuntime` 和 `webServer`，恢复此前在“记忆系统”或其设置页返回 HTTP 405 的全部七个 RPC 通道。绕过 Starter 独立安装 Host 的自定义 Profile，也应在自己的 connection Entry 声明这两个依赖，并保留自定义组合原有的其他依赖。不修改 DSH 包源码；浏览器认证和 Mnemon grant 仍然生效。
+
+另一项 `source summary requires notice form; source v0 artifact remains unchanged` 错误来自旧版 Mnemon 写入的 DSH 会话消息。新消息已移除 recall/instructions 中不合法的 summary；更新插件不会改写现有会话。修复单个受影响日志时：
+
+1. 停止所属 DSH 进程，单独备份完整会话存储根及全部 generation；Mnemon Pack 不包含这些会话。以 DSH 错误中的准确 `raw log` 路径为准，不扫描或改写其他会话。
+2. 安装修复后的 Mnemon，对**备份副本**执行下面的预览命令。`.jsonl.zstd` 使用 Node `22.19+` 或 `24+`；普通 `.jsonl` 也支持 Node 20。
+3. 将结果写入会话目录外的新路径，核对 `repairedMessages` 和 SHA-256 报告。工具只移除 Mnemon 的 `recall` / `instructions` 两个已知错误 summary 字符串；其余解压后的字节、消息 ID、事件顺序均保留。不处理其他插件或陌生 summary，并拒绝覆盖已有输出。
+4. 先在一次性的 Profile 副本中，用修复副本替换对应 `session.jsonl` 或 `session.jsonl.zstd`，保留原始备份。让 DSH 加载、续写，重启后再验证会话。副本验证通过后，才在已停止的原 Profile 中执行同样的明确替换。命令本身绝不替换输入或正在使用的会话。
+
+```sh
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd
+dsh-mnemon-repair-session --input /backup/session.jsonl.zstd --output /backup/repaired-session.jsonl.zstd
+```
+
+可执行命令随 `dsh-mnemon` 安装；Profile 内安装可在该目录使用 `pnpm exec dsh-mnemon-repair-session`。源码 checkout 使用 `node bin/repair-legacy-session.mjs`。工具只接受 v0、合法 UTF-8 JSON 记录和完整的普通 Zstandard 帧，原始与解压输入均限制为 128 MiB。格式损坏、不完整帧、消息路径中的歧义重复键会在发布输出前被拒绝。工具不会修复其他损坏，也不保证任意会话都能迁移；最终仍以 DSH 官方加载器校验为准。
+
+DSH 以写权限打开旧会话时，会迁移为不可变的 v3 generation。Mnemon Runtime、档案与记忆空间维持原有格式。回滚 DSH 时，在独立旧版本 Profile 中恢复升级前会话备份；不要让旧 DSH 打开 v3 generation。参见[验证与截图](../../pr-assets/issue-223-dsh-015/README.zh-CN.md)。
+
 ## 备份与恢复
 
 ### 推荐：设置页 ZIP
@@ -117,9 +137,9 @@ DSH rc.8 首次说明的可选 SQLite 不兼容性在 DSH 0.1.1-rc.2 中仍然�
 
 <a id="cloud-hosted-webui"></a>
 
-## 稳定版 DSH 0.1.2-rc.1 的云端 WebUI
+## DSH 0.1.5-rc.1 的云端 WebUI
 
-稳定版 DSH 0.1.2-rc.1 是推荐的 registry 安装目标。页面、每个 RPC 与每条 stream 都通过 Host 输出的启动 token URL 建立同一份、与 authority 绑定的浏览器会话。`--trusted-host` 仍只是 Host/Origin 防线，不能替代 HTTPS 或部署层访问控制。
+DSH 0.1.5-rc.1 是推荐的 registry 安装目标。页面、每个 RPC 与每条 stream 都通过 Host 输出的启动 token URL 建立同一份、与 authority 绑定的浏览器会话。`--trusted-host` 仍只是 Host/Origin 防线，不能替代 HTTPS 或部署层访问控制。
 
 1. 在反向代理或访问网关终止 HTTPS，并只向预期用户开放公网入口。把同源的 `/` 与 `/api` 流量（包括 stream）代理到 `http://127.0.0.1:3080`，同时保留外部 `Host` authority。
 2. 使用外部 authority 启动回环服务。参数应为裸 `host[:port]`，不是 URL：
