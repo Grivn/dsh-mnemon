@@ -133,6 +133,21 @@ describe('legacy Session copy repair', () => {
     expect(cli('--input', input).status).toBe(1)
   })
 
+  it.runIf(process.platform !== 'win32')('runs through the executable symlink used by npm global installs', async () => {
+    const root = await directory()
+    const executable = join(root, 'dsh-mnemon-repair-session')
+    await symlink(command, executable)
+    const help = spawnSync(executable, ['--help'], { encoding: 'utf8' })
+    expect(help.status).toBe(0)
+    expect(help.stdout).toContain('Usage: dsh-mnemon-repair-session')
+    const input = join(root, 'session.jsonl')
+    await writeFile(input, fixture)
+    const preview = spawnSync(executable, ['--input', input], { encoding: 'utf8' })
+    expect(preview.status).toBe(0)
+    expect(JSON.parse(preview.stdout)).toMatchObject({ mode: 'preview', repairedMessages: 2 })
+    expect(await readFile(input, 'utf8')).toBe(fixture)
+  })
+
   it('rejects incomplete or duplicate CLI options', () => {
     expect(cli('--help').status).toBe(0)
     for (const args of [[], ['--input'], ['--wat', 'file'], ['--input', 'file', '--input', 'file']]) expect(cli(...args).status).toBe(1)
