@@ -121,6 +121,8 @@ The [2026-08-30 npm regression record](../../pr-assets/npm-sidebar-cli/README.md
 
 The previous DSH 0.1.1-rc.2 line does not fully unload every Client module on bundle changes. Refresh after Client package/locale registration changes when exercising that rollback target; ordinary Mnemon settings still apply live. Separate upstream profile/transport warnings from Mnemon failures rather than hiding the console.
 
+For the Documents archive regression, use `pnpm e2e:serve --document-archive`. Create and activate a disposable exact-write Memory Space, create a document and archive it from the workbench. A title containing `REJECT` deliberately proposes an invalid destination; verify that the document stays active and no index appears. Rename it and retry. Send `archive-tool-222 prepare`, `archive-tool-222 update`, and `archive-tool-222` in separate Mnemon E2E conversation turns to drive real create → update → archive tools and assert the returned lineage. Only model decisions are scripted; storage, tools, transport and the browser remain real. The same fixture can reproduce the legacy receipt-index mismatch when used with the old Host build.
+
 ## Optional DSH source overlay
 
 Registry packages are the default and were used for the 0.1.5 checks. For a maintainer-requested investigation, `pnpm dsh:link-source` can link a separately built Harness checkout selected through `DSH_SOURCE_ROOT`; `pnpm dsh:restore-registry` restores the original links. It changes generated `node_modules` only, never the published dependency versions or tsconfig source paths. The linked checkout must supply the current package cohort; run checks appropriate to that target.
