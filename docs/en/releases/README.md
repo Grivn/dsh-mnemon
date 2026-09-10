@@ -6,6 +6,7 @@ For an existing installation, start with [Compatibility and upgrades](../referen
 
 ## v0.5
 
+- [v0.5.7: DSH 0.1.5 Compatibility and Document Archival](./v0.5.7.md)
 - [v0.5.6: Built-in Workspace Storage and Memory Reliability](./v0.5.6.md)
 - [v0.5.5: Remote RPC Routing and Light Media](./v0.5.5.md)
 - [v0.5.4: Memory Space Terminology](./v0.5.4.md)
