@@ -54,7 +54,8 @@
   "checks": {
     "pnpm verify": "passed, root 926 passed / 5 opt-in skipped; all workspace packages passed",
     "realNativeIntegration": "passed: create, write via View, recall, forget",
-    "verifyPlugins": "passed: 16 independent plugin repositories / 17 packed artifacts, external public SDK Client, real DSH packed Starter and three simultaneous strategy enhancements"
+    "verifyPlugins": "passed: 16 independent plugin repositories / 17 packed artifacts, external public SDK Client, real DSH packed Starter and three simultaneous strategy enhancements",
+    "skinRegression": "fails against base main; patched complete sidebar suite 21/21 passed"
   },
   "screenshots": [
     {
