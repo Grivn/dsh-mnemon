@@ -18,14 +18,18 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const issue = context.payload.issue;
-            if (!issue || issue.pull_request) {
+            const eventIssue = context.payload.issue;
+            if (!eventIssue || eventIssue.pull_request) {
               return;
             }
 
-            const body = issue.body || '';
+            const issueParams = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: eventIssue.number,
+            };
             const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const readSection = (label) => {
+            const readSection = (body, label) => {
               const heading = escapeRegExp(label);
               const pattern = new RegExp(`(?:^|\\n)###\\s+${heading}\\s*\\n+([\\s\\S]*?)(?=\\n###\\s+|$)`, 'i');
               const match = body.match(pattern);
@@ -66,34 +70,48 @@ jobs:
               labels.details,
               labels.environment,
             ];
-            const issueType = readSection(labels.type).trim().toLowerCase();
-            const hasBugLabel = (issue.labels || []).some((label) => String(label.name || '').toLowerCase() === 'bug');
-            const isBug = issueType === 'bug 报告 / bug report' || hasBugLabel;
-            const requiredSections = isBug
-              ? [...baseRequiredSections, labels.evidence, labels.smoke, labels.code, labels.patch]
-              : baseRequiredSections;
+            const validateIssue = (issue) => {
+              const section = (label) => readSection(issue.body || '', label);
+              const issueType = section(labels.type).trim().toLowerCase();
+              const hasBugLabel = (issue.labels || []).some((label) => String(label.name || '').toLowerCase() === 'bug');
+              const isBug = issueType === 'bug 报告 / bug report' || hasBugLabel;
+              const requiredSections = isBug
+                ? [...baseRequiredSections, labels.evidence, labels.smoke, labels.code, labels.patch]
+                : baseRequiredSections;
 
-            const missingSections = requiredSections.filter((label) => isBlank(readSection(label)));
-            const invalidSections = [];
-            if (!isBlank(readSection(labels.duplicate)) && !hasCheckedBox(readSection(labels.duplicate))) {
-              invalidSections.push('必须确认已经搜索过 open/closed Issue。 / You must confirm that you searched open and closed issues.');
-            }
-            if (isBug && !hasBugLabel) {
-              invalidSections.push('Bug 报告必须通过“Bug 报告 / Bug report”表单提交并带有 `bug` 标签。 / Bug reports must use the “Bug 报告 / Bug report” form and include the `bug` label.');
-            }
-            const bugEvidence = readSection(labels.evidence);
-            if (isBug && !isBlank(bugEvidence) && !hasBugEvidence(bugEvidence)) {
-              invalidSections.push('Bug 证据必须包含截图、视频、GitHub 附件、Gist 或至少 20 个字符的 fenced 日志代码块。 / Bug evidence must include an image, video, GitHub attachment, Gist, or a fenced log block containing at least 20 characters.');
-            }
+              const missingSections = requiredSections.filter((label) => isBlank(section(label)));
+              const invalidSections = [];
+              if (!isBlank(section(labels.duplicate)) && !hasCheckedBox(section(labels.duplicate))) {
+                invalidSections.push('必须确认已经搜索过 open/closed Issue。 / You must confirm that you searched open and closed issues.');
+              }
+              if (isBug && !hasBugLabel) {
+                invalidSections.push('Bug 报告必须通过“Bug 报告 / Bug report”表单提交并带有 `bug` 标签。 / Bug reports must use the “Bug 报告 / Bug report” form and include the `bug` label.');
+              }
+              const bugEvidence = section(labels.evidence);
+              if (isBug && !isBlank(bugEvidence) && !hasBugEvidence(bugEvidence)) {
+                invalidSections.push('Bug 证据必须包含截图、视频、GitHub 附件、Gist 或至少 20 个字符的 fenced 日志代码块。 / Bug evidence must include an image, video, GitHub attachment, Gist, or a fenced log block containing at least 20 characters.');
+              }
 
-            if (missingSections.length === 0 && invalidSections.length === 0) {
+              return [
+                ...(missingSections.length > 0 ? [`缺少或为空的必填部分 / Missing or empty required sections: ${missingSections.join(', ')}`] : []),
+                ...invalidSections,
+              ];
+            };
+
+            // The event payload is a snapshot; labels and body may have changed
+            // while this run was queued, especially after an issue was reopened.
+            const { data: initialIssue } = await github.rest.issues.get(issueParams);
+            if (initialIssue.state !== 'open' || validateIssue(initialIssue).length === 0) {
               return;
             }
 
-            const details = [
-              ...(missingSections.length > 0 ? [`缺少或为空的必填部分 / Missing or empty required sections: ${missingSections.join(', ')}`] : []),
-              ...invalidSections,
-            ];
+            // Recheck immediately before closing so corrections made during
+            // validation are honored, and already closed issues are left alone.
+            const { data: currentIssue } = await github.rest.issues.get(issueParams);
+            if (currentIssue.state !== 'open') return;
+            const details = validateIssue(currentIssue);
+            if (details.length === 0) return;
+
             const comment = [
               '该 Issue 因未满足仓库 Issue 规范而被自动关闭。',
               'This issue was automatically closed because it does not meet the repository issue requirements.',
@@ -107,16 +125,12 @@ jobs:
               'After providing the missing information, you may ask a maintainer to reopen the issue. Do not post credentials, private memory, or unredacted logs publicly.',
             ].join('\n');
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: comment,
-            });
             await github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
+              ...issueParams,
               state: 'closed',
               state_reason: 'not_planned',
+            });
+            await github.rest.issues.createComment({
+              ...issueParams,
+              body: comment,
             });
