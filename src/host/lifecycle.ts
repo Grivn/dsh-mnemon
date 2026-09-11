@@ -268,6 +268,7 @@ class MnemonAgentLifecycle {
         this.primePending = true
         this.cueInjected = false
         this.injectedMemoryText = undefined
+        this.lastError = undefined
         this.mark('prime')
       }) as never),
       this.agent.ctx.on('session/event', ((session: HostAgent['session'], event: HostSessionEvent) => this.sessionEvent(session, event)) as never),
@@ -477,6 +478,7 @@ class MnemonAgentLifecycle {
       this.lastReviewScore = triggeredScore
       this.lastReviewDocumentIds = result.documentIds
       this.turnActivity.clear()
+      this.lastError = undefined
       this.mark('review')
     } catch (error) {
       if (!controller.signal.aborted) this.fail(error)
@@ -570,14 +572,16 @@ class MnemonAgentLifecycle {
   private mark(phase: LifecyclePhase): void {
     this.lastPhase = phase
     this.lastAt = new Date().toISOString()
-    this.lastError = undefined
   }
 
   private fail(error: unknown): void {
     this.counters.failures += 1
     this.lastPhase = 'error'
     this.lastAt = new Date().toISOString()
-    this.lastError = error instanceof Error ? error.message : String(error)
+    this.lastError = (error instanceof Error ? error.message : String(error))
+      .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/gu, '[redacted]')
+      .replace(/\s+/gu, ' ').trim().slice(0, 500)
+    console.warn(`[dsh-mnemon] idle review failed: ${this.lastError}`)
   }
 
 }

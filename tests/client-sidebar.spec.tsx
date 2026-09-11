@@ -172,6 +172,23 @@ describe('Mnemon canonical workspace launcher', () => {
     expect(document.querySelector('[data-dsh-mnemon-view]')).toBeNull()
   })
 
+  it('participates in the shared skin entry contract without becoming an official New Session button', () => {
+    const sidebar = document.querySelector('[data-pane="sidebar"]')!
+    sidebar.setAttribute('data-slot', 'sidebar')
+    const newSession = sidebar.querySelector('button.newSession')!
+    sidebar.querySelector('.logoRow')!.after(newSession)
+    currentDispose = mountMnemonSidebarLauncher(context() as never, t as never, new MnemonWorkspaceController())
+    const entry = document.querySelector<HTMLButtonElement>('[data-dsh-mnemon-entry]')!
+    // ORCA LINK applies its hidden New Session artwork to this exact selector.
+    const artworkTargets = sidebar.querySelectorAll(":scope > :first-child > button:not([data-dsh-part='sidebar-entry'])")
+    expect([...artworkTargets]).toContain(newSession)
+    expect([...artworkTargets]).not.toContain(entry)
+    expect(sidebar.querySelector('[data-dsh-plugin="dsh-mnemon"][data-dsh-part="sidebar-entry"]')).toBe(entry)
+    expect(entry.getAttribute('aria-label')).toBe('Memory')
+    fireEvent.click(entry)
+    expect(entry.dataset.active).toBe('true')
+  })
+
   it('portals the Better Sidebar workspace through the shell-owned Source renderer tree', async () => {
     const ctx = context()
     const controller = new MnemonWorkspaceController()

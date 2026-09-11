@@ -252,6 +252,7 @@ function StatusPage(props: { client: MnemonClient; status: StatusView | null; lo
   const t = useT()
   const [versionsOpen, setVersionsOpen] = useState(false)
   const status = props.status
+  const reviewError = status?.lifecycle?.current?.lastError
   const documents = status?.documents
   const catalogKnown = status?.memoryBodies !== undefined
   const memorySpaces = useMemo(() => (status?.memoryBodies ?? []), [status])
@@ -264,7 +265,7 @@ function StatusPage(props: { client: MnemonClient; status: StatusView | null; lo
   const runtimeMemoryEntries = runtimeArea === undefined ? 0 : Number(runtimeArea.details.memoryEntries ?? 0)
   return (
     <div className={css.page}>
-      <PageHeader title={t('status.title')} description={t('status.description')} meta={status === null && props.loading ? t('common.loading') : status === null ? t('status.checkRequired') : t('status.nominal')} {...(props.loading ? { loadingLabel: t('status.rechecking') } : {})} action={<div className={css.statusHeaderActions}><button type="button" className={css.ghostButton} disabled={props.loading} onClick={props.onRefresh}>{props.loading ? t('status.rechecking') : t('status.recheck')}</button><button type="button" className={css.secondaryButton} onClick={() => setVersionsOpen(true)}>{t('versions.checkAction')}</button></div>} />
+      <PageHeader title={t('status.title')} description={t('status.description')} meta={status === null && props.loading ? t('common.loading') : status === null || reviewError !== undefined ? t('status.checkRequired') : t('status.nominal')} {...(props.loading ? { loadingLabel: t('status.rechecking') } : {})} action={<div className={css.statusHeaderActions}><button type="button" className={css.ghostButton} disabled={props.loading} onClick={props.onRefresh}>{props.loading ? t('status.rechecking') : t('status.recheck')}</button><button type="button" className={css.secondaryButton} onClick={() => setVersionsOpen(true)}>{t('versions.checkAction')}</button></div>} />
 
       <section className={css.healthStrip} aria-label={t('status.aria')}>
         <article><span className={`${css.healthIndicator} ${status === null ? css.healthMuted : css.healthGood}`} /><div><small>{t('status.engine')}</small><strong>{status?.dshMnemonVersion === undefined ? 'dsh-mnemon' : `dsh-mnemon ${status.dshMnemonVersion}`}</strong><p>{status === null ? t('status.pluginChecking') : t('status.pluginReady')}</p></div></article>
@@ -601,6 +602,12 @@ function MnemonWorkspace({ connection, settingsScope, sessionId, workspaceId, wo
       </header>
       {sourceCatalogState.contextKey === viewContextKey && sourceCatalogState.error !== null && <div className={css.alert} role="alert">{sourceCatalogState.error}</div>}
       {(statusError !== null || status?.healthy === false) && <div className={css.alert} role="alert"><strong>{t('header.notReady')}</strong><span>{statusError ?? status?.error}</span></div>}
+      {status?.lifecycle?.current?.lastError !== undefined && <div className={css.alert} role="alert" aria-label={t('status.reviewFailed')}>
+        <strong>{t('status.reviewFailed')}</strong>
+        <span>{status.lifecycle.current.lastError}</span>
+        <span>{t('status.reviewFailedDetail')}</span>
+        {/CONTEXT_WINDOW_EXCEEDED|exceed(?:s|ed)? (?:the )?(?:available )?context (?:size|window)/iu.test(status.lifecycle.current.lastError) && <span>{t('status.reviewContextWindow')}</span>}
+      </div>}
       <div className={css.workspace}>
         <WorkspaceNavigation page={page} onSelect={selectPage} sourcePages={sourceNavigationEntries} disabledTypes={disabledTypes} />
         <section key={viewContextKey} className={appearanceClass(css.canvas, sidebarCss.canvas)} ref={canvasRef} data-testid="mnemon-canvas" data-lock-page-header={(activeSourcePage?.navigation?.stickyHeader !== false) ? '' : undefined}>
