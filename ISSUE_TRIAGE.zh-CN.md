@@ -8,7 +8,7 @@
 
 | 标签 | 含义 | 何时使用 |
 | --- | --- | --- |
-| `bug` | 功能不符合预期、报错、回归或兼容性问题 | 有明确现象、复现和证据 |
+| `bug` | 报告功能不符合预期、报错、回归或兼容性问题 | 提交者选择 Bug 报告；维护者在分类过程中核实具体表现和复现 |
 | `enhancement` | 新能力或现有能力改进 | 有清楚场景、约束和验收结果 |
 | `documentation` | README、docs 或注释缺失、过时、不一致 | 不改变运行时行为 |
 | `question` | 使用或设计疑问 | 需要回答“怎么用”或“为什么” |
@@ -25,9 +25,9 @@
 新 Issue 按以下顺序处理：
 
 1. **安全检查**：若包含漏洞、token、凭据、私有记忆或敏感日志，立即移除公开内容并引导至 `SECURITY.md`。
-2. **模板检查**：确认必填段落存在且非空；Bug 必须包含证据、冒烟测试、代码引用和补丁草案。
+2. **信息检查**：查看现象、预期结果、复现步骤、环境、分类和查重确认。缺少具体信息时提示补充，不关闭 Issue。证据可用普通文本、JSON 或其他代码块，放在正文任意位置；单独的证据、冒烟测试、代码引用和补丁草案均为选填。
 3. **查重**：搜索 open/closed Issue 和已合并 PR；重复项标记 `duplicate`，评论原 Issue 后关闭。
-4. **定类型**：根据目标标记 `bug`、`enhancement`、`documentation` 或 `question`。
+4. **定类型**：根据目标标记 `bug`、`enhancement`、`documentation` 或 `question`。信息检查会为 Bug 报告补齐 `bug` 标签，包括 CLI/API 提交；该标签表示分类，不代表已验证缺陷成立。
 5. **验证当前状态**：以当前 `main` 和最新发布版本复现；已经由其他 PR 或版本解决的 Issue 直接注明 commit、PR 或版本并关闭。
 6. **确认范围**：需要修改 DSH 核心或上游 Provider 的问题转交上游；本仓库只保留兼容层或绕过方案的明确任务。
 7. **开放认领**：范围清楚且接受外部实现时添加 `help wanted`；适合入门时再添加 `good first issue`。
@@ -42,9 +42,11 @@
 - **已回答**：给出结论和权威文档链接；
 - **过时**：依赖、接口或设计已经变化；
 - **超范围**：需要上游 DSH、Mnemon 或 Provider 修改，说明转交位置；
-- **长期缺信息**：作者未补齐模板所需证据，标记 `invalid`。
+- **长期缺信息**：维护者提出具体补充要求并给予回复时间后，报告仍无法排查；说明尚缺的信息并标记 `invalid`。
 
 关闭理由使用 GitHub 的 `completed` 或 `not_planned`，不要无说明关闭。作者补充新证据后可以请求重开。
+
+仅有排版、日志位置、缺少代码引用或没有补丁方案等问题，不构成关闭理由。重开的 Issue 保留给维护者继续处理，模板检查不会将其关闭。
 
 ## PR 关联规则
 
@@ -67,7 +69,7 @@ gh issue list -R omdsh-dev/dsh-mnemon --state open \
 
 ## 自动化
 
-- `.github/workflows/issue-template-enforcer.yml`：缺少 Issue Form 必填段落或 Bug 证据无效时，发布双语说明并以 `not_planned` 自动关闭；
+- `.github/workflows/issue-template-enforcer.yml`：在创建、重开和编辑时读取最新状态，为 Bug 报告补齐 `bug` 标签，并维护一条缺少基础信息的双语提示。正文补充后更新提示；该检查不修改 Issue 状态；
 - `.github/workflows/issue-dedup.yml`：标题与已有 open Issue 高度相似时，发布双语说明、附原 Issue、标记疑似重复并关闭；
 - `.github/workflows/pr-contribution-rules.yml`：校验 PR 标题、双语模板、AI 披露、本地验证、兼容说明和用户可见证据；
 - `.github/workflows/reject-docs-pr.yml`：发布双语说明并自动关闭外部贡献者的仅文档 PR；具有 `write`、`maintain` 或 `admin` 权限的仓库协作者不受该规则限制。

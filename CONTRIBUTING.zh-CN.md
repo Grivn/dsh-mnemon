@@ -73,9 +73,10 @@ fix(client): honor trusted remote management grant
 ## Issue 规则
 
 - 提交前搜索 open 和 closed Issue，确认没有重复；
-- Bug 使用双语[Bug 报告表单](.github/ISSUE_TEMPLATE/bug_report.yml)，必须包含复现、环境、证据、冒烟测试、代码引用和补丁草案；
+- Bug 使用双语[Bug 报告表单](.github/ISSUE_TEMPLATE/bug_report.yml)，描述现象、预期结果、复现步骤和环境。证据可用普通文本、JSON 或其他代码块，放在正文任意位置；单独的证据、冒烟测试、代码引用和补丁草案均为选填；
 - 功能、增强、文档和问题使用双语[标准 Issue 表单](.github/ISSUE_TEMPLATE/standard_issue.yml)；
-- 缺少模板必填信息的 Issue 会被自动关闭，补充完整后可以请求重开；
+- CLI/API 提交可使用相同段落标题；类型为“Bug 报告 / Bug report”时机器人会补齐 `bug` 标签，无需提交者拥有标签权限；
+- 模板检查仅提示补充缺失的基础信息，不关闭 Issue。直接编辑原正文补充信息，机器人会更新已有提示；进一步排查或关闭由维护者决定；
 - 标签体系、分类和关闭标准见[Issue 分类标准](./ISSUE_TRIAGE.zh-CN.md)或英文版 [Issue Triage](./ISSUE_TRIAGE.md)；
 - 安全漏洞必须按 [SECURITY.md](./SECURITY.md) 私下报告，不要创建公开 Issue。
 
