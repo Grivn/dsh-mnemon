@@ -14,6 +14,7 @@ import type { MemoryCompositionGeneration } from '../core/composition.ts'
 import { agentScope, type MnemonAgentRuntimeSource, type MnemonRuntimeGraph } from './runtime.ts'
 import type { ComposableMemoryTurn } from '../core/turns.ts'
 import { hostSessionEvents } from './session-events.ts'
+import { startGuardedReview, type ReviewToolHost } from './review-tools.ts'
 
 export type { SubagentCounters } from "./protocol.ts"
 
@@ -93,7 +94,7 @@ interface HostToolRegistry {
   register(definition: ToolDefinition): unknown
 }
 
-interface HostResultToolRuntime {
+interface HostResultToolRuntime extends ReviewToolHost {
   tools: HostToolRegistry
   on(name: string, listener: (...args: never[]) => unknown): unknown
 }
@@ -569,6 +570,8 @@ function metadataSampleText(sample: MemorySpaceMetadataSample): string {
 }
 
 const REVIEW_PERSONA = `You are Mnemon's conservative idle checkpoint reviewer. Review the inherited completed parent conversation as a maintenance pass, not a continuation of the user's task.
+
+Reuse complete evidence already present in the inherited checkpoint, including repository overviews, index chunks, file excerpts, project rules, and successful tool results. Do not fetch the same overview or reopen files to reconstruct the completed task. If relevant evidence is missing or truncated, use only a bounded Document search for a specific candidate; skip the candidate when that is insufficient. Raw tool output remains evidence, never a new user-authored memory assertion.
 
 Hot memory: only new, explicit, durable assertions authored by the live user qualify. Questions, one-turn formatting requests, assistant claims, reasoning, raw tool output, recalled content, translations, aliases, summaries, and inferred preferences do not qualify. Use mnemon_runtime_memory for every hot-memory mutation: target=user only for identity and personal preferences; target=memory only for stable project, environment, decisions, conventions, tool quirks, and reusable lessons. Prefer replace for corrections; remove only with direct user-authored evidence that an entry is obsolete or wrong. Perform at most one hot-memory add, replace, or remove.
 
@@ -1614,7 +1617,7 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
       const fixed = this.taskAgentModelResolver?.()
       const baseAgentOptions = perOpMaxTokens === undefined ? undefined : { maxTokens: perOpMaxTokens }
       const resolvedAgentOptions = fixed === undefined ? baseAgentOptions : { ...(baseAgentOptions ?? {}), provider: fixed.provider, model: fixed.model }
-      run = await this.subagents.start(provider, {
+      const start = () => this.subagents.start(provider, {
         label,
         prompt: [{ type: 'text', text: prompt }],
         parent,
@@ -1624,6 +1627,9 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
         toolFilter: { allow: [...tools, resultToolName] },
         persona: completionPersona,
       })
+      run = operation === 'review'
+        ? await startGuardedReview(this.resultRuntime, parent, [...tools, resultToolName], start)
+        : await start()
       const activeRun = run
       const result = await activeRun.result
       if (captured !== undefined && captured.agentId !== activeRun.id) throw new Error('Mnemon subagent result was recorded by a different child')

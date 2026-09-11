@@ -109,6 +109,8 @@ pnpm e2e:serve
 
 夹具输出临时工作区及 loopback URL，隔离 `DSH_HOME`、`MNEMON_DATA_DIR`、工作区和模型端点。会话选择 **Mnemon E2E**：该测试自有 preset 去除 Shell 依赖，保留 Host 记忆工具。模型固定回复，因此这里只检查 UI/传输，不评价真实模型沉淀质量。Ctrl-C 停止并清理合成测试数据。
 
+`pnpm e2e:serve --review-evidence --strategy-extensions` 添加按 Agent 注册的合成概览工具及固定的父会话 / 审查调用，检查五个完整分块的继承，并在修复前后尝试相同的外部工具读取；见 [Issue #211 验证记录](../../pr-assets/issue-211-20260911/README.zh-CN.md)。`tests/review-evidence-host.spec.ts` 还覆盖真实 DSH native 与 Code Mode 中，在 Provider 的 start Promise 返回前发生的工具执行。
+
 检查无会话 Sidebar、所有一级/二级页面、Runtime 增改删与清空分支、Documents 创建/搜索/读取、Provider 设置与发现、激活、故障态、取消弹窗、存入记忆、布局切换、locale、返回聊天后交互恢复。读写/删除使用临时 Provider 或受控夹具，不能对个人记忆做实验。
 
 验证内嵌 Electron Host 时，使用 `pnpm e2e:serve --electron=/absolute/path/to/electron`（macOS 指向 `Electron.app/Contents/MacOS/Electron`）。单独安装测试用 Electron，并通过 `MNEMON_CLI_PATH` 和 `npm_config_prefix` 指定隔离的 npm 安装。夹具将正式发布的 DSH Web 栈运行在 Electron 主进程内，Host 不设置 `ELECTRON_RUN_AS_NODE`。它为正式 Cordis loader 开放 Node internals，无需重新编译或修改 DSH 包。照常用 Ctrl-C 停止。

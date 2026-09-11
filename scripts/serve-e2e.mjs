@@ -9,6 +9,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { documentProtectionModel } from './fixtures/document-protection-model.mjs'
 import { documentArchiveModel } from './fixtures/document-archive-model.mjs'
+import { reviewEvidenceModel, scopedOverviewPlugin } from './fixtures/review-evidence-model.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
@@ -18,6 +19,7 @@ for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
   if (flag === '--document-protection') continue
   if (flag === '--document-archive') continue
+  if (flag === '--review-evidence') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -42,7 +44,8 @@ const workspace = join(fixture, 'workspace')
 await Promise.all([dshHome, dataDir, workspace].map(path => mkdir(path)))
 let modelRequests = 0
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
-const scriptedModel = flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
+const reviewModel = flags.has('--review-evidence') ? reviewEvidenceModel(event => console.log('Review evidence: ' + JSON.stringify(event))) : undefined
+const scriptedModel = flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : reviewModel ?? protectionModel
 const model = createServer(async (request, response) => {
   let input = ''
   for await (const chunk of request) { if (scriptedModel !== undefined) input += chunk }
@@ -147,8 +150,11 @@ try {
     - id: e2e-directory-picker-ui
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
+  const reviewFixture = join(fixture, 'review-evidence-plugin.mjs')
+  if (reviewModel !== undefined) await writeFile(reviewFixture, scopedOverviewPlugin)
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + browsePicker
-    + (protectionModel === undefined ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
+    + (protectionModel === undefined && reviewModel === undefined ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
+    + (reviewModel === undefined ? '' : '- insert:\n    - id: review-evidence-fixture\n      name: ' + JSON.stringify(reviewFixture) + '\n')
     + (extensionsEnabled ? extensionNames.map(name => `- id: ${name.slice(4)}\n  disabled: false\n`).join('') : ''))
   await writeFile(join(workspace, 'README.md'), '# Mnemon isolated browser test\n\nNo production memory or credentials are used.\n')
   console.log('Fixture: ' + fixture)

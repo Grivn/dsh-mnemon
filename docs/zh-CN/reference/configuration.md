@@ -308,7 +308,9 @@ depthLimit   = true
 inheritsParentContext = true
 ```
 
-缺少 `fork` 不会阻止确定性状态或普通 UI 读取，但达到审查门槛时会记录 subagent 失败。
+审查还要求通过 DSH Agent 注册表发布本地子 Agent，并提供 `agents.isOwnedBy` 与 `agent.ctx.tools.guard`。已发布的 0.1.1-rc.1、0.1.2-rc.1 和 0.1.5-rc.1 包均包含这些公开 API。执行限制覆盖插件在子 Agent 作用域内注册的工具及 Code Mode 子调用。
+
+缺少 `fork` 或 guard 能力不会阻止确定性状态或普通 UI 读取，但达到审查门槛时会记录 subagent 失败。审查不会回退到未受保护的子 Agent。
 
 ## 只读配置
 

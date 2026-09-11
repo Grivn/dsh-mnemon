@@ -154,7 +154,19 @@ function toolRegistry() {
   const emit = (name: string, ...args: unknown[]) => {
     for (const listener of listeners.get(name) ?? []) listener(...args)
   }
-  return { value: { tools: { register }, on }, register, on, emit, definitions, disposers }
+  const owners = new Map<string, HostAgent>()
+  const agents = { isOwnedBy: (id: string, owner: HostAgent) => owners.get(id) === owner }
+  const withReviewPublication = (host: HostSubagentsService): HostSubagentsService => ({ ...host,
+    async start(provider, request) {
+      const run = await host.start(provider, request)
+      if (provider !== 'fork') return run
+      const child = { ...parent('subagent'), id: run.id, ctx: { tools: { guard: () => () => {} } } } as unknown as HostAgent
+      owners.set(child.id, request.parent)
+      emit('agent/created', { agent: child })
+      return { ...run, localAgent: child }
+    },
+  })
+  return { value: { tools: { register }, on, agents }, register, on, emit, definitions, disposers, withReviewPublication }
 }
 
 interface SpaceData {
@@ -273,7 +285,8 @@ function runtimeSource(
   return { ...source, executions: new MemoryExecutions(source) }
 }
 function createCoordinator(host: HostSubagentsService, runtime?: RuntimeOperations | MnemonAgentRuntimeSource | SourceSession) {
-  return new MnemonSubagentCoordinator(host, runtimeSource(runtime), toolRegistry().value)
+  const registry = toolRegistry()
+  return new MnemonSubagentCoordinator(registry.withReviewPublication(host), runtimeSource(runtime), registry.value)
 }
 
 function maintenancePlan(
@@ -1419,6 +1432,8 @@ describe('Mnemon memory subagent coordinator', () => {
     const reviewCall = (host.start.mock.calls[0] as unknown as [string, { persona: string; toolFilter: { allow: string[] } }])[1]
     expect(reviewCall.persona).toContain('Never move a document to cold archive in this pass')
     expect(reviewCall.persona).toContain('Deep Recall is unavailable after the parent TurnView closes')
+    expect(reviewCall.persona).toContain('Reuse complete evidence already present in the inherited checkpoint')
+    expect(reviewCall.persona).toContain('skip the candidate when that is insufficient')
     expect(reviewCall.persona).not.toContain('Memory View')
     expect(reviewCall.persona).toContain('Never update or replace an existing document')
     expect(reviewCall.toolFilter.allow).not.toContain('mnemon_document_manage')
@@ -1960,7 +1975,7 @@ describe('Mnemon memory subagent coordinator', () => {
   it('pins a fixed task Agent model onto the fork-based idle review delegation', async () => {
     const host = subagents({ summary: 'No mutation needed.', action: 'skipped', memoryBodyIds: [] }, 'completed', ['spawn', 'fork'])
     const resultTools = toolRegistry()
-    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value, () => ({ provider: 'pinned-provider', model: 'pinned-model' }))
+    const coordinator = new MnemonSubagentCoordinator(resultTools.withReviewPublication(host.value), runtimeSource(), resultTools.value, () => ({ provider: 'pinned-provider', model: 'pinned-model' }))
 
     await expect(coordinator.review(parent(), new AbortController().signal)).resolves.toMatchObject({
       delegated: true,
@@ -1976,7 +1991,7 @@ describe('Mnemon memory subagent coordinator', () => {
   it('omits provider/model from agentOptions when the task Agent model is inherited', async () => {
     const host = subagents({ summary: 'No mutation needed.', action: 'skipped', memoryBodyIds: [] }, 'completed', ['spawn', 'fork'])
     const resultTools = toolRegistry()
-    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value, () => undefined)
+    const coordinator = new MnemonSubagentCoordinator(resultTools.withReviewPublication(host.value), runtimeSource(), resultTools.value, () => undefined)
 
     await expect(coordinator.review(parent(), new AbortController().signal)).resolves.toMatchObject({
       delegated: true,
