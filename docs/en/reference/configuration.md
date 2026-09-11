@@ -306,7 +306,7 @@ Background review has no fallback: a compatible provider named `fork` must exist
 inheritsParentContext = true
 ```
 
-A missing `fork` does not block deterministic state or regular UI reads, but a subagent failure is recorded when the review threshold is reached.
+A missing `fork` does not block deterministic state or regular UI reads. Failed reviews are logged by the Host and shown as a warning in the Memory System workspace when its status is loaded or refreshed. The warning persists across ordinary turns until a review succeeds or the session resets. A context-window error requires a task model whose context window covers the inherited parent conversation; review candidates remain pending for a later eligible checkpoint.
 
 ## Read-Only Configuration
 
