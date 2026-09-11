@@ -66,6 +66,8 @@ The header summarizes User Profile (`USER.md`) and Working Memory (`MEMORY.md`).
 
 Runtime entries display their creation time, newest first, across both targets and text filters. Editing an older entry keeps its original position. Show more continues in the same order.
 
+When Working Memory reaches capacity, the Host archives the exact original entries. If a routing batch fails or returns an invalid proposal, that entire batch uses the eligible default Memory Space (or the first eligible space when no default is available). Earlier valid batches keep their destinations, and the maintenance summary records the fallback reason. Caller cancellation still stops the operation.
+
 Runtime items should be compact, independent, and repeatedly useful. Working Memory items can carry an optional branch scope (comma-separated git branch names in the add and edit forms): scoped items show a branch badge and are projected into the model context only while the session workspace is checked out on a listed branch; leaving the field empty keeps an item visible on every branch. The scope never affects this page or the on-disk `USER.md`/`MEMORY.md` projections. Identity, preferences, and explicit collaboration rules belong in User Profile. Project facts, environment, decisions, and tool lessons belong in Working Memory. Temporary progress and raw logs do not.
 
 ## 3. Documents: preserve complete project narratives
@@ -83,6 +85,8 @@ For explicit archive or foreground capacity maintenance, an independent task Age
 An invalid proposal leaves both the active document and Memory Spaces unchanged. If moving the document fails, the Host attempts to remove only the newly created index. Existing verified indexes are reused and never deleted by this cleanup. If cleanup fails or the Provider outcome is uncertain, inspect the reported destination and index before retrying; this is compensating cleanup, not a cross-Provider database transaction.
 
 Background review preserves existing document bodies. It searches first, skips covered candidates, and creates a separate supplementary document only for substantial new knowledge. It cannot update or archive existing documents; if capacity is exhausted, it skips creation. Normal explicit edits remain available.
+
+Review reuses complete overviews, file excerpts, rules, and tool results already inherited from the completed conversation. It cannot reopen files or call another plugin's overview tools. Missing evidence permits a bounded Document search; if that is insufficient, review skips the candidate.
 
 Title and retrieval description determine discoverability, source path preserves provenance, and the body keeps Markdown structure. Source project files remain read-only; the workbench creates a managed copy.
 

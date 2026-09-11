@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { delegatedCompletion } from './delegated-completion.mjs'
 
 export const originalDocument = {
   title: '发布实现原文',
@@ -18,11 +19,12 @@ export function documentProtectionModel(report) {
   let originalId
   let rootCreated = false
   const reviews = new Map()
-  return request => {
+  const respond = request => {
     const names = (request.tools ?? []).map(tool => tool.function?.name)
     // Session-title generation may run concurrently with the first tool call.
     if (names.length === 0) return '文档保护回归'
-    const terminal = names.find(name => typeof name === 'string' && name.startsWith('mnemon_subagent_result_'))
+    const completion = delegatedCompletion(request)
+    const terminal = completion?.name
     const receipts = toolResults(request)
     if (terminal !== undefined) {
       assert(names.includes('mnemon_document_create'), 'review must offer create-only documents')
@@ -30,10 +32,10 @@ export function documentProtectionModel(report) {
         assert(!names.includes(forbidden), 'review unexpectedly offers ' + forbidden)
       }
       assert(originalId, 'create the original before triggering review')
-      const stage = reviews.get(terminal) ?? 0
-      reviews.set(terminal, stage + 1)
+      const stage = reviews.get(completion.key) ?? 0
+      reviews.set(completion.key, stage + 1)
       if (stage === 0) {
-        report({ event: 'review-allowlist', allowed: names.filter(name => !name.startsWith('mnemon_subagent_result_')), forbiddenExcluded: true })
+        report({ event: 'review-allowlist', allowed: names.filter(name => name !== terminal), forbiddenExcluded: true })
         // Deliberately hallucinate a forbidden tool to exercise DSH's dispatcher.
         return { name: 'mnemon_document_manage', args: { action: 'update', id: originalId, content: 'UNAUTHORIZED_CONDENSED_REPLACEMENT' } }
       }
@@ -64,5 +66,10 @@ export function documentProtectionModel(report) {
     }
     assert(originalId, 'root creation must have a real receipt')
     return '原始发布实现已保存。后台审查可以把新增观测保存为独立补充档案。'
+  }
+  return request => {
+    const reply = respond(request)
+    const terminal = delegatedCompletion(request)
+    return terminal !== undefined && typeof reply === 'object' && reply.name === terminal.name ? { ...reply, args: terminal.wrap(reply.args) } : reply
   }
 }

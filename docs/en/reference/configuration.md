@@ -306,7 +306,9 @@ Background review has no fallback: a compatible provider named `fork` must exist
 inheritsParentContext = true
 ```
 
-A missing `fork` does not block deterministic state or regular UI reads, but a subagent failure is recorded when the review threshold is reached.
+Review also requires local child publication through DSH's Agent registry, `agents.isOwnedBy`, and `agent.ctx.tools.guard`. These public APIs are present in the published 0.1.1-rc.1, 0.1.2-rc.1, and 0.1.5-rc.1 cohorts. The guard covers own-scope plugin tools as well as Code Mode subcalls.
+
+A missing `fork` or guard capability does not block deterministic state or regular UI reads. Review never falls back to an unguarded child. Failed reviews are logged by the Host and shown as a warning in the Memory System workspace when its status is loaded or refreshed. The warning persists across ordinary turns until a review succeeds or the session resets. A context-window error requires a task model whose context window covers the inherited parent conversation; review candidates remain pending for a later eligible checkpoint.
 
 ## Read-Only Configuration
 

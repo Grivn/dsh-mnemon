@@ -228,7 +228,7 @@ For v0.5.5 authenticated Gateway clients, `remoteAccess: trusted-host` grants ma
 - Provider catalogs and management responses are redacted; the UI receives configured field names, never saved credential values.
 - The WebUI follows the Host's writable settings snapshot instead of inferring capability from transport locality; an unavailable settings channel renders an explicit diagnostic rather than an empty page.
 - The WebUI neither reads SQLite, starts processes, calls remote providers, nor supplies arbitrary update commands; provider network access remains inside the Host.
-- Workers use persona, tool allowlists, schema-validated one-run result tools, and `maxDepth: 1`.
+- Workers use persona, tool allowlists, and `maxDepth: 1`. A stable result tool accepts only the current child's revocable request ID and validates each operation's result schema.
 - Distillation and supervised writeback workers cannot call `mnemon_forget`. Idle review has only the create-only Documents tool for document writes, so it cannot replace user originals or archive documents to make room. These restrictions are enabled by default and do not require an enhancement plugin.
 - Queries, candidates, Document bodies, and historical memory are treated as untrusted data.
 
@@ -293,3 +293,9 @@ There is no formal fixed DSH / Mnemon support matrix. The main Web interface is 
 ## Document archive recovery
 
 Document archive no longer asks the worker to number remember/recall receipts. If an older attempt left a cold index while the document stayed active, retrying can reuse an index whose exact path and content hash match the current revision. Updated documents need a matching new revision index. Providers with asynchronous extraction or no safe forget are rejected before indexing. A cleanup failure names the destination and newly created id; keep existing data until the outcome is established.
+
+## Runtime archive recovery
+
+Capacity archival requires an active Memory Space whose Provider supports exact writes and safe forget. Asynchronous extraction targets, including Hindsight, are excluded before any archive write. If no eligible target remains, activate a suitable space or increase `runtimeMemory.memoryLimitBytes`; the rejected mutation and existing hot entries stay unchanged. Direct Provider writes retain their existing asynchronous behavior.
+
+If an archive receipt or local commit fails, the Host attempts to forget only entries proven newly created by this attempt. Skipped or reused entries are preserved. A changed or unreadable Runtime revision after a commit error is treated as uncertain: archive entries are retained to avoid losing committed memory. Cleanup errors identify the remaining destination and item ids. A Provider request that fails without receipts may have an unknown remote outcome, so this is not a distributed transaction; inspect that Provider before retrying.

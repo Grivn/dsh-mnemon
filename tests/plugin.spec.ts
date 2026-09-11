@@ -56,7 +56,10 @@ function context(options: { connection?: boolean; workspaceRegistry?: boolean } 
   const services = new Map<string, unknown>()
   const ctx = {
     provide: vi.fn((name: string, value: unknown) => { services.set(name, value) }),
-    tools: { register: vi.fn((tool: unknown) => { tools.push(tool) }) },
+    tools: { register: vi.fn((tool: unknown) => {
+      tools.push(tool)
+      return vi.fn(() => { const index = tools.indexOf(tool); if (index >= 0) tools.splice(index, 1) })
+    }) },
     commands: { register: vi.fn((command: unknown) => { commands.push(command) }) },
     settings: {
       register: vi.fn((...args: unknown[]) => {
@@ -220,7 +223,7 @@ describe('dsh-mnemon plugin composition', () => {
     const fixture = context({ connection: false, workspaceRegistry: false })
     apply(fixture.ctx as never, { cliPath: '/fake/mnemon', dataDir: dataDir() })
 
-    expect(fixture.tools).toHaveLength(16)
+    expect(fixture.tools).toHaveLength(17)
     expect(fixture.sections).toEqual([expect.objectContaining({ name: 'mnemon:routing' })])
     expect(fixture.contexts).toEqual([])
     expect(fixture.variables).toEqual([])
@@ -273,6 +276,7 @@ describe('dsh-mnemon plugin composition', () => {
     const fixture = context()
     apply(fixture.ctx as never, { cliPath: '/fake/mnemon', dataDir: dataDir() })
     expect(fixture.tools.map(tool => (tool as { name: string }).name)).toEqual([
+      'mnemon_subagent_result',
       'mnemon_view_route',
       'mnemon_view_action',
       'mnemon_memory_bodies',
@@ -347,7 +351,7 @@ describe('dsh-mnemon plugin composition', () => {
   it('keeps stable live surfaces while fencing every mutation in read-only mode', async () => {
     const fixture = context()
     apply(fixture.ctx as never, { cliPath: '/fake/mnemon', dataDir: dataDir(), writeEnabled: false })
-    expect(fixture.tools).toHaveLength(16)
+    expect(fixture.tools).toHaveLength(17)
     const runtimeTool = fixture.tools.find(tool => (tool as { name: string }).name === 'mnemon_runtime_memory') as {
       execute: (args: unknown, execution: unknown) => Promise<unknown>
     }

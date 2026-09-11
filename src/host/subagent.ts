@@ -14,6 +14,7 @@ import type { MemoryCompositionGeneration } from '../core/composition.ts'
 import { agentScope, type MnemonAgentRuntimeSource, type MnemonRuntimeGraph } from './runtime.ts'
 import type { ComposableMemoryTurn } from '../core/turns.ts'
 import { hostSessionEvents } from './session-events.ts'
+import { startGuardedReview, type ReviewToolHost } from './review-tools.ts'
 
 export type { SubagentCounters } from "./protocol.ts"
 
@@ -21,10 +22,11 @@ type AgentRuntimeSource = MnemonAgentRuntimeSource
 
 type RuntimeModelResult = { provider: string; runId: string; result: HostSubagentResult }
 export type RuntimeMaintenanceTaskRunner = (scope: MemoryOperationScope, signal: AbortSignal, operation: (agent: HostAgent) => Promise<RuntimeModelResult>) => Promise<RuntimeModelResult>
-type RuntimeArchiveScope = { source: SourceSession; memoryBodyIds?: ReadonlySet<string> }
+type RuntimeArchiveScope = { source: SourceSession; cleanup: SourceSession; memoryBodyIds?: ReadonlySet<string> }
 
 interface RuntimeWriteContext {
   runtime: SourceSession
+  inspectRuntime: SourceSession
   maintain: boolean
   expectedRevision?: string
   assertWritable?(): void
@@ -60,7 +62,16 @@ const AUTONOMOUS_WRITE_TOOLS = WRITE_TOOLS.filter(tool => tool !== 'mnemon_forge
 const EXPLICIT_WRITE_TOOLS = WRITE_TOOLS
 const DOCUMENT_READ_TOOLS = ['mnemon_document_search']
 const REVIEW_TOOLS = [...DOCUMENT_READ_TOOLS, 'mnemon_runtime_memory', 'mnemon_document_create']
-const RESULT_TOOL_PREFIX = 'mnemon_subagent_result_'
+const RESULT_TOOL_NAME = 'mnemon_subagent_result'
+const RESULT_TOOL_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    requestId: { type: 'string', minLength: 1 },
+    result: { type: 'object', additionalProperties: true },
+  },
+  required: ['requestId', 'result'],
+  additionalProperties: false,
+} as const
 const RUNTIME_ROUTE_ENTRY_CHARACTERS = 384
 const RUNTIME_ROUTE_CHUNK_CHARACTERS = 1_024
 const RESULT_TOOL_OUTPUT_SCHEMA = {
@@ -93,7 +104,7 @@ interface HostToolRegistry {
   register(definition: ToolDefinition): unknown
 }
 
-interface HostResultToolRuntime {
+interface HostResultToolRuntime extends ReviewToolHost {
   tools: HostToolRegistry
   on(name: string, listener: (...args: never[]) => unknown): unknown
 }
@@ -479,8 +490,9 @@ interface RuntimeRouteChunk {
 function runtimeRoutingExcerpt(value: string): string {
   if (value.length <= RUNTIME_ROUTE_ENTRY_CHARACTERS) return value
   const marker = '\n[... host-truncated routing excerpt ...]\n'
-  const prefix = Math.ceil(RUNTIME_ROUTE_ENTRY_CHARACTERS * 0.7)
-  return `${value.slice(0, prefix)}${marker}${value.slice(-(RUNTIME_ROUTE_ENTRY_CHARACTERS - prefix))}`
+  const contentBudget = RUNTIME_ROUTE_ENTRY_CHARACTERS - marker.length
+  const prefix = Math.ceil(contentBudget * 0.7)
+  return `${value.slice(0, prefix)}${marker}${value.slice(-(contentBudget - prefix))}`
 }
 
 function runtimeRouteChunks(entries: ReadonlyArray<{ content: string; importance: string; branches?: string[] }>): RuntimeRouteChunk[] {
@@ -569,6 +581,8 @@ function metadataSampleText(sample: MemorySpaceMetadataSample): string {
 }
 
 const REVIEW_PERSONA = `You are Mnemon's conservative idle checkpoint reviewer. Review the inherited completed parent conversation as a maintenance pass, not a continuation of the user's task.
+
+Reuse complete evidence already present in the inherited checkpoint, including repository overviews, index chunks, file excerpts, project rules, and successful tool results. Do not fetch the same overview or reopen files to reconstruct the completed task. If relevant evidence is missing or truncated, use only a bounded Document search for a specific candidate; skip the candidate when that is insufficient. Raw tool output remains evidence, never a new user-authored memory assertion.
 
 Hot memory: only new, explicit, durable assertions authored by the live user qualify. Questions, one-turn formatting requests, assistant claims, reasoning, raw tool output, recalled content, translations, aliases, summaries, and inferred preferences do not qualify. Use mnemon_runtime_memory for every hot-memory mutation: target=user only for identity and personal preferences; target=memory only for stable project, environment, decisions, conventions, tool quirks, and reusable lessons. Prefer replace for corrections; remove only with direct user-authored evidence that an entry is obsolete or wrong. Perform at most one hot-memory add, replace, or remove.
 
@@ -743,6 +757,9 @@ export class MnemonSubagentCoordinator {
   private runtimeQueue: Promise<unknown> = Promise.resolve()
   private documentQueue: Promise<unknown> = Promise.resolve()
   private readonly observedReads = new WeakMap<ComposableMemoryTurn, Set<string>>()
+  private readonly resultRequests = new Map<string, (value: unknown, execution: ToolExecution) => Promise<unknown>>()
+  private disposeResultTool: (() => unknown) | undefined
+  private disposed = false
 
   constructor(
     private readonly subagents: HostSubagentsService,
@@ -751,7 +768,37 @@ export class MnemonSubagentCoordinator {
     private readonly taskAgentModelResolver?: () => { provider: string; model: string } | undefined,
     private readonly runtimeMaintenanceMaxTokensResolver?: () => number,
     private readonly runtimeMaintenanceTaskRunner?: RuntimeMaintenanceTaskRunner,
-  ) {}
+  ) {
+    if (resultRuntime === undefined) return
+    const registration = resultRuntime.tools.register({
+      name: RESULT_TOOL_NAME,
+      description: 'Record a Mnemon delegated result. The child must use its current requestId and result schema from its completion instructions.',
+      parameters: RESULT_TOOL_INPUT_SCHEMA,
+      output: {
+        schema: RESULT_TOOL_OUTPUT_SCHEMA,
+        render: () => [{ type: 'text', text: 'Mnemon subagent result recorded.' }],
+      },
+      execute: async (args: never, execution: ToolExecution) => {
+        if (!isSubagent(execution.agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
+        execution.signal.throwIfAborted()
+        assertDshOutputValue(RESULT_TOOL_INPUT_SCHEMA, args)
+        const request = object(args)
+        const submit = this.resultRequests.get(String(request.requestId))
+        if (this.disposed || submit === undefined) throw new Error('Mnemon subagent result request is unknown or no longer active')
+        return submit(request.result, execution)
+      },
+    })
+    if (typeof registration !== 'function') throw new Error('dsh-mnemon subagent result tool registration did not return a disposer')
+    this.disposeResultTool = registration as () => unknown
+  }
+
+  dispose(): unknown {
+    this.disposed = true
+    this.resultRequests.clear()
+    const dispose = this.disposeResultTool
+    this.disposeResultTool = undefined
+    return dispose?.()
+  }
 
   snapshot(): SubagentCounters {
     return { ...this.counters }
@@ -929,19 +976,23 @@ export class MnemonSubagentCoordinator {
     }
     const graph = this.runtimeSource.forAgent(parent)
     const scope = agentScope(parent, graph.config)
-    const runtime = graph.source('runtime', scope)
-    const context: RuntimeWriteContext = {
-      runtime,
-      maintain: threeTierActionWorkflow(graph.config.memoryTopology.strategyId, 'runtime', 'mutate') !== undefined,
-      commit: () => runtime.mutate('mutate', request, signal),
-      memorySpaces: async () => {
-        if (!graph.config.writeEnabled || !this.runtimeSource.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only')
-        assertParticipation(graph.config, 'memory-spaces', 'write', 'automatic')
-        return { source: graph.source('memory-spaces', scope) }
-      },
-      model: (...args) => this.runtimeModel(scope, parent, signal, ...args),
-    }
-    return this.enqueueRuntime(context, request, signal)
+    const lease = graph.memoryComposition.acquire()
+    try {
+      const runtime = graph.source('runtime', scope).forGeneration(lease.generation)
+      const context: RuntimeWriteContext = {
+        runtime, inspectRuntime: runtime,
+        maintain: threeTierActionWorkflow(graph.config.memoryTopology.strategyId, 'runtime', 'mutate') !== undefined,
+        commit: () => runtime.mutate('mutate', request, signal),
+        memorySpaces: async () => {
+          if (!graph.config.writeEnabled || !this.runtimeSource.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only')
+          assertParticipation(graph.config, 'memory-spaces', 'write', 'automatic')
+          const source = graph.source('memory-spaces', scope).forGeneration(lease.generation)
+          return { source, cleanup: source }
+        },
+        model: (...args) => this.runtimeModel(scope, parent, signal, ...args),
+      }
+      return await this.enqueueRuntime(context, request, signal)
+    } finally { lease.release() }
   }
 
   private enqueueRuntime(context: RuntimeWriteContext, request: RuntimeMemoryMutation, signal: AbortSignal): Promise<CoordinatedRuntimeMemoryResult> {
@@ -977,7 +1028,7 @@ export class MnemonSubagentCoordinator {
       }
       const runtime = graph.source(source.sourceTypeId, turn.scope).forInstance(source.sourceInstanceKey).forTurn(turn).forGeneration(lease.generation)
       const result = await this.enqueueRuntime({
-        runtime, maintain: true, commit,
+        runtime, inspectRuntime: graph.source('runtime', turn.scope).forInstance(source.sourceInstanceKey).forGeneration(lease.generation), maintain: true, commit,
         assertWritable: () => { if (!authorize()) throw new Error('Runtime capacity maintenance is no longer authorized') },
         memorySpaces: async () => {
           if (!authorize()) throw new Error('Runtime capacity maintenance is no longer authorized')
@@ -1004,7 +1055,7 @@ export class MnemonSubagentCoordinator {
       let committed: MemorySourceManagementResult | undefined
       let view: ComposableMemoryView | undefined
       const result = await this.enqueueRuntime({
-        runtime, maintain: true, ...(request.expectedRevision === undefined ? {} : { expectedRevision: request.expectedRevision }),
+        runtime, inspectRuntime: runtime, maintain: true, ...(request.expectedRevision === undefined ? {} : { expectedRevision: request.expectedRevision }),
         assertWritable: () => {
           if (!graph.config.writeEnabled || !this.runtimeSource.config.writeEnabled) throw new Error('dsh-mnemon is configured read-only')
           assertParticipation(graph.config, 'runtime', 'write', 'manual')
@@ -1034,11 +1085,12 @@ export class MnemonSubagentCoordinator {
       && view.actionOffers.some(offer => offer.sourceInstanceKey === source.sourceInstanceKey && offer.sourceActionId === 'remember' && offer.authority === undefined))
     if (candidates.length === 0) throw new Error('Source Action is not offered by the current View: memory-spaces/remember')
     if (candidates.length !== 1) throw new Error('Runtime archival requires one unambiguous writable Memory Spaces Source')
-    let source = graph.source('memory-spaces', scope).forInstance(candidates[0]!.sourceInstanceKey).forGeneration(generation)
+    const cleanup = graph.source('memory-spaces', scope).forInstance(candidates[0]!.sourceInstanceKey).forGeneration(generation)
+    let source = cleanup
     if (turn !== undefined) source = source.forTurn(turn)
     const grant = view.readGrants.find(grant => grant.sourceInstanceKey === candidates[0]!.sourceInstanceKey && grant.schema === 'dsh-mnemon.memory-spaces/v1')
     if (grant === undefined) throw new Error('Runtime archival requires the selected Memory Spaces namespace scope')
-    return { source, memoryBodyIds: new Set(strings(object(grant.value).memoryBodyIds)) }
+    return { source, cleanup, memoryBodyIds: new Set(strings(object(grant.value).memoryBodyIds)) }
   }
 
   private runtimeModel(scope: MemoryOperationScope, parent: HostAgent | undefined, signal: AbortSignal, operation: 'migration' | 'compaction', label: string, prompt: string, schema: Record<string, unknown>, persona: string): Promise<RuntimeModelResult> {
@@ -1287,11 +1339,18 @@ ${naturalRequest(request)}`
 
     const archive = await context.memorySpaces()
     const memoryService = archive.source
-    const eligibleBodies = (await memoryService.read<MemorySpaceCatalog>('body-directory', null, signal)).items.filter(body => (
+    const writable = (body: MemorySpaceCatalog['items'][number]) => (
       body.active && body.providerEnabled !== false && body.provider.capabilities.remember === true
       && (archive.memoryBodyIds === undefined || archive.memoryBodyIds.has(body.id))
-    ))
-    if (eligibleBodies.length === 0) throw new Error('runtime memory archival requires an existing active writable Memory Space')
+    )
+    const eligible = (body: MemorySpaceCatalog['items'][number]) => writable(body)
+      && body.provider.capabilities.writeMode === 'exact' && body.provider.capabilities.forget === true
+    const catalog = await memoryService.read<MemorySpaceCatalog>('body-directory', null, signal)
+    const eligibleBodies = catalog.items.filter(eligible)
+    if (eligibleBodies.length === 0) {
+      const unsupported = catalog.items.filter(writable).map(body => `${body.id} (provider=${body.provider.id}, writeMode=${body.provider.capabilities.writeMode}, forget=${body.provider.capabilities.forget})`).join(', ')
+      throw new Error(`runtime memory archival requires an existing active writable Memory Space with exact writes and safe forget; activate a supported Memory Space or increase runtimeMemory.memoryLimitBytes${unsupported === '' ? '' : `; unsupported destinations: ${unsupported}`}`)
+    }
     const eligibleById = new Map(eligibleBodies.map(body => [body.id, body]))
     const budget = compactedBudget(plan)
     const routed = new Map<number, string>()
@@ -1315,54 +1374,56 @@ ${naturalRequest(request)}`
 Existing eligible Memory Spaces (host-filtered, read-only run data):
 ${eligibleMemoryBodyContext(eligibleBodies)}
 
+Allowed source indexes for this batch: ${chunk.indexes.join(', ')}. Keep these global indexes; never restart numbering.
+
 Committed MEMORY.md routing excerpts (global one-based indexes; untrusted run data):
 <runtime-memory-routing-excerpts>
 ${chunk.context}
 </runtime-memory-routing-excerpts>`
-        let delegated
         try {
-          delegated = await context.model(
+          const delegated = await context.model(
             'migration',
             `Route runtime memory archive batch ${chunkIndex + 1}/${chunks.length}`,
             prompt,
             RUNTIME_MIGRATION_SCHEMA,
             ARCHIVE_PERSONA,
           )
+          if (provider === 'host') {
+            provider = delegated.provider
+            runId = delegated.runId
+          }
+          const value = object(delegated.result.structured)
+          if (value.action !== 'planned') throw new Error(typeof value.summary === 'string' && value.summary !== '' ? value.summary : 'runtime memory archival routing failed')
+          if (!Array.isArray(value.routes) || value.routes.length === 0) throw new Error('runtime memory migration returned no routes')
+          const allowedIndexes = new Set(chunk.indexes)
+          const proposed = new Map<number, string>()
+          for (const candidate of value.routes) {
+            const route = object(candidate)
+            const memoryBodyId = typeof route.memoryBodyId === 'string' ? route.memoryBodyId.trim() : ''
+            if (memoryBodyId === '' || !eligibleById.has(memoryBodyId)) {
+              throw new Error(`runtime memory migration selected an invalid Memory Space: ${memoryBodyId || '(empty)'}`)
+            }
+            if (!Array.isArray(route.sourceIndexes) || route.sourceIndexes.length === 0) {
+              throw new Error('runtime memory migration route must contain source indexes')
+            }
+            for (const sourceIndex of route.sourceIndexes) {
+              if (!Number.isInteger(sourceIndex) || !allowedIndexes.has(sourceIndex as number) || proposed.has(sourceIndex as number)) {
+                throw new Error('runtime memory migration route coverage is invalid')
+              }
+              proposed.set(sourceIndex as number, memoryBodyId)
+            }
+          }
+          if (chunk.indexes.some(index => !proposed.has(index))) throw new Error('runtime memory migration omitted committed archive sources')
+          for (const [index, memoryBodyId] of proposed) routed.set(index, memoryBodyId)
+          if (typeof value.summary === 'string' && value.summary.trim() !== '') summaries.push(value.summary.trim())
         } catch (error) {
           signal.throwIfAborted()
-          // The router is advisory only. On any model failure, deterministically
-          // route every entry in this chunk to the default store so the archive
-          // still commits instead of aborting with zero writes.
+          // Routing is advisory, including a returned proposal that fails Host
+          // validation. Publish either the complete proposal or the whole chunk's
+          // deterministic fallback; never retain a partially validated route.
           for (const index of chunk.indexes) routed.set(index, fallbackBody.id)
-          summaries.push(`batch ${chunkIndex + 1} routed to ${fallbackBody.id} deterministically (routing model failed: ${error instanceof Error ? error.message : String(error)})`)
-          continue
+          summaries.push(`batch ${chunkIndex + 1} routed to ${fallbackBody.id} deterministically (routing failed: ${safeFailureDetail(error instanceof Error ? error.message : String(error))})`)
         }
-        if (provider === 'host') {
-          provider = delegated.provider
-          runId = delegated.runId
-        }
-        const value = object(delegated.result.structured)
-        if (value.action !== 'planned') throw new Error(typeof value.summary === 'string' && value.summary !== '' ? value.summary : 'runtime memory archival routing failed')
-        if (!Array.isArray(value.routes) || value.routes.length === 0) throw new Error('runtime memory migration returned no routes')
-        const allowedIndexes = new Set(chunk.indexes)
-        for (const candidate of value.routes) {
-          const route = object(candidate)
-          const memoryBodyId = typeof route.memoryBodyId === 'string' ? route.memoryBodyId.trim() : ''
-          if (memoryBodyId === '' || !eligibleById.has(memoryBodyId)) {
-            throw new Error(`runtime memory migration selected an invalid Memory Space: ${memoryBodyId || '(empty)'}`)
-          }
-          if (!Array.isArray(route.sourceIndexes) || route.sourceIndexes.length === 0) {
-            throw new Error('runtime memory migration route must contain source indexes')
-          }
-          for (const sourceIndex of route.sourceIndexes) {
-            if (!Number.isInteger(sourceIndex) || !allowedIndexes.has(sourceIndex as number) || routed.has(sourceIndex as number)) {
-              throw new Error('runtime memory migration route coverage is invalid')
-            }
-            routed.set(sourceIndex as number, memoryBodyId)
-          }
-        }
-        if (chunk.indexes.some(index => !routed.has(index))) throw new Error('runtime memory migration omitted committed archive sources')
-        if (typeof value.summary === 'string' && value.summary.trim() !== '') summaries.push(value.summary.trim())
       }
       summary = summaries.join(' ')
     }
@@ -1374,11 +1435,17 @@ ${chunk.context}
     // an external data plane cannot share the local filesystem lock.
     const current = await runtimeMemory.read<RuntimeMemoryMaintenancePlan>('maintenance-plan', request, signal)
     if (current.revision !== plan.revision) throw new Error('runtime memory changed while archival was running; no archive writes were attempted')
+    const destinations = await memoryService.read<MemorySpaceCatalog>('body-directory', null, signal)
+    for (const memoryBodyId of new Set(routed.values())) {
+      if (!destinations.items.some(body => body.id === memoryBodyId && eligible(body))) {
+        throw new Error(`runtime archive Memory Space ${memoryBodyId} is no longer eligible; no archive writes were attempted`)
+      }
+    }
     signal.throwIfAborted()
     context.assertWritable?.()
 
     const sources = runtimeMigrationSources(plan.revision, plan.entries)
-    const archiveResults = await memoryService.mutate<unknown[]>('remember-many', { requests: sources.map(source => {
+    const requests = sources.map(source => {
       const entry = plan.entries[source.index - 1]!
       return {
         content: entry.content,
@@ -1388,39 +1455,92 @@ ${chunk.context}
         memoryBodyId: routed.get(source.index)!,
         ...(entry.branches === undefined || entry.branches.length === 0 ? {} : { tags: entry.branches.map(branch => `branch:${branch}`) }),
       }
-    }) }, signal)
-    if (archiveResults.length !== sources.length) throw new Error('runtime archive batch did not return one receipt per source entry')
-    const lineage: MemoryMigrationLineage[] = []
-    const memoryBodyIds = new Set<string>()
-    for (const source of sources) {
-      const memoryBodyId = routed.get(source.index)!
-      const entry = plan.entries[source.index - 1]!
-      const destination = await this.archiveRuntimeEntry(memoryService, memoryBodyId, entry, archiveResults[source.index - 1], signal)
-      memoryBodyIds.add(memoryBodyId)
-      lineage.push({
-        source: { layerId: source.layerId, reference: source.reference, digest: source.digest },
-        destination,
-      })
-    }
-    signal.throwIfAborted()
-    context.assertWritable?.()
-    const mutation = await runtimeMemory.mutateResult<RuntimeMemoryMutationResult>('compact-and-mutate', { revision: plan.revision, mutation: request, compacted: compactedEntries, maxBytes: budget, lineage }, signal)
-    if (provider === 'host') {
-      this.counters.migrations += 1
-      this.counters.lastRunId = runId
-      this.counters.lastOperation = 'migration'
-      this.counters.lastAt = new Date().toISOString()
-    }
-    return {
-      ...mutation.value,
-      revision: mutation.revision,
-      maintenance: {
-        kind: 'mnemon-archive',
-        runId,
-        provider,
-        summary,
-        memoryBodyIds: [...memoryBodyIds],
-      },
+    })
+    const archiveResults = new Map<number, unknown>()
+    const verified = new Map<number, MemoryMigrationLineage['destination']>()
+    const created = new Map<string, { id: string; memoryBodyId: string }>()
+    let commitAttempted = false
+    try {
+      // Keep Native exact imports batched per destination, while retaining earlier
+      // destinations' receipts if a later Provider call fails.
+      for (const memoryBodyId of new Set(routed.values())) {
+        signal.throwIfAborted()
+        context.assertWritable?.()
+        const batch = sources.filter(source => routed.get(source.index) === memoryBodyId)
+        const written = await memoryService.mutate<unknown[]>('remember-many', { requests: batch.map(source => requests[source.index - 1]!) }, signal)
+        for (const [offset, result] of written.entries()) {
+          const source = batch[offset]
+          if (source === undefined) continue
+          const receipt = optionalObject(result)
+          const states = mutationStates(result)
+          const id = typeof receipt?.id === 'string' && receipt.id.trim() !== '' ? receipt.id : undefined
+          const isNew = mutationResultCommitted(result) && states.some(state => ['added', 'created', 'stored'].includes(state))
+            && !states.some(state => ['updated', 'replaced', 'merged', 'skipped'].includes(state))
+          if (isNew && id !== undefined && (receipt?.memoryBodyId === undefined || receipt.memoryBodyId === memoryBodyId)) {
+            created.set(JSON.stringify([memoryBodyId, id]), { id, memoryBodyId })
+          }
+          archiveResults.set(source.index, result)
+        }
+        if (written.length !== batch.length) throw new Error('runtime archive batch did not return one receipt per source entry')
+        for (const source of batch) {
+          verified.set(source.index, await this.archiveRuntimeEntry(memoryService, memoryBodyId, plan.entries[source.index - 1]!, archiveResults.get(source.index), signal))
+        }
+      }
+      const lineage: MemoryMigrationLineage[] = []
+      const memoryBodyIds = new Set<string>()
+      for (const source of sources) {
+        const memoryBodyId = routed.get(source.index)!
+        const destination = verified.get(source.index)!
+        memoryBodyIds.add(memoryBodyId)
+        lineage.push({
+          source: { layerId: source.layerId, reference: source.reference, digest: source.digest },
+          destination,
+        })
+      }
+      signal.throwIfAborted()
+      context.assertWritable?.()
+      commitAttempted = true
+      const mutation = await runtimeMemory.mutateResult<RuntimeMemoryMutationResult>('compact-and-mutate', { revision: plan.revision, mutation: request, compacted: compactedEntries, maxBytes: budget, lineage }, signal)
+      if (provider === 'host') {
+        this.counters.migrations += 1
+        this.counters.lastRunId = runId
+        this.counters.lastOperation = 'migration'
+        this.counters.lastAt = new Date().toISOString()
+      }
+      return {
+        ...mutation.value,
+        revision: mutation.revision,
+        maintenance: {
+          kind: 'mnemon-archive',
+          runId,
+          provider,
+          summary,
+          memoryBodyIds: [...memoryBodyIds],
+        },
+      }
+    } catch (error) {
+      if (created.size > 0) {
+        const cleanupSignal = AbortSignal.timeout(30_000)
+        const failures: unknown[] = []
+        if (commitAttempted) {
+          try {
+            const persisted = await context.inspectRuntime.read<RuntimeMemoryMaintenancePlan>('maintenance-plan', request, cleanupSignal)
+            if (persisted.revision !== plan.revision) throw new Error('Runtime revision changed; preserve archive entries and inspect the completed operation')
+          } catch (inspectionError) {
+            throw new AggregateError([error, inspectionError], `runtime archive failed with uncertain local commit; preserve Memory Space entries: ${[...created.values()].map(item => `${item.memoryBodyId}/${item.id}`).join(', ')}`)
+          }
+        }
+        for (const entry of [...created.values()].reverse()) {
+          try {
+            const removed = await archive.cleanup.mutate('forget', entry, cleanupSignal)
+            if (!mutationResultCommitted(removed)) throw new Error('Provider did not confirm archive cleanup')
+          } catch (cleanupError) {
+            failures.push(new Error(`Memory Space ${entry.memoryBodyId}, archive entry ${entry.id}`, { cause: cleanupError }))
+          }
+        }
+        if (failures.length > 0) throw new AggregateError([error, ...failures], `runtime archive failed and cleanup failed; ${failures.map(failure => (failure as Error).message).join('; ')}`)
+      }
+      throw error
     }
   }
 
@@ -1517,13 +1637,14 @@ ${runtimeSnapshotContext('user', plan.entries)}`
     persona = WRITE_PERSONA,
     recovery?: ToolReceiptRecovery,
   ): Promise<{ provider: string; runId: string; result: HostSubagentResult; receipts: CapturedToolReceipt[] }> {
+    if (this.disposed) throw new Error('dsh-mnemon subagent coordinator is disposed')
     const provider = this.provider(preferredProvider)
     assertDshOutputSchema(outputSchema)
     if (this.resultRuntime === undefined) throw new Error('dsh-mnemon subagent result tool runtime is unavailable')
-    // A child-owned structured-output tool can be unreachable through the
-    // inherited-tool filter. Register a unique inherited result tool first so
-    // the same hard allowlist can admit it without exposing another capability.
-    const resultToolName = `${RESULT_TOOL_PREFIX}${randomUUID().replaceAll('-', '')}`
+    // Keep the inherited tool inventory byte-stable. Only the child prompt
+    // and arguments carry the revocable capability for this delegated run.
+    const resultToolName = RESULT_TOOL_NAME
+    const requestId = randomUUID()
     let captured: CapturedSubagentResult | undefined
     let pending: (CapturedSubagentResult & { parent: symbol }) | undefined
     let activeResultExecution: object | undefined
@@ -1535,7 +1656,6 @@ ${runtimeSnapshotContext('user', plan.entries)}`
     const stagedReceipts = new Map<symbol, CapturedToolReceipt[]>()
     let run: HostSubagentRun | undefined
     let failure: unknown
-    let disposeResultTool: (() => unknown) | undefined
     let disposeResultObserver: (() => unknown) | undefined
     let releaseWorkflow: (() => void) | undefined
     try {
@@ -1546,7 +1666,9 @@ ${runtimeSnapshotContext('user', plan.entries)}`
         releaseWorkflow = execution.release
         signal = execution.signal
       }
+      if (this.disposed) throw new Error('dsh-mnemon subagent coordinator is disposed')
       const observer = this.resultRuntime.on('tools/result', ((execution: ToolExecution, result: HostToolResultObservation) => {
+        if (signal.aborted || !this.resultRequests.has(requestId)) return
         if (execution.token !== undefined) {
           const entries = stagedReceipts.get(execution.token)
           if (entries !== undefined) {
@@ -1581,31 +1703,24 @@ ${runtimeSnapshotContext('user', plan.entries)}`
       }) as never)
       if (typeof observer !== 'function') throw new Error('dsh-mnemon subagent result observer registration did not return a disposer')
       disposeResultObserver = observer as () => unknown
-      const registration = this.resultRuntime.tools.register({
-        name: resultToolName,
-        description: 'Record the final result for this one Mnemon delegated run. This internal capability is valid only for the child that received its exact name.',
-        parameters: outputSchema,
-        output: {
-          schema: RESULT_TOOL_OUTPUT_SCHEMA,
-          render: () => [{ type: 'text', text: 'Mnemon subagent result recorded.' }],
-        },
-        async execute(args: never, execution: ToolExecution) {
-          const agent = execution.agent
-          if (agent === undefined || !isSubagent(agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
-          if (activeResultExecution !== undefined || pending !== undefined || captured !== undefined) throw new Error('Mnemon subagent result was already recorded')
-          if (execution.concludeTurn === undefined) throw new Error('Mnemon subagent result tool requires terminal tool-call support')
-          assertDshOutputValue(outputSchema, args)
-          activeResultExecution = execution
-          staged.set(execution, { agentId: agent.id, value: args })
-          execution.concludeTurn()
-          return { recorded: true }
-        },
+      this.resultRequests.set(requestId, async (value, execution) => {
+        signal.throwIfAborted()
+        const agent = execution.agent
+        if (agent === undefined || !isSubagent(agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
+        if (run !== undefined && agent.id !== run.id) throw new Error('Mnemon subagent result belongs to a different child')
+        if (activeResultExecution !== undefined || pending !== undefined || captured !== undefined) throw new Error('Mnemon subagent result was already recorded')
+        if (execution.concludeTurn === undefined) throw new Error('Mnemon subagent result tool requires terminal tool-call support')
+        assertDshOutputValue(outputSchema, value)
+        activeResultExecution = execution
+        staged.set(execution, { agentId: agent.id, value })
+        execution.concludeTurn()
+        return { recorded: true }
       })
-      if (typeof registration !== 'function') throw new Error('dsh-mnemon subagent result tool registration did not return a disposer')
-      disposeResultTool = registration as () => unknown
       const completionPersona = `${persona}
 
-Completion protocol: call \`${resultToolName}\` exactly once with the final result matching its parameter schema. This is the only completion channel for this run. Do not finish with a plain-text answer.`
+Completion protocol: call \`${resultToolName}\` exactly once with requestId \`${requestId}\` and result matching this JSON schema:
+${JSON.stringify(outputSchema)}
+This is the only completion channel for this run. Do not finish with a plain-text answer. The requestId expires when this run finishes or is cancelled.`
       const perOpMaxTokens = operation === 'migration' || operation === 'compaction'
         ? this.runtimeMaintenanceMaxTokensResolver?.() ?? 8_192
         : operation === 'document-archive' ? 8_192
@@ -1614,7 +1729,7 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
       const fixed = this.taskAgentModelResolver?.()
       const baseAgentOptions = perOpMaxTokens === undefined ? undefined : { maxTokens: perOpMaxTokens }
       const resolvedAgentOptions = fixed === undefined ? baseAgentOptions : { ...(baseAgentOptions ?? {}), provider: fixed.provider, model: fixed.model }
-      run = await this.subagents.start(provider, {
+      const start = () => this.subagents.start(provider, {
         label,
         prompt: [{ type: 'text', text: prompt }],
         parent,
@@ -1624,6 +1739,9 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
         toolFilter: { allow: [...tools, resultToolName] },
         persona: completionPersona,
       })
+      run = operation === 'review'
+        ? await startGuardedReview(this.resultRuntime, parent, [...tools, resultToolName], start)
+        : await start()
       const activeRun = run
       const result = await activeRun.result
       if (captured !== undefined && captured.agentId !== activeRun.id) throw new Error('Mnemon subagent result was recorded by a different child')
@@ -1654,19 +1772,14 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
       failure = error
       throw error
     } finally {
+      // Revoke before asynchronous child disposal, including rejected startup.
+      this.resultRequests.delete(requestId)
       let cleanupFailure: unknown
       if (run !== undefined) {
         try {
           await run.dispose()
         } catch (error) {
           if (failure === undefined) cleanupFailure = error
-        }
-      }
-      if (disposeResultTool !== undefined) {
-        try {
-          await disposeResultTool()
-        } catch (error) {
-          if (failure === undefined && cleanupFailure === undefined) cleanupFailure = error
         }
       }
       if (disposeResultObserver !== undefined) {
