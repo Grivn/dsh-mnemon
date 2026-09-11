@@ -49,7 +49,10 @@ const model = createServer(async (request, response) => {
   let input = ''
   for await (const chunk of request) { if (scriptedModel !== undefined || reviewFailure) input += chunk }
   console.log('Fixture model request: ' + ++modelRequests)
-  if (reviewFailure && JSON.parse(input).tools?.some(tool => tool.function?.name.startsWith('mnemon_subagent_result'))) {
+  const reviewPersona = reviewFailure ? (JSON.parse(input).messages ?? [])
+    .filter(message => message.role === 'system')
+    .map(message => typeof message.content === 'string' ? message.content : (message.content ?? []).map(block => block.text ?? '').join('\n')).join('\n') : ''
+  if (/Completion protocol: call `mnemon_subagent_result(?:_[^`]+)?`/u.test(reviewPersona)) {
     console.log('Review fixture: rejected inherited context with CONTEXT_WINDOW_EXCEEDED')
     response.writeHead(400, { 'content-type': 'application/json' })
     response.end(JSON.stringify({ error: { code: 'CONTEXT_WINDOW_EXCEEDED', message: 'request (145508 tokens) exceeds the available context size (98304 tokens)' } }))
