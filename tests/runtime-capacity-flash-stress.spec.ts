@@ -258,7 +258,7 @@ async function harness(scenario: string, multipleDestinations: boolean) {
   }
   ctx.on('tools/result', (execution, result) => {
     if (execution.name !== 'mnemon_runtime_memory') {
-      if (execution.name !== DONE && !execution.name.startsWith('mnemon_subagent_result_')) report.unexpectedActions.push(execution.name)
+      if (execution.name !== DONE && execution.name !== 'mnemon_subagent_result') report.unexpectedActions.push(execution.name)
       return
     }
     const args = execution.arguments as { action?: string; target?: string; content: string }

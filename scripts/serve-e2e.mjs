@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { documentProtectionModel } from './fixtures/document-protection-model.mjs'
 import { documentArchiveModel } from './fixtures/document-archive-model.mjs'
 import { runtimeRoutingModel } from './fixtures/runtime-routing-model.mjs'
+import { resultToolCacheModel } from './fixtures/result-tool-cache-model.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
@@ -22,6 +23,7 @@ for (const flag of flags) {
   if (flag === '--review-failure') continue
   if (flag === '--runtime-archive') continue
   if (flag === '--runtime-routing') continue
+  if (flag === '--result-tool-cache') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -66,6 +68,7 @@ const archiveProvider = runtimeArchive ? createServer(async (request, response) 
 if (archiveProvider) await new Promise(resolveListen => archiveProvider.listen(0, '127.0.0.1', resolveListen))
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
 const scriptedModel = flags.has('--runtime-routing') ? runtimeRoutingModel(event => console.log('Runtime routing: ' + JSON.stringify(event)))
+  : flags.has('--result-tool-cache') ? resultToolCacheModel(event => console.log('Result tool cache: ' + JSON.stringify(event)))
   : flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
 const reviewFailure = flags.has('--review-failure')
 const model = createServer(async (request, response) => {

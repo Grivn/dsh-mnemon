@@ -133,6 +133,18 @@ function subagents(structured: unknown, stopReason = 'completed', providers = ['
   return { value, start, dispose }
 }
 
+function resultArguments(request: { persona?: string }, result: unknown) {
+  const requestId = request.persona?.match(/requestId `([^`]+)`/u)?.[1]
+  if (requestId === undefined) throw new Error('Missing delegated result capability')
+  return { requestId, result }
+}
+
+function delegatedResultSchema(request: { persona?: string }): { properties: Record<string, { enum?: unknown[] }> } {
+  const schema = request.persona?.split('matching this JSON schema:\n')[1]?.split('\n')[0]
+  if (schema === undefined) throw new Error('Missing delegated result schema')
+  return JSON.parse(schema)
+}
+
 function toolRegistry() {
   const definitions: ToolDefinition[] = []
   const disposers: Array<ReturnType<typeof vi.fn>> = []
@@ -385,7 +397,7 @@ describe('Mnemon memory subagent coordinator', () => {
       source: { layerId: 'documents', reference: `document:${f.document.id}:1`, digest: f.document.contentHash },
       destination: { layerId: 'memory-spaces', reference: expect.stringContaining('memory-space:project/item:'), digest: createHash('sha256').update(request.content).digest('hex') },
     }])
-    expect(f.host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({ toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] } }))
+    expect(f.host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({ toolFilter: { allow: ['mnemon_subagent_result'] } }))
     expect(f.spaces.rememberMany).toHaveBeenCalledOnce()
     expect(f.spaces.remember).not.toHaveBeenCalled()
     expect(f.spaces.forget).not.toHaveBeenCalled()
@@ -606,7 +618,7 @@ describe('Mnemon memory subagent coordinator', () => {
   })
 
 
-  it('waits for background child and result-tool cleanup before pinning a foreground turn', async () => {
+  it('waits for background child and result-observer cleanup before pinning a foreground turn', async () => {
     const f = await compositionFixture()
     releases.push(f.dispose)
     const root = parent()
@@ -616,7 +628,7 @@ describe('Mnemon memory subagent coordinator', () => {
     const host = subagents({ summary: 'No write needed.', action: 'skipped', memoryBodyIds: [] })
     host.dispose.mockImplementation(() => childCleanup.promise)
     const tools = toolRegistry()
-    tools.register.mockImplementationOnce(() => vi.fn(() => toolCleanup.promise))
+    tools.on.mockImplementationOnce(() => vi.fn(() => toolCleanup.promise))
     const coordinator = new MnemonSubagentCoordinator(host.value, f.live, tools.value)
     const background = coordinator.remember(root, { content: 'first' }, new AbortController().signal)
     await vi.waitFor(() => expect(host.dispose).toHaveBeenCalledOnce())
@@ -1100,26 +1112,218 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(host.start).not.toHaveBeenCalled()
   })
 
-  it('captures a schema-validated result through the one-run tool without DSH structured output', async () => {
+  it('keeps one result-tool name and schema registered across consecutive delegated writes', async () => {
+    const resultTools = toolRegistry()
+    const host = subagents({ summary: 'Stored.', action: 'stored', memoryBodyIds: ['project'] })
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    await coordinator.remember(parent(), { content: 'Use SQLite.' }, new AbortController().signal)
+    await coordinator.remember(parent(), { content: 'Use bounded retries.' }, new AbortController().signal)
+    expect(resultTools.register).toHaveBeenCalledOnce()
+    expect(resultTools.definitions[0]?.name).toBe('mnemon_subagent_result')
+    expect(host.start).toHaveBeenNthCalledWith(1, 'spawn', expect.objectContaining({ toolFilter: { allow: expect.arrayContaining(['mnemon_subagent_result']) } }))
+    expect(host.start).toHaveBeenNthCalledWith(2, 'spawn', expect.objectContaining({ toolFilter: { allow: expect.arrayContaining(['mnemon_subagent_result']) } }))
+    expect(resultTools.disposers[0]).not.toHaveBeenCalled()
+    coordinator.dispose()
+    coordinator.dispose()
+    expect(resultTools.disposers[0]).toHaveBeenCalledOnce()
+  })
+
+  it('isolates concurrent result capabilities and rejects stale or foreign submissions', async () => {
+    const resultTools = toolRegistry()
+    const starts: Array<{ request: Parameters<HostSubagentsService['start']>[1]; child: HostAgent; done: ReturnType<typeof Promise.withResolvers<{ output: []; stopReason: string }>> }> = []
+    const host = {
+      list: () => ['spawn'], getProvider: () => ({ capabilities }),
+      start: vi.fn(async (_provider: string, request: Parameters<HostSubagentsService['start']>[1]) => {
+        const child = { ...parent('subagent'), id: 'child-' + starts.length }
+        const done = Promise.withResolvers<{ output: []; stopReason: string }>()
+        starts.push({ request, child, done })
+        return { id: child.id, result: done.promise, dispose: async () => {} }
+      }),
+    } as unknown as HostSubagentsService
+    const coordinator = new MnemonSubagentCoordinator(host, runtimeSource(), resultTools.value)
+    const definition = resultTools.definitions[0]!
+    const fingerprint = JSON.stringify(definition.parameters)
+    const calls = [
+      coordinator.remember(parent(), { content: 'first' }, new AbortController().signal),
+      coordinator.remember({ ...parent(), id: 'other-parent' }, { content: 'second' }, new AbortController().signal),
+    ]
+    calls.forEach(call => { void call.catch(() => {}) })
+    try {
+      await vi.waitFor(() => expect(starts).toHaveLength(2))
+      const first = starts[0]!
+      const second = starts[1]!
+      const result = { summary: 'First result.', action: 'skipped', memoryBodyIds: [] }
+      const firstArgs = resultArguments(first.request, result)
+      const execution = { name: definition.name, agent: first.child, signal: new AbortController().signal, concludeTurn: vi.fn(), token: Symbol('first') }
+      await expect(definition.execute(firstArgs as never, { ...execution, agent: parent() })).rejects.toThrow('restricted to delegated children')
+      await expect(definition.execute({ ...firstArgs, requestId: 'unknown' } as never, execution)).rejects.toThrow('no longer active')
+      await expect(definition.execute(firstArgs as never, { ...execution, agent: second.child })).rejects.toThrow('different child')
+      expect(execution.concludeTurn).not.toHaveBeenCalled()
+      await definition.execute(firstArgs as never, execution)
+      resultTools.emit('tools/result', execution, { isError: false })
+      await expect(definition.execute(firstArgs as never, { ...execution, token: Symbol('duplicate') })).rejects.toThrow('already recorded')
+      const secondExecution = { ...execution, agent: second.child, token: Symbol('second'), concludeTurn: vi.fn() }
+      await definition.execute(resultArguments(second.request, { ...result, summary: 'Second result.' }) as never, secondExecution)
+      resultTools.emit('tools/result', secondExecution, { isError: false })
+      first.done.resolve({ output: [], stopReason: 'completed' })
+      second.done.resolve({ output: [], stopReason: 'completed' })
+      expect(await Promise.all(calls)).toMatchObject([{ summary: 'First result.' }, { summary: 'Second result.' }])
+      await expect(definition.execute(firstArgs as never, execution)).rejects.toThrow('no longer active')
+      expect(resultTools.register).toHaveBeenCalledOnce()
+      expect(JSON.stringify(definition.parameters)).toBe(fingerprint)
+      expect(resultTools.disposers[0]).not.toHaveBeenCalled()
+    } finally {
+      for (const start of starts) start.done.resolve({ output: [], stopReason: 'cancelled' })
+      await Promise.allSettled(calls)
+      await coordinator.dispose()
+    }
+  })
+
+  it.each(['tool', 'outer'])('accepts only an authoritative successful result after a rejected %s execution', async failure => {
+    const resultTools = toolRegistry()
+    const child = { ...parent('subagent'), id: 'result-owner' }
+    const host = {
+      list: () => ['spawn'], getProvider: () => ({ capabilities }),
+      start: vi.fn(async (_provider: string, request: Parameters<HostSubagentsService['start']>[1]) => {
+        const definition = resultTools.definitions[0]!
+        const outer = Symbol('outer')
+        const execution = { name: definition.name, agent: child, signal: new AbortController().signal, concludeTurn: vi.fn(), token: Symbol('first'), ...(failure === 'outer' ? { parent: outer } : {}) }
+        await definition.execute(resultArguments(request, { summary: 'Must not commit.', action: 'skipped', memoryBodyIds: [] }) as never, execution)
+        resultTools.emit('tools/result', execution, { isError: failure === 'tool' })
+        if (failure === 'outer') resultTools.emit('tools/result', { name: 'run_code', agent: child, signal: execution.signal, token: outer }, { isError: true })
+        const retry = { name: definition.name, agent: child, signal: execution.signal, concludeTurn: vi.fn(), token: Symbol('retry') }
+        await definition.execute(resultArguments(request, { summary: 'Authoritative retry.', action: 'skipped', memoryBodyIds: [] }) as never, retry)
+        resultTools.emit('tools/result', retry, { isError: false })
+        return { id: child.id, result: Promise.resolve({ output: [], stopReason: 'completed' }), dispose: async () => {} }
+      }),
+    } as unknown as HostSubagentsService
+    const coordinator = new MnemonSubagentCoordinator(host, runtimeSource(), resultTools.value)
+    try {
+      await expect(coordinator.remember(parent(), { content: 'checkpoint' }, new AbortController().signal)).resolves.toMatchObject({ summary: 'Authoritative retry.' })
+    } finally { await coordinator.dispose() }
+  })
+
+  it('revokes result capabilities before asynchronous child cleanup completes', async () => {
+    const resultTools = toolRegistry()
+    const cleanup = Promise.withResolvers<void>()
+    const host = subagents({ summary: 'Done.', action: 'skipped', memoryBodyIds: [] })
+    host.dispose.mockImplementation(() => cleanup.promise)
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    const call = coordinator.remember(parent(), { content: 'checkpoint' }, new AbortController().signal)
+    try {
+      await vi.waitFor(() => expect(host.dispose).toHaveBeenCalledOnce())
+      const request = (host.start.mock.calls as unknown as Array<[string, { persona: string }]>)[0]![1]
+      await expect(resultTools.definitions[0]!.execute(resultArguments(request, { summary: 'Late.', action: 'skipped', memoryBodyIds: [] }) as never, {
+        agent: { ...parent('subagent'), id: 'child-run-1' }, signal: new AbortController().signal, concludeTurn: vi.fn(),
+      })).rejects.toThrow('no longer active')
+    } finally {
+      cleanup.resolve()
+      await call
+      await coordinator.dispose()
+    }
+  })
+
+  it('revokes a rejected startup capability while retaining the stable tool for later work', async () => {
+    const resultTools = toolRegistry()
+    const host = subagents({ summary: 'Recovered.', action: 'skipped', memoryBodyIds: [] })
+    host.start.mockRejectedValueOnce(new Error('provider startup failed'))
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    try {
+      await expect(coordinator.remember(parent(), { content: 'first' }, new AbortController().signal)).rejects.toThrow('provider startup failed')
+      const request = (host.start.mock.calls as unknown as Array<[string, { persona: string }]>)[0]![1]
+      await expect(resultTools.definitions[0]!.execute(resultArguments(request, { summary: 'Late.', action: 'skipped', memoryBodyIds: [] }) as never, {
+        agent: parent('subagent'), signal: new AbortController().signal, concludeTurn: vi.fn(),
+      })).rejects.toThrow('no longer active')
+      await expect(coordinator.remember(parent(), { content: 'second' }, new AbortController().signal)).resolves.toMatchObject({ summary: 'Recovered.' })
+      expect(resultTools.register).toHaveBeenCalledOnce()
+    } finally { await coordinator.dispose() }
+  })
+
+  it('does not reopen a result request when disposed during workflow preparation', async () => {
+    const resultTools = toolRegistry()
+    const source = runtimeSource()
+    const signal = new AbortController().signal
+    const execution = await source.executions.workflow(parent(), 'write', signal)
+    const release = vi.fn(execution.release)
+    const ready = Promise.withResolvers<typeof execution>()
+    const workflow = vi.spyOn(source.executions, 'workflow').mockReturnValueOnce(ready.promise)
+    const host = subagents({ summary: 'Must not start.', action: 'skipped', memoryBodyIds: [] })
+    const coordinator = new MnemonSubagentCoordinator(host.value, source, resultTools.value)
+    const call = coordinator.remember(parent(), { content: 'checkpoint' }, signal)
+    const rejected = expect(call).rejects.toThrow('coordinator is disposed')
+    await vi.waitFor(() => expect(workflow).toHaveBeenCalledOnce())
+    await coordinator.dispose()
+    ready.resolve({ ...execution, release })
+    await rejected
+    expect(host.start).not.toHaveBeenCalled()
+    expect(release).toHaveBeenCalledOnce()
+    expect(resultTools.on).not.toHaveBeenCalled()
+  })
+
+  it('revokes every outstanding capability when the coordinator is disposed', async () => {
+    const resultTools = toolRegistry()
+    const done = Promise.withResolvers<{ output: []; stopReason: string; structured: unknown }>()
+    const host = subagents(undefined)
+    host.start.mockImplementation(async () => ({ id: 'child-run-1', result: done.promise, dispose: host.dispose }))
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    const call = coordinator.remember(parent(), { content: 'checkpoint' }, new AbortController().signal)
+    void call.catch(() => {})
+    try {
+      await vi.waitFor(() => expect(host.start).toHaveBeenCalledOnce())
+      const request = (host.start.mock.calls as unknown as Array<[string, { persona: string }]>)[0]![1]
+      await coordinator.dispose()
+      await expect(resultTools.definitions[0]!.execute(resultArguments(request, { summary: 'Late.', action: 'skipped', memoryBodyIds: [] }) as never, {
+        agent: { ...parent('subagent'), id: 'child-run-1' }, signal: new AbortController().signal, concludeTurn: vi.fn(),
+      })).rejects.toThrow('no longer active')
+      expect(resultTools.disposers[0]).toHaveBeenCalledOnce()
+    } finally {
+      done.resolve({ output: [], stopReason: 'cancelled', structured: undefined })
+      await expect(call).rejects.toThrow('stopped with cancelled')
+      await coordinator.dispose()
+    }
+  })
+
+  it('rejects submissions after cancellation even before the provider settles', async () => {
+    const resultTools = toolRegistry()
+    const done = Promise.withResolvers<{ output: []; stopReason: string }>()
+    const host = subagents(undefined)
+    host.start.mockImplementation(async () => ({ id: 'child-run-1', result: done.promise.then(value => ({ ...value, structured: undefined })), dispose: host.dispose }))
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    const controller = new AbortController()
+    const call = coordinator.remember(parent(), { content: 'checkpoint' }, controller.signal)
+    void call.catch(() => {})
+    try {
+      await vi.waitFor(() => expect(host.start).toHaveBeenCalledOnce())
+      const request = (host.start.mock.calls as unknown as Array<[string, { persona: string }]>)[0]![1]
+      controller.abort(new Error('checkpoint cancelled'))
+      await expect(resultTools.definitions[0]!.execute(resultArguments(request, { summary: 'Late.', action: 'skipped', memoryBodyIds: [] }) as never, {
+        agent: { ...parent('subagent'), id: 'child-run-1' }, signal: new AbortController().signal, concludeTurn: vi.fn(),
+      })).rejects.toThrow('checkpoint cancelled')
+    } finally {
+      done.resolve({ output: [], stopReason: 'cancelled' })
+      await expect(call).rejects.toThrow('stopped with cancelled')
+      await coordinator.dispose()
+    }
+  })
+
+  it('captures a schema-validated result through the stable tool without DSH structured output', async () => {
     const resultTools = toolRegistry()
     const dispose = vi.fn(async () => {})
     const concludeTurn = vi.fn()
     const child = parent('subagent')
     child.id = 'child-run-1'
-    const start = vi.fn(async (_provider: string, request: { outputSchema?: unknown; toolFilter?: { allow?: string[] } }) => {
+    const start = vi.fn(async (_provider: string, request: { persona?: string; outputSchema?: unknown; toolFilter?: { allow?: string[] } }) => {
       expect(request.outputSchema).toBeUndefined()
       const definition = resultTools.definitions.at(-1)!
       expect(request.toolFilter?.allow).toContain(definition.name)
       const outerToken = Symbol('run-code')
       const execution = { name: definition.name, token: Symbol('result'), parent: outerToken, agent: child, signal: new AbortController().signal, concludeTurn }
-      await definition.execute({
-        summary: 'Stored in project.',
-        action: 'stored',
-        memoryBodyIds: ['project'],
-      } as never, execution)
-      await expect(definition.execute({
+      await definition.execute(resultArguments(request, {
+        summary: 'Stored in project.', action: 'stored', memoryBodyIds: ['project'],
+      }) as never, execution)
+      await expect(definition.execute(resultArguments(request, {
         summary: 'Duplicate.', action: 'skipped', memoryBodyIds: [],
-      } as never, { ...execution, token: Symbol('duplicate') })).rejects.toThrow('already recorded')
+      }) as never, { ...execution, token: Symbol('duplicate') })).rejects.toThrow('already recorded')
       resultTools.emit('tools/result', execution, { isError: false })
       resultTools.emit('tools/result', { name: 'run_code', token: outerToken, signal: execution.signal, agent: child }, { isError: false })
       return { id: child.id, result: Promise.resolve({ output: [], stopReason: 'completed' }), dispose }
@@ -1138,6 +1342,7 @@ describe('Mnemon memory subagent coordinator', () => {
     })
     expect(concludeTurn).toHaveBeenCalledOnce()
     expect(dispose).toHaveBeenCalledOnce()
+    coordinator.dispose()
     for (const disposer of resultTools.disposers) expect(disposer).toHaveBeenCalledOnce()
   })
 
@@ -1148,12 +1353,12 @@ describe('Mnemon memory subagent coordinator', () => {
     const host = {
       list: vi.fn(() => ['spawn']),
       getProvider: vi.fn(() => ({ capabilities })),
-      start: vi.fn(async () => {
+      start: vi.fn(async (_provider: string, request: { persona?: string }) => {
         const definition = resultTools.definitions.at(-1)!
         const execution = { name: definition.name, token: Symbol('intruder'), agent: intruder, signal: new AbortController().signal, concludeTurn: vi.fn() }
-        await definition.execute({
+        await definition.execute(resultArguments(request, {
           summary: 'Wrong child.', action: 'skipped', memoryBodyIds: [],
-        } as never, execution)
+        }) as never, execution)
         resultTools.emit('tools/result', execution, { isError: false })
         return { id: 'child-run-1', result: Promise.resolve({ output: [], stopReason: 'completed' }), dispose: vi.fn(async () => {}) }
       }),
@@ -1161,6 +1366,7 @@ describe('Mnemon memory subagent coordinator', () => {
     const coordinator = new MnemonSubagentCoordinator(host, runtimeSource(), resultTools.value)
 
     await expect(coordinator.remember(parent(), { content: 'x' }, new AbortController().signal)).rejects.toThrow('recorded by a different child')
+    coordinator.dispose()
     for (const disposer of resultTools.disposers) expect(disposer).toHaveBeenCalledOnce()
   })
 
@@ -1171,8 +1377,8 @@ describe('Mnemon memory subagent coordinator', () => {
     const host = {
       list: vi.fn(() => ['spawn']),
       getProvider: vi.fn(() => ({ capabilities })),
-      start: vi.fn(async () => {
-        await resultTools.definitions.at(-1)!.execute({ action: 'stored', memoryBodyIds: [] } as never, {
+      start: vi.fn(async (_provider: string, request: { persona?: string }) => {
+        await resultTools.definitions.at(-1)!.execute(resultArguments(request, { action: 'stored', memoryBodyIds: [] }) as never, {
           agent: child, signal: new AbortController().signal, concludeTurn: vi.fn(),
         })
         throw new Error('unreachable')
@@ -1181,6 +1387,7 @@ describe('Mnemon memory subagent coordinator', () => {
     const coordinator = new MnemonSubagentCoordinator(host, runtimeSource(), resultTools.value)
 
     await expect(coordinator.remember(parent(), { content: 'x' }, new AbortController().signal)).rejects.toThrow('result.summary is required')
+    coordinator.dispose()
     for (const disposer of resultTools.disposers) expect(disposer).toHaveBeenCalledOnce()
   })
 
@@ -1340,6 +1547,23 @@ describe('Mnemon memory subagent coordinator', () => {
     })
     const resultTools = toolRegistry()
     const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(), resultTools.value)
+    host.start.mockImplementation(async (...args: unknown[]) => {
+      const request = args[1] as { persona?: string }
+      const definition = resultTools.definitions[0]!
+      const execution = { name: definition.name, agent: { ...parent('subagent'), id: 'child-run-1' }, signal: new AbortController().signal, concludeTurn: vi.fn(), token: Symbol('placement') }
+      await expect(definition.execute(resultArguments(request, {
+        summary: 'A write envelope cannot complete placement.', action: 'skipped', memoryBodyIds: [],
+      }) as never, execution)).rejects.toThrow('result.providerId is required')
+      await expect(definition.execute(resultArguments(request, {
+        providerId: 'unavailable-account', reason: 'Not eligible.', confidence: 'high',
+      }) as never, execution)).rejects.toThrow('result.providerId is not an allowed value')
+      expect(execution.concludeTurn).not.toHaveBeenCalled()
+      await definition.execute(resultArguments(request, {
+        providerId: 'work-account', reason: 'A shared remote scope matches this team knowledge body.', confidence: 'high',
+      }) as never, execution)
+      resultTools.emit('tools/result', execution, { isError: false })
+      return { id: 'child-run-1', result: Promise.resolve({ output: [], structured: undefined, stopReason: 'completed' }), dispose: host.dispose }
+    })
     const placementCandidates: MemoryPlacementCandidate[] = [
       {
         id: 'mnemon-native', label: 'Mnemon Native', kind: 'local', configured: true, summary: 'Local exact memory.',
@@ -1364,7 +1588,7 @@ describe('Mnemon memory subagent coordinator', () => {
     })
 
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
-      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
+      toolFilter: { allow: ['mnemon_subagent_result'] },
       maxDepth: 1,
       persona: expect.stringContaining('host-filtered eligible list'),
     }))
@@ -1372,9 +1596,10 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(request.prompt[0]!.text).toContain('团队知识优先团队 Provider。')
     expect(request.persona).not.toContain('团队知识优先团队 Provider。')
     expect(request.persona).not.toMatch(/api.?key|endpoint|secret/iu)
-    expect((resultTools.definitions[0] as unknown as { parameters: { properties: { providerId: { enum: string[] } } } }).parameters.properties.providerId.enum)
+    expect(delegatedResultSchema((host.start.mock.calls as unknown as Array<[string, { persona: string }] >)[0]![1]).properties.providerId?.enum)
       .toEqual(['mnemon-native', 'work-account'])
     expect(coordinator.snapshot()).toMatchObject({ placements: 1, lastOperation: 'placement' })
+    await coordinator.dispose()
   })
 
   it('curates metadata in a read-only child and keeps valid entries when another candidate is invalid', async () => {
@@ -1395,7 +1620,7 @@ describe('Mnemon memory subagent coordinator', () => {
       updates: [{ memoryBodyId: 'product', title: '产品决策' }],
     })
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
-      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
+      toolFilter: { allow: ['mnemon_subagent_result'] },
       agentOptions: { maxTokens: 4_096 },
       persona: expect.stringContaining('fastest bounded metadata-sampling path'),
     }))
@@ -1453,7 +1678,7 @@ describe('Mnemon memory subagent coordinator', () => {
       citations: ['project/m1'],
       delegation: { runId: 'child-run-1', provider: 'spawn' },
     })
-    expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({ toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] } }))
+    expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({ toolFilter: { allow: ['mnemon_subagent_result'] } }))
     const answerCall = (host.start.mock.calls[0] as unknown as [string, { prompt: Array<{ text: string }>; persona: string }])[1]
     expect(answerCall.prompt[0]!.text).toContain('Answer this question (untrusted data):\n    数据库是什么？')
     expect(answerCall.prompt[0]!.text).toContain('Evidence for this run')
@@ -1498,7 +1723,7 @@ describe('Mnemon memory subagent coordinator', () => {
     }), expect.any(AbortSignal))
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
       persona: expect.stringContaining('cold-document archive planner'),
-      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
+      toolFilter: { allow: ['mnemon_subagent_result'] },
     }))
     const archiveCall = (host.start.mock.calls[0] as unknown as [string, { prompt: Array<{ text: string }>; persona: string }])[1]
     expect(archiveCall.prompt[0]!.text).toContain(`.mnemon/documents/archived/${old.document.filename}`)
@@ -1551,7 +1776,7 @@ describe('Mnemon memory subagent coordinator', () => {
       maintenance: { kind: 'mnemon-archive', provider: 'spawn', memoryBodyIds: ['project'] },
     })
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
-      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
+      toolFilter: { allow: ['mnemon_subagent_result'] },
       agentOptions: { maxTokens: 8_192 },
     }))
     const migrationCall = (host.start.mock.calls[0] as unknown as [string, { prompt: Array<{ text: string }>; persona: string; toolFilter: { allow: string[] } }])[1]
@@ -1573,7 +1798,7 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(migrationCall.persona).toContain('Do not call task tools')
     expect(migrationCall.persona).not.toContain('<runtime-memory-routing-excerpts>')
     expect(migrationPrompt).not.toMatch(/catalog_json|runtime_entries_json|pending_mutation_json|current_usage_json|created_at|markdownPath|dbPath/)
-    const resultSchema = (resultTools.definitions[0] as unknown as { parameters: unknown }).parameters
+    const resultSchema = delegatedResultSchema(migrationCall)
     expect(JSON.stringify(resultSchema)).not.toContain('compactedEntries')
     expect(memoryService.rememberMany).toHaveBeenCalledOnce()
     expect(memoryService.rememberMany).toHaveBeenCalledWith([
@@ -2090,7 +2315,7 @@ describe('Mnemon memory subagent coordinator', () => {
       maintenance: { kind: 'local-compaction', memoryBodyIds: [] },
     })
     expect(host.start).toHaveBeenCalledWith('spawn', expect.objectContaining({
-      toolFilter: { allow: [expect.stringMatching(/^mnemon_subagent_result_/)] },
+      toolFilter: { allow: ['mnemon_subagent_result'] },
       agentOptions: { maxTokens: 8_192 },
       persona: expect.stringContaining('local USER.md compactor'),
     }))

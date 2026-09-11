@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { delegatedCompletion } from './delegated-completion.mjs'
 
 function messageText(message) {
   if (typeof message?.content === 'string') return message.content
@@ -14,9 +15,9 @@ function results(request) {
 /** Script only model decisions; DSH tools, Native writes and Documents remain real. */
 export function documentArchiveModel(report) {
   const stages = new Map()
-  return request => {
+  const respond = request => {
     const tools = request.tools ?? []
-    const terminal = tools.find(tool => tool.function?.name?.startsWith('mnemon_subagent_result_'))?.function
+    const terminal = delegatedCompletion(request)
     if (terminal === undefined) {
       const user = (request.messages ?? []).findLast(message => message.role === 'user' && messageText(message).includes('archive-tool-222'))
       report({ event: 'root-tools', names: tools.map(tool => tool.function?.name), archiveRequested: messageText(user).includes('archive-tool-222') })
@@ -56,8 +57,8 @@ export function documentArchiveModel(report) {
       return { name: terminal.name, args: { action: 'planned', summary, memoryBodyId: title.includes('REJECT') ? 'not-an-eligible-space' : id.trim() } }
     }
     const receipts = results(request)
-    const stage = stages.get(terminal.name) ?? 0
-    stages.set(terminal.name, stage + 1)
+    const stage = stages.get(terminal.key) ?? 0
+    stages.set(terminal.key, stage + 1)
     if (stage === 0) return { name: 'mnemon_memory_bodies', args: {} }
     const catalog = receipts.find(value => Array.isArray(value.items))
     const body = catalog?.items.find(item => item.active && item.provider?.capabilities?.remember)
@@ -71,5 +72,10 @@ export function documentArchiveModel(report) {
       action: 'archived', summary, memoryBodyIds: [body.id],
       lineage: [{ sourceIndex: 1, sourceDigest: field('Source digest'), destinationReceiptIndex: 1, destinationMemoryBodyId: body.id, destinationId: written.id }],
     } }
+  }
+  return request => {
+    const reply = respond(request)
+    const terminal = delegatedCompletion(request)
+    return terminal !== undefined && typeof reply === 'object' && reply.name === terminal.name ? { ...reply, args: terminal.wrap(reply.args) } : reply
   }
 }

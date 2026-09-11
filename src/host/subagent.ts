@@ -61,7 +61,16 @@ const AUTONOMOUS_WRITE_TOOLS = WRITE_TOOLS.filter(tool => tool !== 'mnemon_forge
 const EXPLICIT_WRITE_TOOLS = WRITE_TOOLS
 const DOCUMENT_READ_TOOLS = ['mnemon_document_search']
 const REVIEW_TOOLS = [...DOCUMENT_READ_TOOLS, 'mnemon_runtime_memory', 'mnemon_document_create']
-const RESULT_TOOL_PREFIX = 'mnemon_subagent_result_'
+const RESULT_TOOL_NAME = 'mnemon_subagent_result'
+const RESULT_TOOL_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    requestId: { type: 'string', minLength: 1 },
+    result: { type: 'object', additionalProperties: true },
+  },
+  required: ['requestId', 'result'],
+  additionalProperties: false,
+} as const
 const RUNTIME_ROUTE_ENTRY_CHARACTERS = 384
 const RUNTIME_ROUTE_CHUNK_CHARACTERS = 1_024
 const RESULT_TOOL_OUTPUT_SCHEMA = {
@@ -745,6 +754,9 @@ export class MnemonSubagentCoordinator {
   private runtimeQueue: Promise<unknown> = Promise.resolve()
   private documentQueue: Promise<unknown> = Promise.resolve()
   private readonly observedReads = new WeakMap<ComposableMemoryTurn, Set<string>>()
+  private readonly resultRequests = new Map<string, (value: unknown, execution: ToolExecution) => Promise<unknown>>()
+  private disposeResultTool: (() => unknown) | undefined
+  private disposed = false
 
   constructor(
     private readonly subagents: HostSubagentsService,
@@ -753,7 +765,37 @@ export class MnemonSubagentCoordinator {
     private readonly taskAgentModelResolver?: () => { provider: string; model: string } | undefined,
     private readonly runtimeMaintenanceMaxTokensResolver?: () => number,
     private readonly runtimeMaintenanceTaskRunner?: RuntimeMaintenanceTaskRunner,
-  ) {}
+  ) {
+    if (resultRuntime === undefined) return
+    const registration = resultRuntime.tools.register({
+      name: RESULT_TOOL_NAME,
+      description: 'Record a Mnemon delegated result. The child must use its current requestId and result schema from its completion instructions.',
+      parameters: RESULT_TOOL_INPUT_SCHEMA,
+      output: {
+        schema: RESULT_TOOL_OUTPUT_SCHEMA,
+        render: () => [{ type: 'text', text: 'Mnemon subagent result recorded.' }],
+      },
+      execute: async (args: never, execution: ToolExecution) => {
+        if (!isSubagent(execution.agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
+        execution.signal.throwIfAborted()
+        assertDshOutputValue(RESULT_TOOL_INPUT_SCHEMA, args)
+        const request = object(args)
+        const submit = this.resultRequests.get(String(request.requestId))
+        if (this.disposed || submit === undefined) throw new Error('Mnemon subagent result request is unknown or no longer active')
+        return submit(request.result, execution)
+      },
+    })
+    if (typeof registration !== 'function') throw new Error('dsh-mnemon subagent result tool registration did not return a disposer')
+    this.disposeResultTool = registration as () => unknown
+  }
+
+  dispose(): unknown {
+    this.disposed = true
+    this.resultRequests.clear()
+    const dispose = this.disposeResultTool
+    this.disposeResultTool = undefined
+    return dispose?.()
+  }
 
   snapshot(): SubagentCounters {
     return { ...this.counters }
@@ -1592,13 +1634,14 @@ ${runtimeSnapshotContext('user', plan.entries)}`
     persona = WRITE_PERSONA,
     recovery?: ToolReceiptRecovery,
   ): Promise<{ provider: string; runId: string; result: HostSubagentResult; receipts: CapturedToolReceipt[] }> {
+    if (this.disposed) throw new Error('dsh-mnemon subagent coordinator is disposed')
     const provider = this.provider(preferredProvider)
     assertDshOutputSchema(outputSchema)
     if (this.resultRuntime === undefined) throw new Error('dsh-mnemon subagent result tool runtime is unavailable')
-    // A child-owned structured-output tool can be unreachable through the
-    // inherited-tool filter. Register a unique inherited result tool first so
-    // the same hard allowlist can admit it without exposing another capability.
-    const resultToolName = `${RESULT_TOOL_PREFIX}${randomUUID().replaceAll('-', '')}`
+    // Keep the inherited tool inventory byte-stable. Only the child prompt
+    // and arguments carry the revocable capability for this delegated run.
+    const resultToolName = RESULT_TOOL_NAME
+    const requestId = randomUUID()
     let captured: CapturedSubagentResult | undefined
     let pending: (CapturedSubagentResult & { parent: symbol }) | undefined
     let activeResultExecution: object | undefined
@@ -1610,7 +1653,6 @@ ${runtimeSnapshotContext('user', plan.entries)}`
     const stagedReceipts = new Map<symbol, CapturedToolReceipt[]>()
     let run: HostSubagentRun | undefined
     let failure: unknown
-    let disposeResultTool: (() => unknown) | undefined
     let disposeResultObserver: (() => unknown) | undefined
     let releaseWorkflow: (() => void) | undefined
     try {
@@ -1621,7 +1663,9 @@ ${runtimeSnapshotContext('user', plan.entries)}`
         releaseWorkflow = execution.release
         signal = execution.signal
       }
+      if (this.disposed) throw new Error('dsh-mnemon subagent coordinator is disposed')
       const observer = this.resultRuntime.on('tools/result', ((execution: ToolExecution, result: HostToolResultObservation) => {
+        if (signal.aborted || !this.resultRequests.has(requestId)) return
         if (execution.token !== undefined) {
           const entries = stagedReceipts.get(execution.token)
           if (entries !== undefined) {
@@ -1656,31 +1700,24 @@ ${runtimeSnapshotContext('user', plan.entries)}`
       }) as never)
       if (typeof observer !== 'function') throw new Error('dsh-mnemon subagent result observer registration did not return a disposer')
       disposeResultObserver = observer as () => unknown
-      const registration = this.resultRuntime.tools.register({
-        name: resultToolName,
-        description: 'Record the final result for this one Mnemon delegated run. This internal capability is valid only for the child that received its exact name.',
-        parameters: outputSchema,
-        output: {
-          schema: RESULT_TOOL_OUTPUT_SCHEMA,
-          render: () => [{ type: 'text', text: 'Mnemon subagent result recorded.' }],
-        },
-        async execute(args: never, execution: ToolExecution) {
-          const agent = execution.agent
-          if (agent === undefined || !isSubagent(agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
-          if (activeResultExecution !== undefined || pending !== undefined || captured !== undefined) throw new Error('Mnemon subagent result was already recorded')
-          if (execution.concludeTurn === undefined) throw new Error('Mnemon subagent result tool requires terminal tool-call support')
-          assertDshOutputValue(outputSchema, args)
-          activeResultExecution = execution
-          staged.set(execution, { agentId: agent.id, value: args })
-          execution.concludeTurn()
-          return { recorded: true }
-        },
+      this.resultRequests.set(requestId, async (value, execution) => {
+        signal.throwIfAborted()
+        const agent = execution.agent
+        if (agent === undefined || !isSubagent(agent)) throw new Error('Mnemon subagent result tools are restricted to delegated children')
+        if (run !== undefined && agent.id !== run.id) throw new Error('Mnemon subagent result belongs to a different child')
+        if (activeResultExecution !== undefined || pending !== undefined || captured !== undefined) throw new Error('Mnemon subagent result was already recorded')
+        if (execution.concludeTurn === undefined) throw new Error('Mnemon subagent result tool requires terminal tool-call support')
+        assertDshOutputValue(outputSchema, value)
+        activeResultExecution = execution
+        staged.set(execution, { agentId: agent.id, value })
+        execution.concludeTurn()
+        return { recorded: true }
       })
-      if (typeof registration !== 'function') throw new Error('dsh-mnemon subagent result tool registration did not return a disposer')
-      disposeResultTool = registration as () => unknown
       const completionPersona = `${persona}
 
-Completion protocol: call \`${resultToolName}\` exactly once with the final result matching its parameter schema. This is the only completion channel for this run. Do not finish with a plain-text answer.`
+Completion protocol: call \`${resultToolName}\` exactly once with requestId \`${requestId}\` and result matching this JSON schema:
+${JSON.stringify(outputSchema)}
+This is the only completion channel for this run. Do not finish with a plain-text answer. The requestId expires when this run finishes or is cancelled.`
       const perOpMaxTokens = operation === 'migration' || operation === 'compaction'
         ? this.runtimeMaintenanceMaxTokensResolver?.() ?? 8_192
         : operation === 'document-archive' ? 8_192
@@ -1729,19 +1766,14 @@ Completion protocol: call \`${resultToolName}\` exactly once with the final resu
       failure = error
       throw error
     } finally {
+      // Revoke before asynchronous child disposal, including rejected startup.
+      this.resultRequests.delete(requestId)
       let cleanupFailure: unknown
       if (run !== undefined) {
         try {
           await run.dispose()
         } catch (error) {
           if (failure === undefined) cleanupFailure = error
-        }
-      }
-      if (disposeResultTool !== undefined) {
-        try {
-          await disposeResultTool()
-        } catch (error) {
-          if (failure === undefined && cleanupFailure === undefined) cleanupFailure = error
         }
       }
       if (disposeResultObserver !== undefined) {
