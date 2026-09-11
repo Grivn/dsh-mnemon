@@ -586,6 +586,61 @@ describe('Mnemon DSH lifecycle integration', () => {
     })
   })
 
+  it('reports idle-review failures and retains the warning until a successful review', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const value = fixture(resolveConfig({ idleReviewMs: 5_000 }))
+    vi.mocked(value.coordinator.review).mockRejectedValueOnce(new Error('CONTEXT_WINDOW_EXCEEDED: request (145508 tokens) exceeds the available context size (98304 tokens), sk-secret123456'))
+    try {
+      await value.preStep([durableCandidate()], 1)
+      await value.turnStopping(1)
+      await value.preStep([userMessage('threshold turn')], 2)
+      await value.turnStopping(2)
+      await vi.advanceTimersByTimeAsync(5_000)
+
+      expect(warn).toHaveBeenCalledOnce()
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('idle review failed'))
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('[redacted]'))
+      expect(value.lifecycle.snapshot('session-1').current).toMatchObject({ lastPhase: 'error', reviewRunning: false, lastError: expect.stringContaining('CONTEXT_WINDOW_EXCEEDED') })
+      expect(value.lifecycle.snapshot('session-1').current?.reviewActivity.turnCount).toBe(2)
+      expect(value.followup).not.toHaveBeenCalled()
+      expect(value.steer).not.toHaveBeenCalled()
+
+      await value.preStep([userMessage('Continue the task')], 3)
+      expect(value.lifecycle.snapshot('session-1').current?.lastError).toContain('CONTEXT_WINDOW_EXCEEDED')
+      await value.turnStopping(3)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(value.lifecycle.snapshot('session-1').current?.lastError).toBeUndefined()
+      expect(warn).toHaveBeenCalledOnce()
+    } finally {
+      value.stop()
+      warn.mockRestore()
+    }
+  })
+
+  it('keeps an aborted review quiet when a new parent turn cancels it', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const value = fixture(resolveConfig({ idleReviewMs: 5_000 }))
+    vi.mocked(value.coordinator.review).mockImplementationOnce(async (_parent, signal) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('cancelled review')), { once: true })
+    }))
+    try {
+      await value.preStep([durableCandidate()], 1)
+      await value.turnStopping(1)
+      await value.preStep([userMessage('threshold turn')], 2)
+      await value.turnStopping(2)
+      await vi.advanceTimersByTimeAsync(5_000)
+      await value.preStep([userMessage('Resume the parent task')], 3)
+      expect(warn).not.toHaveBeenCalled()
+      expect(value.lifecycle.snapshot('session-1').counters.failures).toBe(0)
+      expect(value.lifecycle.snapshot('session-1').current?.lastError).toBeUndefined()
+    } finally {
+      value.stop()
+      warn.mockRestore()
+    }
+  })
+
   it('does not start background work when activity has no deterministic dirty candidate', async () => {
     vi.useFakeTimers()
     const value = fixture(resolveConfig({ idleReviewMs: 5_000 }))
