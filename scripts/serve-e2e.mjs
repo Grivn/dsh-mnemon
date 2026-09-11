@@ -18,6 +18,7 @@ for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
   if (flag === '--document-protection') continue
   if (flag === '--document-archive') continue
+  if (flag === '--review-failure') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -43,10 +44,17 @@ await Promise.all([dshHome, dataDir, workspace].map(path => mkdir(path)))
 let modelRequests = 0
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
 const scriptedModel = flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
+const reviewFailure = flags.has('--review-failure')
 const model = createServer(async (request, response) => {
   let input = ''
-  for await (const chunk of request) { if (scriptedModel !== undefined) input += chunk }
+  for await (const chunk of request) { if (scriptedModel !== undefined || reviewFailure) input += chunk }
   console.log('Fixture model request: ' + ++modelRequests)
+  if (reviewFailure && JSON.parse(input).tools?.some(tool => tool.function?.name.startsWith('mnemon_subagent_result'))) {
+    console.log('Review fixture: rejected inherited context with CONTEXT_WINDOW_EXCEEDED')
+    response.writeHead(400, { 'content-type': 'application/json' })
+    response.end(JSON.stringify({ error: { code: 'CONTEXT_WINDOW_EXCEEDED', message: 'request (145508 tokens) exceeds the available context size (98304 tokens)' } }))
+    return
+  }
   let reply
   try { reply = scriptedModel?.(JSON.parse(input)) ?? 'Isolated Mnemon WebUI test response.' }
   catch (error) {
@@ -148,7 +156,7 @@ try {
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + browsePicker
-    + (protectionModel === undefined ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
+    + (protectionModel === undefined && !reviewFailure ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
     + (extensionsEnabled ? extensionNames.map(name => `- id: ${name.slice(4)}\n  disabled: false\n`).join('') : ''))
   await writeFile(join(workspace, 'README.md'), '# Mnemon isolated browser test\n\nNo production memory or credentials are used.\n')
   console.log('Fixture: ' + fixture)
