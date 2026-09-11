@@ -18,6 +18,7 @@ for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
   if (flag === '--document-protection') continue
   if (flag === '--document-archive') continue
+  if (flag === '--runtime-archive') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -35,12 +36,31 @@ for (const flag of flags) {
 const extensionNames = ['dsh-mnemon-strategy-scoped', 'dsh-mnemon-strategy-light-context', 'dsh-mnemon-strategy-auto-capture']
 const extensionNameSet = new Set(extensionNames)
 const extensionsEnabled = flags.has('--strategy-extensions')
+const runtimeArchive = flags.has('--runtime-archive')
 const fixture = await mkdtemp(join(tmpdir(), 'mnemon-web-e2e-'))
 const dshHome = join(fixture, 'dsh-home')
 const dataDir = join(fixture, 'data')
 const workspace = join(fixture, 'workspace')
 await Promise.all([dshHome, dataDir, workspace].map(path => mkdir(path)))
 let modelRequests = 0
+let archiveWrites = 0
+const archiveProvider = runtimeArchive ? createServer(async (request, response) => {
+  let input = ''
+  for await (const chunk of request) input += chunk
+  const path = request.url ?? ''
+  let value = {}
+  if (path === '/v1/default/banks') value = { banks: [{ bank_id: 'archive-fixture', name: 'Async archive fixture' }] }
+  else if (path.endsWith('/memories') && request.method === 'POST') {
+    archiveWrites += JSON.parse(input).items.length
+    console.log('Runtime archive accepted writes: ' + archiveWrites)
+    value = { operation_id: 'fixture-operation-' + archiveWrites }
+  } else if (path.endsWith('/stats')) value = { total_nodes: archiveWrites, total_links: 0 }
+  else if (path.includes('/memories/recall')) value = { results: [] }
+  else if (path.includes('/entities') || path.includes('/memories/list')) value = { items: [] }
+  response.writeHead(200, { 'content-type': 'application/json' })
+  response.end(JSON.stringify(value))
+}) : undefined
+if (archiveProvider) await new Promise(resolveListen => archiveProvider.listen(0, '127.0.0.1', resolveListen))
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
 const scriptedModel = flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
 const model = createServer(async (request, response) => {
@@ -109,6 +129,10 @@ async function stop() {
   }
   model.closeAllConnections()
   await new Promise(resolveClose => model.close(resolveClose))
+  if (archiveProvider) {
+    archiveProvider.closeAllConnections()
+    await new Promise(resolveClose => archiveProvider.close(resolveClose))
+  }
   await rm(fixture, { recursive: true, force: true })
   console.log('Removed disposable WebUI fixture: ' + fixture)
 }
@@ -149,12 +173,14 @@ try {
 `
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + browsePicker
     + (protectionModel === undefined ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
+    + (runtimeArchive ? '- id: mnemon\n  config:\n    persistenceStrategy:\n      mode: manual\n    runtimeMemory:\n      memoryLimitBytes: 300\n' : '')
     + (extensionsEnabled ? extensionNames.map(name => `- id: ${name.slice(4)}\n  disabled: false\n`).join('') : ''))
   await writeFile(join(workspace, 'README.md'), '# Mnemon isolated browser test\n\nNo production memory or credentials are used.\n')
   console.log('Fixture: ' + fixture)
   console.log('Workspace: ' + workspace)
   console.log('Fixture PID: ' + process.pid + ' (SIGUSR2 restarts WebUI, retaining test data)')
   console.log('For a conversation, choose the Mnemon E2E preset in the WebUI.')
+  if (archiveProvider) console.log('Runtime archive Hindsight endpoint: http://127.0.0.1:' + archiveProvider.address().port)
   launch()
 } catch (error) {
   console.error(error)
