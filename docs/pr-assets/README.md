@@ -12,6 +12,7 @@ For new evaluations, commit the reusable harness, workload generator, concise bi
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [v0.5.8 release](./release-v0.5.8/README.md) / [中文](./release-v0.5.8/README.zh-CN.md) | Versioned package validation, Runtime persistence and real Native CLI / 版本化制品验证、Runtime 持久化与真实 Native CLI |
 | [ORCA LINK sidebar — issue #232](./issue-232-orca-sidebar/README.md) | Real skin reproduction, visible/clickable entry, Runtime and Native CLI / 真实皮肤复现、侧栏入口、热记忆与 Native CLI |
 | [Existing fixes — issues #225 and #230](./issues-225-230-20260911/README.md) / [中文](./issues-225-230-20260911/README.zh-CN.md) | Fresh strict-migration recovery, real CLI/WebUI and composed-strategy verification / 严格迁移恢复、真实 CLI/WebUI 与组合策略复验 |
 | [Idle review tool composition — issue #211](./issue-211-20260911/README.md) / [中文](./issue-211-20260911/README.zh-CN.md) | Inherited overview reuse, own-scope execution guard, real Code Mode, CLI and WebUI / 继承概览复用、作用域执行限制、真实 Code Mode、CLI 与 WebUI |
