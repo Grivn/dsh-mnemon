@@ -310,7 +310,7 @@ inheritsParentContext = true
 
 审查还要求通过 DSH Agent 注册表发布本地子 Agent，并提供 `agents.isOwnedBy` 与 `agent.ctx.tools.guard`。已发布的 0.1.1-rc.1、0.1.2-rc.1 和 0.1.5-rc.1 包均包含这些公开 API。执行限制覆盖插件在子 Agent 作用域内注册的工具及 Code Mode 子调用。
 
-缺少 `fork` 或 guard 能力不会阻止确定性状态或普通 UI 读取，但达到审查门槛时会记录 subagent 失败。审查不会回退到未受保护的子 Agent。
+缺少 `fork` 或 guard 能力不会阻止确定性状态或普通 UI 读取。审查不会回退到未受保护的子 Agent。审查失败会写入 Host 日志，并在记忆系统工作区加载或刷新状态时显示警告。警告会跨普通轮次保留，直到审查成功或会话重置。上下文窗口错误需要选择窗口足以覆盖继承父会话的任务模型；审查候选内容会保留到后续符合条件的检查点。
 
 ## 只读配置
 
