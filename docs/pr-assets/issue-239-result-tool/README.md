@@ -27,10 +27,10 @@ Open the printed workspace and choose the Mnemon E2E preset. Send `cache-round-2
 
 ## Verification / 验证
 
-- `pnpm run verify`: passed; 934 root tests, 5 expected live-model skips, deterministic builds, plugin checks, isolated Headless activation, package/public-entry validation. / 通过；根测试 934 项，5 项实时模型测试按预期跳过。
+- `pnpm run verify`: passed; 935 root tests, 5 expected live-model skips, deterministic builds, plugin checks, isolated Headless activation, package/public-entry validation. / 通过；根测试 935 项，5 项实时模型测试按预期跳过。
 - `node scripts/verify-plugin-artifacts.mjs --skip-build`: passed after the full build; 16 independent plugin repositories and 17 tarballs, including real DSH Starter activation and three combined Strategy enhancements. / 完整构建后通过；16 个独立插件仓库、17 个发布包及真实 DSH 组合激活。
 - `MNEMON_NATIVE_TEST_CLI=/opt/homebrew/bin/mnemon pnpm --filter dsh-mnemon-source-memory-spaces exec vitest run tests/native-integration.spec.ts`: passed; real CLI round trip in a disposable store. / 真实 CLI 临时存储读写闭环通过。
-- Regressions cover overlapping requests, cross-child/root attempts, duplicate and expired results, rejected startup, cancelled/disposed requests, revocation before asynchronous cleanup, operation-specific schema validation, and authoritative tool/outer `run_code` success. / 回归覆盖并发、跨子任务与父任务越权、重复及过期结果、启动失败、取消与销毁、异步清理前撤销、操作专用 schema 和权威执行事件。
+- Regressions cover overlapping requests, cross-child/root attempts, duplicate and expired results, rejected startup, cancelled/disposed requests, disposal during workflow preparation, revocation before asynchronous cleanup, operation-specific schema validation, and authoritative tool/outer `run_code` success. / 回归覆盖并发、跨子任务与父任务越权、重复及过期结果、启动失败、取消与销毁、工作流准备期间销毁、异步清理前撤销、操作专用 schema 和权威执行事件。
 
 ![Before: UUID result tool](./before.png)
 ![After: stable tool and request envelope](./after.png)

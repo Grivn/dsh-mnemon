@@ -779,7 +779,7 @@ export class MnemonSubagentCoordinator {
         assertDshOutputValue(RESULT_TOOL_INPUT_SCHEMA, args)
         const request = object(args)
         const submit = this.resultRequests.get(String(request.requestId))
-        if (submit === undefined) throw new Error('Mnemon subagent result request is unknown or no longer active')
+        if (this.disposed || submit === undefined) throw new Error('Mnemon subagent result request is unknown or no longer active')
         return submit(request.result, execution)
       },
     })
@@ -1588,6 +1588,7 @@ ${runtimeSnapshotContext('user', plan.entries)}`
         releaseWorkflow = execution.release
         signal = execution.signal
       }
+      if (this.disposed) throw new Error('dsh-mnemon subagent coordinator is disposed')
       const observer = this.resultRuntime.on('tools/result', ((execution: ToolExecution, result: HostToolResultObservation) => {
         if (signal.aborted || !this.resultRequests.has(requestId)) return
         if (execution.token !== undefined) {

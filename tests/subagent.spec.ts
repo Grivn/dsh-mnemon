@@ -1225,6 +1225,27 @@ describe('Mnemon memory subagent coordinator', () => {
     } finally { await coordinator.dispose() }
   })
 
+  it('does not reopen a result request when disposed during workflow preparation', async () => {
+    const resultTools = toolRegistry()
+    const source = runtimeSource()
+    const signal = new AbortController().signal
+    const execution = await source.executions.workflow(parent(), 'write', signal)
+    const release = vi.fn(execution.release)
+    const ready = Promise.withResolvers<typeof execution>()
+    const workflow = vi.spyOn(source.executions, 'workflow').mockReturnValueOnce(ready.promise)
+    const host = subagents({ summary: 'Must not start.', action: 'skipped', memoryBodyIds: [] })
+    const coordinator = new MnemonSubagentCoordinator(host.value, source, resultTools.value)
+    const call = coordinator.remember(parent(), { content: 'checkpoint' }, signal)
+    const rejected = expect(call).rejects.toThrow('coordinator is disposed')
+    await vi.waitFor(() => expect(workflow).toHaveBeenCalledOnce())
+    await coordinator.dispose()
+    ready.resolve({ ...execution, release })
+    await rejected
+    expect(host.start).not.toHaveBeenCalled()
+    expect(release).toHaveBeenCalledOnce()
+    expect(resultTools.on).not.toHaveBeenCalled()
+  })
+
   it('revokes every outstanding capability when the coordinator is disposed', async () => {
     const resultTools = toolRegistry()
     const done = Promise.withResolvers<{ output: []; stopReason: string; structured: unknown }>()
