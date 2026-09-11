@@ -44,7 +44,8 @@ const relativeReadmeImages = readmeFiles.flatMap((path) => {
 // ship in their own artifacts. Keep a bounded budget, not the old monolith size.
 // Includes the bounded legacy Session copy-repair executable and its bilingual
 // recovery instructions; Source implementations remain independent artifacts.
-const maximumUnpackedBytes = 1_270_000
+// Runtime archive preflight and compensation add bounded Host recovery code.
+const maximumUnpackedBytes = 1_280_000
 
 if (missing.length > 0 || unexpected.length > 0 || hostLeaks.length > 0 || relativeReadmeImages.length > 0 || pack.unpackedSize > maximumUnpackedBytes) {
   if (missing.length > 0) console.error(`Missing package files:\n${missing.map(path => `- ${path}`).join('\n')}`)

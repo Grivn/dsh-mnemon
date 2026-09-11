@@ -89,5 +89,15 @@
       "keys": 977,
       "sha256": "3d9159e3de1143cd73e68cc09917ee236101af5cb64aa81fc977028c9bb503bd"
     }
+  },
+  "idleReviewWarning": {
+    "en": {
+      "keys": 980,
+      "sha256": "f08ccf3c1de45c07c4f2564d4b1904d272240d2288fa5a6f608417022a325224"
+    },
+    "zh": {
+      "keys": 980,
+      "sha256": "12817b8c6f44c3bfd5ed5f0a0b5cb09e36cc06f490e551bfe0049edf33d72e9e"
+    }
   }
 }

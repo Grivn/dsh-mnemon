@@ -265,6 +265,7 @@ function runtimeSource(
   }
   const operations = runtime as RuntimeOperations | undefined
   const runtimeSession = runtime && 'read' in runtime ? runtime : {
+    forGeneration() { return this },
     read: (operation: string, input: RuntimeMemoryMutation) => {
       if (operation === 'maintenance-plan') return operations!.planMaintenance(input)
       throw new Error('Unexpected Runtime read: ' + operation)
@@ -311,6 +312,19 @@ function maintenancePlan(
     limit: target === 'memory' ? 10_240 : 4_096,
     requiresMaintenance: true,
   }
+}
+
+function runtimeArchiveFixture() {
+  const plan = maintenancePlan()
+  const runtime = {
+    mutate: vi.fn().mockRejectedValue(capacityError('memory', plan.used, plan.projected, plan.limit)),
+    planMaintenance: vi.fn(async () => plan),
+    compactAndMutate: vi.fn(async () => ({ success: true, target: 'memory', added: plan.pending!.content, usage: { used: 30, limit: plan.limit } })),
+  } as unknown as RuntimeOperations
+  const spaces = service()
+  const host = subagents({ action: 'planned', summary: 'Route both sources.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: 'project' }] })
+  const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, spaces), toolRegistry().value)
+  return { plan, runtime, spaces, host, archive: (signal = new AbortController().signal) => coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, signal) }
 }
 
 function observedSubagents(
@@ -1861,6 +1875,153 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(runtime.compactAndMutate).not.toHaveBeenCalled()
   })
 
+  it.each(['async-extracting', 'no-forget'])('preflights runtime archive destinations before side effects (issue 240): %s', async capability => {
+    const plan = maintenancePlan()
+    const runtime = {
+      mutate: vi.fn().mockRejectedValue(capacityError('memory', plan.used, plan.projected, plan.limit)),
+      planMaintenance: vi.fn(async () => plan),
+      compactAndMutate: vi.fn(),
+    } as unknown as RuntimeOperations
+    const spaces = service()
+    const body = spaces.bodyDirectory().items[0]!
+    if (capability === 'async-extracting') body.provider.capabilities.writeMode = 'async-extracting'
+    else body.provider.capabilities.forget = false
+    vi.mocked(spaces.rememberMany).mockImplementation(async requests => requests.map(() => ({ action: 'queued', operationId: 'accepted-before-error' })))
+    const host = subagents(undefined)
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, spaces), toolRegistry().value)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, new AbortController().signal))
+        .rejects.toThrow(/exact writes.*safe forget.*memoryLimitBytes/)
+    }
+    expect(spaces.rememberMany).not.toHaveBeenCalled()
+    expect(spaces.forget).not.toHaveBeenCalled()
+    expect(runtime.compactAndMutate).not.toHaveBeenCalled()
+    expect(host.start).not.toHaveBeenCalled()
+  })
+
+  it('uses only the safe destination in a mixed exact and async Provider catalog', async () => {
+    const f = runtimeArchiveFixture()
+    addSecondWritableBody(f.spaces)
+    f.spaces.bodyDirectory().items[1]!.provider = { ...f.spaces.bodyDirectory().items[1]!.provider,
+      id: 'hindsight', capabilities: { ...f.spaces.bodyDirectory().items[1]!.provider.capabilities, writeMode: 'async-extracting' } }
+    await expect(f.archive()).resolves.toMatchObject({ maintenance: { memoryBodyIds: ['project'], provider: 'host' } })
+    expect(vi.mocked(f.spaces.rememberMany).mock.calls.flatMap(([requests]) => requests.map(item => item.memoryBodyId))).toEqual(['project', 'project'])
+    expect(f.host.start).not.toHaveBeenCalled()
+  })
+
+  it('rechecks every destination before starting the first archive write', async () => {
+    const f = runtimeArchiveFixture()
+    const catalog = f.spaces.bodyDirectory()
+    vi.mocked(f.spaces.bodyDirectory).mockReturnValueOnce(catalog).mockReturnValue({ ...catalog, items: [] })
+    await expect(f.archive()).rejects.toThrow('no longer eligible; no archive writes were attempted')
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the fallback destination when an invalid routing response follows deactivation', async () => {
+    const f = runtimeArchiveFixture()
+    addSecondWritableBody(f.spaces)
+    f.host.start.mockImplementationOnce(async () => {
+      f.spaces.bodyDirectory().items[0]!.active = false
+      return { id: 'invalid-after-deactivation', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+        action: 'planned', summary: 'Invalid routing after destination deactivation.', routes: [],
+      } }), dispose: vi.fn(async () => {}) }
+    })
+    await expect(f.archive()).rejects.toThrow('no longer eligible; no archive writes were attempted')
+    expect(f.host.start).toHaveBeenCalledOnce()
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.runtime.compactAndMutate).not.toHaveBeenCalled()
+  })
+
+  it('cleans every proven-new receipt when a later archive receipt is invalid', async () => {
+    const f = runtimeArchiveFixture()
+    vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([
+      { action: 'added', id: 'new-index', memoryBodyId: 'project' },
+      { action: 'queued', operationId: 'unknown-index', memoryBodyId: 'project' },
+    ])
+    await expect(f.archive()).rejects.toThrow('did not commit synchronously')
+    expect(f.spaces.forget).toHaveBeenCalledExactlyOnceWith('new-index', expect.any(AbortSignal), 'project')
+    expect(f.runtime.compactAndMutate).not.toHaveBeenCalled()
+  })
+
+  it('compensates an earlier destination when a later Provider write throws', async () => {
+    const f = runtimeArchiveFixture()
+    addSecondWritableBody(f.spaces)
+    f.host.start.mockResolvedValueOnce({ id: 'two-spaces', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+      action: 'planned', summary: 'Split archive.', routes: [{ sourceIndexes: [1], memoryBodyId: 'project' }, { sourceIndexes: [2], memoryBodyId: 'release' }],
+    } }), dispose: vi.fn(async () => {}) })
+    vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([{ action: 'added', id: 'first-destination', memoryBodyId: 'project' }]).mockRejectedValueOnce(new Error('later Provider unavailable'))
+    await expect(f.archive()).rejects.toThrow('later Provider unavailable')
+    expect(f.spaces.forget).toHaveBeenCalledExactlyOnceWith('first-destination', expect.any(AbortSignal), 'project')
+    expect(f.runtime.compactAndMutate).not.toHaveBeenCalled()
+  })
+
+  it('cleans new entries after local commit failure but preserves skipped pre-existing entries', async () => {
+    const f = runtimeArchiveFixture()
+    vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([
+      { action: 'skipped', id: 'pre-existing', memoryBodyId: 'project' },
+      { action: 'added', id: 'new-index', memoryBodyId: 'project' },
+    ])
+    vi.mocked(f.spaces.search).mockResolvedValueOnce({ query: '', mode: 'smart', results: [{ id: 'pre-existing', content: f.plan.entries[0]!.content, memoryBodyId: 'project' } as Insight] })
+    vi.mocked(f.runtime.compactAndMutate).mockRejectedValueOnce(new Error('local commit failed'))
+    await expect(f.archive()).rejects.toThrow('local commit failed')
+    expect(f.spaces.forget).toHaveBeenCalledExactlyOnceWith('new-index', expect.any(AbortSignal), 'project')
+  })
+
+  it('cleans received entries with an independent signal when the caller cancels', async () => {
+    const f = runtimeArchiveFixture()
+    const abort = new AbortController()
+    vi.mocked(f.spaces.rememberMany).mockImplementationOnce(async requests => {
+      abort.abort(new Error('caller canceled'))
+      return requests.map((_request, index) => ({ action: 'added', id: `new-${index}`, memoryBodyId: 'project' }))
+    })
+    await expect(f.archive(abort.signal)).rejects.toThrow('caller canceled')
+    expect(f.spaces.forget).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(f.spaces.forget).mock.calls.every(([, signal]) => signal?.aborted === false)).toBe(true)
+  })
+
+  it('reports failed cleanup and still attempts the remaining created entries', async () => {
+    const f = runtimeArchiveFixture()
+    vi.mocked(f.runtime.compactAndMutate).mockRejectedValueOnce(new Error('local commit failed'))
+    vi.mocked(f.spaces.forget).mockRejectedValueOnce(new Error('cleanup unavailable'))
+    await expect(f.archive()).rejects.toThrow(/cleanup failed.*project.*stored-/)
+    expect(f.spaces.forget).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['changed', 'unavailable'])('preserves archive entries when the local commit outcome is uncertain: %s', async state => {
+    const f = runtimeArchiveFixture()
+    vi.mocked(f.runtime.compactAndMutate).mockRejectedValueOnce(new Error('transport failed after commit'))
+    vi.mocked(f.runtime.planMaintenance).mockResolvedValueOnce(f.plan).mockResolvedValueOnce(f.plan)
+    if (state === 'changed') vi.mocked(f.runtime.planMaintenance).mockResolvedValueOnce({ ...f.plan, revision: 'committed-revision' })
+    else vi.mocked(f.runtime.planMaintenance).mockRejectedValueOnce(new Error('runtime unavailable'))
+    await expect(f.archive()).rejects.toThrow('uncertain local commit; preserve Memory Space entries')
+    expect(f.spaces.forget).not.toHaveBeenCalled()
+  })
+
+  it('compensates real composed Runtime and Holographic Sources after local commit failure', async () => {
+    const f = await compositionFixture({ runtimeMemory: { memoryLimitBytes: 300 } })
+    releases.push(f.dispose)
+    const body = await f.memorySpace()
+    const spaces = f.graph.source('memory-spaces')
+    await spaces.mutate('body-update', { memoryBodyId: body.id, request: { active: true } })
+    const runtime = f.graph.source('runtime')
+    const content = 'Archive source: ' + 'Keep the source intact. '.repeat(8)
+    await runtime.mutate('mutate', { action: 'add', target: 'memory', content })
+    const before = await runtime.read<RuntimeMemorySnapshot>('snapshot')
+    const coordinator = new MnemonSubagentCoordinator(subagents(undefined).value, f.live, toolRegistry().value)
+    const agent = { ...parent(), session: { header: { cwd: f.workspace }, events: [] } } as HostAgent
+    const original = SourceSession.prototype.mutateResult
+    const failCommit = vi.spyOn(SourceSession.prototype, 'mutateResult').mockImplementation(function (this: SourceSession, operation, input, signal) {
+      if (this.typeId === 'runtime' && operation === 'compact-and-mutate') return Promise.reject(new Error('injected local commit failure'))
+      return original.call(this, operation, input, signal)
+    })
+    try {
+      await expect(coordinator.runtime(agent, { action: 'add', target: 'memory', content: 'Pending entry: ' + 'Preserve exact facts. '.repeat(5) }, new AbortController().signal)).rejects.toThrow('injected local commit failure')
+    } finally { failCommit.mockRestore() }
+    expect((await runtime.read<RuntimeMemorySnapshot>('snapshot')).revision).toBe(before.revision)
+    const recalled = await spaces.read<{ results: Insight[] }>('search', { query: 'Archive source', memoryBodyIds: [body.id] })
+    expect(recalled.results).toEqual([])
+  })
+
   it('enforces automatic Memory Space write participation before capacity archival', async () => {
     const plan = maintenancePlan()
     const host = subagents(undefined)
@@ -1883,27 +2044,67 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(memoryService.remember).not.toHaveBeenCalled()
   })
 
-  it('rejects incomplete or invalid routes before any Provider write', async () => {
+  it.each([
+    { action: 'planned', summary: 'Incomplete route.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'No routes.', routes: [] },
+    { action: 'planned', summary: 'Unknown target.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: 'invented' }] },
+    { action: 'planned', summary: 'Empty target.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: ' ' }] },
+    { action: 'planned', summary: 'No indexes.', routes: [{ sourceIndexes: [], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'Duplicate indexes.', routes: [{ sourceIndexes: [1, 1, 2], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'Cross-route duplicate.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }, { sourceIndexes: [1, 2], memoryBodyId: 'project' }] },
+    { action: 'planned', summary: 'Out of range.', routes: [{ sourceIndexes: [1, 3], memoryBodyId: 'release' }] },
+    { action: 'failed', summary: 'Router cannot choose.', routes: [] },
+    { action: 'planned', summary: 'Noninteger.', routes: [{ sourceIndexes: [1, 2.5], memoryBodyId: 'release' }] },
+  ])('falls back for invalid runtime routing output (issue 235): $summary', async proposal => {
     const plan = maintenancePlan()
-    const host = subagents({
-      summary: 'Incomplete route.',
-      action: 'planned',
-      routes: [{ sourceIndexes: [1], memoryBodyId: 'project' }],
-    })
+    const host = subagents(proposal)
     const runtime = {
       mutate: vi.fn().mockRejectedValueOnce(capacityError('memory', plan.used, plan.projected, plan.limit)),
       planMaintenance: vi.fn(async () => plan),
-      compactAndMutate: vi.fn(),
+      compactAndMutate: vi.fn(async () => ({ success: true, target: 'memory', added: plan.pending!.content, usage: { used: 20, limit: plan.limit } })),
     } as unknown as RuntimeOperations
     const memoryService = service()
     addSecondWritableBody(memoryService)
     const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, memoryService) as never, toolRegistry().value)
 
     await expect(coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, new AbortController().signal))
-      .rejects.toThrow('omitted committed archive sources')
-    expect(memoryService.rememberMany).not.toHaveBeenCalled()
+      .resolves.toMatchObject({ added: plan.pending!.content, maintenance: { memoryBodyIds: ['project'], summary: expect.stringContaining('routed to project deterministically') } })
+    expect(vi.mocked(memoryService.rememberMany).mock.calls.flatMap(([requests]) => requests.map(item => item.memoryBodyId))).toEqual(['project', 'project'])
     expect(memoryService.remember).not.toHaveBeenCalled()
-    expect(runtime.compactAndMutate).not.toHaveBeenCalled()
+    expect(runtime.compactAndMutate).toHaveBeenCalledOnce()
+  })
+
+  it('preserves earlier valid routes when a later chunk restarts its source indexes', async () => {
+    const plan = maintenancePlan('memory', [
+      { content: 'First source ' + 'a'.repeat(500), importance: 'normal' },
+      { content: 'Second source ' + 'b'.repeat(500), importance: 'normal' },
+      { content: 'Third source ' + 'c'.repeat(500), importance: 'critical' },
+    ])
+    const host = subagents({ action: 'planned', summary: 'Local numbering.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }] })
+    host.start.mockResolvedValueOnce({ id: 'first-valid', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+      action: 'planned', summary: 'Valid first chunk.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: 'release' }],
+    } }), dispose: vi.fn(async () => {}) })
+    const runtime = {
+      mutate: vi.fn().mockRejectedValueOnce(capacityError('memory', plan.used, plan.projected, plan.limit)),
+      planMaintenance: vi.fn(async () => plan),
+      compactAndMutate: vi.fn(async () => ({ success: true, target: 'memory', added: plan.pending!.content, usage: { used: 20, limit: plan.limit } })),
+    } as unknown as RuntimeOperations
+    const spaces = service()
+    addSecondWritableBody(spaces)
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, spaces), toolRegistry().value)
+    const result = await coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, new AbortController().signal)
+    expect(result.maintenance?.summary).toContain('batch 2 routed to project deterministically')
+    expect(vi.mocked(spaces.rememberMany).mock.calls.flatMap(([requests]) => requests.map(item => ({ content: item.content, memoryBodyId: item.memoryBodyId })))).toEqual(
+      plan.entries.map((entry, index) => ({ content: entry.content, memoryBodyId: index < 2 ? 'release' : 'project' })),
+    )
+    expect(runtime.compactAndMutate).toHaveBeenCalledOnce()
+    expect(host.start).toHaveBeenCalledTimes(2)
+    const prompts = (host.start.mock.calls as unknown as Array<[string, { prompt: Array<{ text: string }> }]>).map(([, call]) => call.prompt[0]!.text)
+    expect(prompts[1]).toContain('Allowed source indexes for this batch: 3. Keep these global indexes; never restart numbering.')
+    for (const prompt of prompts) {
+      const excerpt = prompt.split('<runtime-memory-routing-excerpts>\n')[1]!.split('\n</runtime-memory-routing-excerpts>')[0]!
+      for (const entry of excerpt.split('\n§\n')) expect(entry.replace(/^\d+\. \[importance=\w+\] /, '').length).toBeLessThanOrEqual(384)
+    }
   })
 
   it('deterministically routes to the default store when the routing model fails, then still commits the archive', async () => {
@@ -2006,7 +2207,7 @@ describe('Mnemon memory subagent coordinator', () => {
         },
       })
     expect(host.start).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(memoryService.rememberMany).mock.calls[0]![0].map(request => request.memoryBodyId))
+    expect(vi.mocked(memoryService.rememberMany).mock.calls.flatMap(([requests]) => requests.map(request => request.memoryBodyId)))
       .toEqual(['project', 'project', 'release'])
     expect(coordinator.snapshot()).toMatchObject({
       migrations: 1,
