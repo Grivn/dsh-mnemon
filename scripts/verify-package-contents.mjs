@@ -45,6 +45,7 @@ const relativeReadmeImages = readmeFiles.flatMap((path) => {
 // Includes the bounded legacy Session copy-repair executable and its bilingual
 // recovery instructions; Source implementations remain independent artifacts.
 // Runtime archive preflight and compensation add bounded Host recovery code.
+// The review publication/guard helper adds about 4 KB of Host-only code.
 const maximumUnpackedBytes = 1_280_000
 
 if (missing.length > 0 || unexpected.length > 0 || hostLeaks.length > 0 || relativeReadmeImages.length > 0 || pack.unpackedSize > maximumUnpackedBytes) {

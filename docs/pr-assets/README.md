@@ -12,6 +12,7 @@ For new evaluations, commit the reusable harness, workload generator, concise bi
 
 | Record / 记录 | Scope / 范围 |
 |---|---|
+| [Idle review tool composition — issue #211](./issue-211-20260911/README.md) / [中文](./issue-211-20260911/README.zh-CN.md) | Inherited overview reuse, own-scope execution guard, real Code Mode, CLI and WebUI / 继承概览复用、作用域执行限制、真实 Code Mode、CLI 与 WebUI |
 | [ORCA LINK sidebar — issue #232](./issue-232-orca-sidebar/README.md) | Real skin reproduction, visible/clickable entry, Runtime and Native CLI / 真实皮肤复现、侧栏入口、热记忆与 Native CLI |
 | [v0.5.7 release](./release-v0.5.7/README.md) / [中文](./release-v0.5.7/README.zh-CN.md) | Versioned package checks and real DSH 0.1.5 archival / 版本化制品验证与真实 DSH 0.1.5 归档 |
 | [DSH 0.1.5 compatibility — issue #223](./issue-223-dsh-015/README.md) / [中文](./issue-223-dsh-015/README.zh-CN.md) | HTTP 405, legacy Session copy recovery, real WebUI and restart / HTTP 405、旧会话副本修复、真实 WebUI 与重启 |

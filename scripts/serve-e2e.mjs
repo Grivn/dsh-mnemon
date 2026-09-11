@@ -11,6 +11,7 @@ import { documentProtectionModel } from './fixtures/document-protection-model.mj
 import { documentArchiveModel } from './fixtures/document-archive-model.mjs'
 import { runtimeRoutingModel } from './fixtures/runtime-routing-model.mjs'
 import { resultToolCacheModel } from './fixtures/result-tool-cache-model.mjs'
+import { reviewEvidenceModel, scopedOverviewPlugin } from './fixtures/review-evidence-model.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
@@ -24,6 +25,7 @@ for (const flag of flags) {
   if (flag === '--runtime-archive') continue
   if (flag === '--runtime-routing') continue
   if (flag === '--result-tool-cache') continue
+  if (flag === '--review-evidence') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -67,9 +69,10 @@ const archiveProvider = runtimeArchive ? createServer(async (request, response) 
 }) : undefined
 if (archiveProvider) await new Promise(resolveListen => archiveProvider.listen(0, '127.0.0.1', resolveListen))
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
+const reviewModel = flags.has('--review-evidence') ? reviewEvidenceModel(event => console.log('Review evidence: ' + JSON.stringify(event))) : undefined
 const scriptedModel = flags.has('--runtime-routing') ? runtimeRoutingModel(event => console.log('Runtime routing: ' + JSON.stringify(event)))
   : flags.has('--result-tool-cache') ? resultToolCacheModel(event => console.log('Result tool cache: ' + JSON.stringify(event)))
-  : flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
+  : flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : reviewModel ?? protectionModel
 const reviewFailure = flags.has('--review-failure')
 const model = createServer(async (request, response) => {
   let input = ''
@@ -188,10 +191,13 @@ try {
     - id: e2e-directory-picker-ui
       name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 `
+  const reviewFixture = join(fixture, 'review-evidence-plugin.mjs')
+  if (reviewModel !== undefined) await writeFile(reviewFixture, scopedOverviewPlugin)
   await writeFile(join(dshHome, 'profiles/web/cordis.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + browsePicker
-    + (protectionModel === undefined && !reviewFailure ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
+    + (protectionModel === undefined && reviewModel === undefined && !reviewFailure ? '' : '- id: mnemon\n  config:\n    idleReviewMs: 5000\n')
     + (runtimeArchive ? '- id: mnemon\n  config:\n    persistenceStrategy:\n      mode: manual\n    runtimeMemory:\n      memoryLimitBytes: 300\n' : '')
     + (flags.has('--runtime-routing') ? '- id: mnemon\n  config:\n    runtimeMemory:\n      memoryLimitBytes: 1600\n' : '')
+    + (reviewModel === undefined ? '' : '- insert:\n    - id: review-evidence-fixture\n      name: ' + JSON.stringify(reviewFixture) + '\n')
     + (extensionsEnabled ? extensionNames.map(name => `- id: ${name.slice(4)}\n  disabled: false\n`).join('') : ''))
   await writeFile(join(workspace, 'README.md'), '# Mnemon isolated browser test\n\nNo production memory or credentials are used.\n')
   console.log('Fixture: ' + fixture)

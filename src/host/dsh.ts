@@ -172,6 +172,8 @@ export interface HostSession {
 export type HostPreStepDecision = { kind: 'reject' } | { kind: 'enter'; messages: HostUserMessage[] }
 
 export interface HostAgentContext {
+  /** DSH's monotonic guard also covers tools registered in this Agent's scope. */
+  tools?: { guard?(guard: (execution: ToolExecution) => string | undefined): unknown }
   /**
    * `options` is optional and forwarded verbatim to the host. `prepend`
    * places the listener at the head of the chain, which for a waterfall
@@ -209,6 +211,8 @@ export interface CreateHostAgentOptions {
 
 export interface HostAgentsService {
   get(id: string): HostAgent | undefined
+  /** Public DSH runtime ownership, independent of persisted session lineage. */
+  isOwnedBy?(id: string, parent: HostAgent): boolean
   roots(): HostAgent[]
   /** DSH rc.6+ factory for an owned, clean top-level Agent. */
   create?(options: CreateHostAgentOptions): Promise<HostAgentHandle>
