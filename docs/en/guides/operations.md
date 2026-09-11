@@ -228,7 +228,7 @@ For v0.5.5 authenticated Gateway clients, `remoteAccess: trusted-host` grants ma
 - Provider catalogs and management responses are redacted; the UI receives configured field names, never saved credential values.
 - The WebUI follows the Host's writable settings snapshot instead of inferring capability from transport locality; an unavailable settings channel renders an explicit diagnostic rather than an empty page.
 - The WebUI neither reads SQLite, starts processes, calls remote providers, nor supplies arbitrary update commands; provider network access remains inside the Host.
-- Workers use persona, tool allowlists, schema-validated one-run result tools, and `maxDepth: 1`.
+- Workers use persona, tool allowlists, and `maxDepth: 1`. A stable result tool accepts only the current child's revocable request ID and validates each operation's result schema.
 - Distillation and supervised writeback workers cannot call `mnemon_forget`. Idle review has only the create-only Documents tool for document writes, so it cannot replace user originals or archive documents to make room. These restrictions are enabled by default and do not require an enhancement plugin.
 - Queries, candidates, Document bodies, and historical memory are treated as untrusted data.
 

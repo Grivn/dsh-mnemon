@@ -15,7 +15,7 @@ You need:
 - a locally executable `mnemon` CLI;
 - a DSH model route capable of creating independent task Agents.
 
-Regular semantic work prefers a provider named `spawn` with `toolFilter`, `persona`, and `depthLimit`. Mnemon supplies a schema-validated, one-run result tool instead of depending on the Provider's `outputSchema` path. Optional score-based background review additionally requires a provider named `fork` with `inheritsParentContext=true`. Missing `fork` does not block deterministic pages or regular manual actions.
+Regular semantic work prefers a provider named `spawn` with `toolFilter`, `persona`, and `depthLimit`. Mnemon keeps one stable `mnemon_subagent_result` tool registered and issues a revocable `requestId` for each child. The child returns `{ requestId, result }`; the Host validates `result` against that operation's schema and rejects stale or foreign submissions, without depending on the Provider's `outputSchema` path. Optional score-based background review additionally requires a provider named `fork` with `inheritsParentContext=true`. Missing `fork` does not block deterministic pages or regular manual actions.
 
 The composable v0.5.6 distribution pins a verified combination of sixteen official plugins. Read the [patch notes](../releases/v0.5.6.md) and [compatibility matrix](../reference/compatibility.md). The DSH baseline is 0.1.5-rc.1; its complete profile requires Node `^22.19.0 || >=24.0.0`. Mnemon's Node 20 public-entry checks do not establish full Host compatibility. Current UI examples show v0.5.4 in Light appearance after a backup import into isolated storage; old release records retain their original versions.
 

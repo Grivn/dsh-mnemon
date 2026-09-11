@@ -9,6 +9,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { documentProtectionModel } from './fixtures/document-protection-model.mjs'
 import { documentArchiveModel } from './fixtures/document-archive-model.mjs'
+import { resultToolCacheModel } from './fixtures/result-tool-cache-model.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const flags = new Set(process.argv.slice(2))
@@ -18,6 +19,7 @@ for (const flag of flags) {
   if (flag === '--strategy-extensions') continue
   if (flag === '--document-protection') continue
   if (flag === '--document-archive') continue
+  if (flag === '--result-tool-cache') continue
   if (flag.startsWith('--electron=')) {
     const value = flag.slice('--electron='.length)
     if (value === '') throw new Error('--electron requires an Electron executable')
@@ -42,7 +44,7 @@ const workspace = join(fixture, 'workspace')
 await Promise.all([dshHome, dataDir, workspace].map(path => mkdir(path)))
 let modelRequests = 0
 const protectionModel = flags.has('--document-protection') ? documentProtectionModel(event => console.log('Document protection: ' + JSON.stringify(event))) : undefined
-const scriptedModel = flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
+const scriptedModel = flags.has('--result-tool-cache') ? resultToolCacheModel(event => console.log('Result tool cache: ' + JSON.stringify(event))) : flags.has('--document-archive') ? documentArchiveModel(event => console.log('Document archive: ' + JSON.stringify(event))) : protectionModel
 const model = createServer(async (request, response) => {
   let input = ''
   for await (const chunk of request) { if (scriptedModel !== undefined) input += chunk }
