@@ -1,13 +1,19 @@
 name: Bug 报告 / Bug report
-description: 提交可复现的 Bug，并附验证证据、代码引用与补丁草案。 / Report a reproducible bug with verification evidence, code references, and a patch proposal.
+description: 报告异常现象、复现步骤和环境；日志及修复建议可选。 / Describe the problem, reproduction steps and environment; logs and fixes are optional.
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        请保持本模板完整并填写所有必填部分。缺少复现信息、证据、冒烟测试、代码引用或补丁草案的 Bug 报告将被自动关闭。
-        Keep this template intact and complete every required field. Bug reports missing reproduction details, evidence, smoke tests, code references, or a patch proposal will be closed automatically.
+        请填写现象、预期结果、复现步骤和环境。信息不足时机器人会提示补充，模板检查不会自动关闭 Issue。
+        Describe the problem, expected outcome, reproduction steps and environment. Missing information prompts a request for details; template checks do not close issues.
+
+        日志、截图和对照结果可直接放在复现步骤中。下方的证据、冒烟测试、代码引用和补丁草案均为选填，无需重复内容或先提供修复方案。
+        Logs, screenshots and control results may go directly in the reproduction steps. Separate evidence, smoke tests, code references and patch proposals are optional; no duplication or fix is required.
+
+        通过 CLI/API 提交时可使用相同段落标题组织正文。类型填写为“Bug 报告 / Bug report”时，机器人会补齐 `bug` 标签，无需提交者拥有标签权限。
+        CLI/API reports may use the same section headings. The bot adds the `bug` label when the type is “Bug 报告 / Bug report”; reporters do not need label permissions.
 
         提交前请先搜索确认没有重复 / Search for existing reports before submitting: [Issues](https://github.com/omdsh-dev/dsh-mnemon/issues?q=is%3Aissue)
 
@@ -69,7 +75,7 @@ body:
     id: details-reproduction
     attributes:
       label: 详情或复现步骤 / Details or reproduction steps
-      description: 提供从干净或已说明状态开始的最小复现步骤。 / Provide the smallest reproduction starting from a clean or clearly described state.
+      description: 提供最小复现步骤和实际结果；报错和日志（包括 JSON 或普通文本）可直接写在这里。 / Include minimal steps and observed results; errors and logs, including JSON or plain text, may go here.
       placeholder: |
         1. 配置 / Configure ...
         2. 启动 / Start ...
@@ -95,37 +101,37 @@ body:
     id: bug-evidence
     attributes:
       label: Bug 证据 / Bug evidence
-      description: UI 问题请上传截图或视频；Host、CLI、Headless 问题请附脱敏日志或错误输出。 / Upload screenshots or video for UI problems, or redacted logs and error output for Host, CLI, or Headless problems.
-      placeholder: 将截图拖到此处，或粘贴脱敏日志代码块或 GitHub 附件链接。 / Drop evidence here, or paste a redacted log block or GitHub attachment link.
+      description: 选填。复现步骤已有证据时无需重复；支持普通文本、任意语言代码块、图片或附件。 / Optional. Do not repeat evidence already in the steps; plain text, any code-block language, images or attachments are accepted.
+      placeholder: 可粘贴脱敏报错、日志、截图或附件，也可留空。 / Add redacted errors, logs, screenshots or attachments, or leave blank.
     validations:
-      required: true
+      required: false
   - type: textarea
     id: smoke-test
     attributes:
       label: 冒烟测试 / Smoke test
-      description: 说明实际执行的验证、观察结果和对照实验；未执行的推测不算验证。 / Describe the checks you actually ran, observed results, and controls; speculation is not verification.
+      description: 选填。补充实际执行的验证、观察结果或对照实验；未执行可留空。 / Optional. Add checks you actually ran, observed results or controls; leave blank if none were run.
       placeholder: |
         - 测试环境 / Test environment:
         - 执行命令或操作 / Commands or actions:
         - 实际结果 / Observed result:
         - 对照版本或配置 / Control version or configuration:
     validations:
-      required: true
+      required: false
   - type: textarea
     id: code-reference
     attributes:
       label: 引用代码 / Code references
-      description: 指向仓库内相关代码的精确位置，可附固定 commit 的 GitHub 链接。 / Point to exact repository paths, functions, or lines, optionally using links pinned to a commit.
+      description: 选填。知道相关代码位置时，可提供路径、函数或固定 commit 链接。 / Optional. If you know the relevant code, add paths, functions or links pinned to a commit.
       placeholder: |
-        src/subagent.ts:870
+        src/host/subagent.ts:870
         tests/subagent.spec.ts
     validations:
-      required: true
+      required: false
   - type: textarea
     id: patch
     attributes:
       label: 补丁草案 / Patch proposal
-      description: 提供建议修复的 diff、代码片段或足够具体的实现草案，即使尚不完整。 / Provide a suggested diff, code snippet, or concrete implementation proposal, even if incomplete.
+      description: 选填。已有修复思路时可以补充；无需为提交 Bug 先编写补丁。 / Optional. Share a fix if you have one; a patch is not required to report a bug.
       placeholder: |
         ```diff
         --- a/src/example.ts
@@ -133,7 +139,7 @@ body:
         @@ ... @@
         ```
     validations:
-      required: true
+      required: false
   - type: textarea
     id: additional-context
     attributes:

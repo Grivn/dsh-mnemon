@@ -1,8 +1,12 @@
-name: Issue 模板校验 / Enforce Issue Template
+name: Issue 信息检查 / Check Issue Information
 
 on:
   issues:
-    types: [opened, reopened]
+    types: [opened, reopened, edited]
+
+concurrency:
+  group: issue-template-check-${{ github.event.issue.number }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -10,7 +14,7 @@ permissions:
 
 jobs:
   enforce:
-    name: 关闭未遵循模板的 Issue / Close issues that skip the template
+    name: 提示缺失的 Issue 信息 / Request missing issue information
     runs-on: ubuntu-latest
 
     steps:
@@ -41,13 +45,6 @@ jobs:
               return normalized === '' || normalized === 'no response' || normalized === '_no response_';
             };
             const hasCheckedBox = (value) => /^-\s*\[[xX]\]\s+\S+/m.test(value);
-            const hasBugEvidence = (value) => {
-              const imageOrAttachment = /!\[[^\]]*]\([^)]+\)/i.test(value)
-                || /https?:\/\/\S*(?:github\.com\/user-attachments\/assets\/|github\.com\/[^)\s]+\/assets\/|githubusercontent\.com\/|gist\.github\.com\/|[./][^)\s]+\.(?:png|jpe?g|gif|webp|mp4|mov|webm))(?:[?#]\S*)?/i.test(value);
-              const fencedLog = /```(?:text|log|console|shell|sh|bash|powershell|pwsh)?\s*\n[\s\S]{20,}?```/i.test(value);
-              return imageOrAttachment || fencedLog;
-            };
-
             const labels = {
               duplicate: '提交前查重 / Duplicate check',
               area: '涉及区域 / Affected area',
@@ -56,12 +53,8 @@ jobs:
               expected: '预期结果 / Expected outcome',
               details: '详情或复现步骤 / Details or reproduction steps',
               environment: '环境信息 / Environment',
-              evidence: 'Bug 证据 / Bug evidence',
-              smoke: '冒烟测试 / Smoke test',
-              code: '引用代码 / Code references',
-              patch: '补丁草案 / Patch proposal',
             };
-            const baseRequiredSections = [
+            const requiredSections = [
               labels.duplicate,
               labels.area,
               labels.type,
@@ -72,24 +65,12 @@ jobs:
             ];
             const validateIssue = (issue) => {
               const section = (label) => readSection(issue.body || '', label);
-              const issueType = section(labels.type).trim().toLowerCase();
-              const hasBugLabel = (issue.labels || []).some((label) => String(label.name || '').toLowerCase() === 'bug');
-              const isBug = issueType === 'bug 报告 / bug report' || hasBugLabel;
-              const requiredSections = isBug
-                ? [...baseRequiredSections, labels.evidence, labels.smoke, labels.code, labels.patch]
-                : baseRequiredSections;
-
+              // Evidence is assessed by maintainers across the whole report.
+              // Its section, code-block language and formatting are not gates.
               const missingSections = requiredSections.filter((label) => isBlank(section(label)));
               const invalidSections = [];
               if (!isBlank(section(labels.duplicate)) && !hasCheckedBox(section(labels.duplicate))) {
-                invalidSections.push('必须确认已经搜索过 open/closed Issue。 / You must confirm that you searched open and closed issues.');
-              }
-              if (isBug && !hasBugLabel) {
-                invalidSections.push('Bug 报告必须通过“Bug 报告 / Bug report”表单提交并带有 `bug` 标签。 / Bug reports must use the “Bug 报告 / Bug report” form and include the `bug` label.');
-              }
-              const bugEvidence = section(labels.evidence);
-              if (isBug && !isBlank(bugEvidence) && !hasBugEvidence(bugEvidence)) {
-                invalidSections.push('Bug 证据必须包含截图、视频、GitHub 附件、Gist 或至少 20 个字符的 fenced 日志代码块。 / Bug evidence must include an image, video, GitHub attachment, Gist, or a fenced log block containing at least 20 characters.');
+                invalidSections.push('请确认已经搜索过 open/closed Issue。 / Please confirm that you searched open and closed issues.');
               }
 
               return [
@@ -98,39 +79,62 @@ jobs:
               ];
             };
 
-            // The event payload is a snapshot; labels and body may have changed
-            // while this run was queued, especially after an issue was reopened.
+            // The event payload is a snapshot. Read current state before acting,
+            // including after comment lookup or adding a label.
             const { data: initialIssue } = await github.rest.issues.get(issueParams);
-            if (initialIssue.state !== 'open' || validateIssue(initialIssue).length === 0) {
-              return;
+            if (initialIssue.state !== 'open') return;
+
+            const marker = '<!-- dsh-mnemon:issue-template-check -->';
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...issueParams,
+              per_page: 100,
+            });
+            const previousComment = comments.find((comment) =>
+              comment.user?.login === 'github-actions[bot]' &&
+              comment.user?.type === 'Bot' &&
+              comment.body?.startsWith(marker),
+            );
+
+            let { data: currentIssue } = await github.rest.issues.get(issueParams);
+            if (currentIssue.state !== 'open') return;
+
+            const issueType = readSection(currentIssue.body || '', labels.type).trim().toLowerCase();
+            const hasBugLabel = (currentIssue.labels || []).some((label) => String(label.name || '').toLowerCase() === 'bug');
+            if (issueType === 'bug 报告 / bug report' && !hasBugLabel) {
+              // API/CLI reporters may not have permission to classify an issue.
+              await github.rest.issues.addLabels({ ...issueParams, labels: ['bug'] });
+              currentIssue = (await github.rest.issues.get(issueParams)).data;
+              if (currentIssue.state !== 'open') return;
             }
 
-            // Recheck immediately before closing so corrections made during
-            // validation are honored, and already closed issues are left alone.
-            const { data: currentIssue } = await github.rest.issues.get(issueParams);
-            if (currentIssue.state !== 'open') return;
             const details = validateIssue(currentIssue);
-            if (details.length === 0) return;
+            if (details.length === 0 && !previousComment) return;
 
-            const comment = [
-              '该 Issue 因未满足仓库 Issue 规范而被自动关闭。',
-              'This issue was automatically closed because it does not meet the repository issue requirements.',
-              '',
-              '请通过仓库的 Issue Forms 重新提交，并保持模板完整：',
-              'Please submit again through the repository Issue Forms and keep the template intact:',
+            const comment = details.length > 0 ? [
+              marker,
+              '此 Issue 保持打开。为便于排查，请补充以下基础信息：',
+              'The issue remains open. Please add the following basic information to help triage:',
               '',
               ...details.map((detail) => `- ${detail}`),
               '',
-              '补充完整后可以在评论区请求维护者重开。不要在公开 Issue 中粘贴凭据、私有记忆或未脱敏日志。',
-              'After providing the missing information, you may ask a maintainer to reopen the issue. Do not post credentials, private memory, or unredacted logs publicly.',
+              '在正文中补充即可，本提示会在编辑后更新。证据可以是普通文本、JSON 或其他代码块，也可以直接放在复现步骤中。',
+              'Update the issue body and this reminder will refresh. Evidence may be plain text, JSON or other code blocks, including content in the reproduction steps.',
+            ].join('\n') : [
+              marker,
+              '基础信息已补齐，后续由维护者排查和处理。',
+              'Required report information is present. Maintainers will review the report.',
             ].join('\n');
 
-            await github.rest.issues.update({
-              ...issueParams,
-              state: 'closed',
-              state_reason: 'not_planned',
-            });
-            await github.rest.issues.createComment({
-              ...issueParams,
-              body: comment,
-            });
+            // Update only this check's own reminder. Never change issue state.
+            if (previousComment) {
+              if (previousComment.body !== comment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: previousComment.id,
+                  body: comment,
+                });
+              }
+            } else {
+              await github.rest.issues.createComment({ ...issueParams, body: comment });
+            }
