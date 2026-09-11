@@ -1692,6 +1692,21 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(f.spaces.rememberMany).not.toHaveBeenCalled()
   })
 
+  it('rechecks the fallback destination when an invalid routing response follows deactivation', async () => {
+    const f = runtimeArchiveFixture()
+    addSecondWritableBody(f.spaces)
+    f.host.start.mockImplementationOnce(async () => {
+      f.spaces.bodyDirectory().items[0]!.active = false
+      return { id: 'invalid-after-deactivation', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+        action: 'planned', summary: 'Invalid routing after destination deactivation.', routes: [],
+      } }), dispose: vi.fn(async () => {}) }
+    })
+    await expect(f.archive()).rejects.toThrow('no longer eligible; no archive writes were attempted')
+    expect(f.host.start).toHaveBeenCalledOnce()
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.runtime.compactAndMutate).not.toHaveBeenCalled()
+  })
+
   it('cleans every proven-new receipt when a later archive receipt is invalid', async () => {
     const f = runtimeArchiveFixture()
     vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([
@@ -1804,27 +1819,67 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(memoryService.remember).not.toHaveBeenCalled()
   })
 
-  it('rejects incomplete or invalid routes before any Provider write', async () => {
+  it.each([
+    { action: 'planned', summary: 'Incomplete route.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'No routes.', routes: [] },
+    { action: 'planned', summary: 'Unknown target.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: 'invented' }] },
+    { action: 'planned', summary: 'Empty target.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: ' ' }] },
+    { action: 'planned', summary: 'No indexes.', routes: [{ sourceIndexes: [], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'Duplicate indexes.', routes: [{ sourceIndexes: [1, 1, 2], memoryBodyId: 'release' }] },
+    { action: 'planned', summary: 'Cross-route duplicate.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }, { sourceIndexes: [1, 2], memoryBodyId: 'project' }] },
+    { action: 'planned', summary: 'Out of range.', routes: [{ sourceIndexes: [1, 3], memoryBodyId: 'release' }] },
+    { action: 'failed', summary: 'Router cannot choose.', routes: [] },
+    { action: 'planned', summary: 'Noninteger.', routes: [{ sourceIndexes: [1, 2.5], memoryBodyId: 'release' }] },
+  ])('falls back for invalid runtime routing output (issue 235): $summary', async proposal => {
     const plan = maintenancePlan()
-    const host = subagents({
-      summary: 'Incomplete route.',
-      action: 'planned',
-      routes: [{ sourceIndexes: [1], memoryBodyId: 'project' }],
-    })
+    const host = subagents(proposal)
     const runtime = {
       mutate: vi.fn().mockRejectedValueOnce(capacityError('memory', plan.used, plan.projected, plan.limit)),
       planMaintenance: vi.fn(async () => plan),
-      compactAndMutate: vi.fn(),
+      compactAndMutate: vi.fn(async () => ({ success: true, target: 'memory', added: plan.pending!.content, usage: { used: 20, limit: plan.limit } })),
     } as unknown as RuntimeOperations
     const memoryService = service()
     addSecondWritableBody(memoryService)
     const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, memoryService) as never, toolRegistry().value)
 
     await expect(coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, new AbortController().signal))
-      .rejects.toThrow('omitted committed archive sources')
-    expect(memoryService.rememberMany).not.toHaveBeenCalled()
+      .resolves.toMatchObject({ added: plan.pending!.content, maintenance: { memoryBodyIds: ['project'], summary: expect.stringContaining('routed to project deterministically') } })
+    expect(vi.mocked(memoryService.rememberMany).mock.calls.flatMap(([requests]) => requests.map(item => item.memoryBodyId))).toEqual(['project', 'project'])
     expect(memoryService.remember).not.toHaveBeenCalled()
-    expect(runtime.compactAndMutate).not.toHaveBeenCalled()
+    expect(runtime.compactAndMutate).toHaveBeenCalledOnce()
+  })
+
+  it('preserves earlier valid routes when a later chunk restarts its source indexes', async () => {
+    const plan = maintenancePlan('memory', [
+      { content: 'First source ' + 'a'.repeat(500), importance: 'normal' },
+      { content: 'Second source ' + 'b'.repeat(500), importance: 'normal' },
+      { content: 'Third source ' + 'c'.repeat(500), importance: 'critical' },
+    ])
+    const host = subagents({ action: 'planned', summary: 'Local numbering.', routes: [{ sourceIndexes: [1], memoryBodyId: 'release' }] })
+    host.start.mockResolvedValueOnce({ id: 'first-valid', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+      action: 'planned', summary: 'Valid first chunk.', routes: [{ sourceIndexes: [1, 2], memoryBodyId: 'release' }],
+    } }), dispose: vi.fn(async () => {}) })
+    const runtime = {
+      mutate: vi.fn().mockRejectedValueOnce(capacityError('memory', plan.used, plan.projected, plan.limit)),
+      planMaintenance: vi.fn(async () => plan),
+      compactAndMutate: vi.fn(async () => ({ success: true, target: 'memory', added: plan.pending!.content, usage: { used: 20, limit: plan.limit } })),
+    } as unknown as RuntimeOperations
+    const spaces = service()
+    addSecondWritableBody(spaces)
+    const coordinator = new MnemonSubagentCoordinator(host.value, runtimeSource(runtime, spaces), toolRegistry().value)
+    const result = await coordinator.runtime(parent(), { action: 'add', target: 'memory', content: plan.pending!.content }, new AbortController().signal)
+    expect(result.maintenance?.summary).toContain('batch 2 routed to project deterministically')
+    expect(vi.mocked(spaces.rememberMany).mock.calls.flatMap(([requests]) => requests.map(item => ({ content: item.content, memoryBodyId: item.memoryBodyId })))).toEqual(
+      plan.entries.map((entry, index) => ({ content: entry.content, memoryBodyId: index < 2 ? 'release' : 'project' })),
+    )
+    expect(runtime.compactAndMutate).toHaveBeenCalledOnce()
+    expect(host.start).toHaveBeenCalledTimes(2)
+    const prompts = (host.start.mock.calls as unknown as Array<[string, { prompt: Array<{ text: string }> }]>).map(([, call]) => call.prompt[0]!.text)
+    expect(prompts[1]).toContain('Allowed source indexes for this batch: 3. Keep these global indexes; never restart numbering.')
+    for (const prompt of prompts) {
+      const excerpt = prompt.split('<runtime-memory-routing-excerpts>\n')[1]!.split('\n</runtime-memory-routing-excerpts>')[0]!
+      for (const entry of excerpt.split('\n§\n')) expect(entry.replace(/^\d+\. \[importance=\w+\] /, '').length).toBeLessThanOrEqual(384)
+    }
   })
 
   it('deterministically routes to the default store when the routing model fails, then still commits the archive', async () => {

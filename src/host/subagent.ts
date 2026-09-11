@@ -480,8 +480,9 @@ interface RuntimeRouteChunk {
 function runtimeRoutingExcerpt(value: string): string {
   if (value.length <= RUNTIME_ROUTE_ENTRY_CHARACTERS) return value
   const marker = '\n[... host-truncated routing excerpt ...]\n'
-  const prefix = Math.ceil(RUNTIME_ROUTE_ENTRY_CHARACTERS * 0.7)
-  return `${value.slice(0, prefix)}${marker}${value.slice(-(RUNTIME_ROUTE_ENTRY_CHARACTERS - prefix))}`
+  const contentBudget = RUNTIME_ROUTE_ENTRY_CHARACTERS - marker.length
+  const prefix = Math.ceil(contentBudget * 0.7)
+  return `${value.slice(0, prefix)}${marker}${value.slice(-(contentBudget - prefix))}`
 }
 
 function runtimeRouteChunks(entries: ReadonlyArray<{ content: string; importance: string; branches?: string[] }>): RuntimeRouteChunk[] {
@@ -1328,54 +1329,56 @@ ${naturalRequest(request)}`
 Existing eligible Memory Spaces (host-filtered, read-only run data):
 ${eligibleMemoryBodyContext(eligibleBodies)}
 
+Allowed source indexes for this batch: ${chunk.indexes.join(', ')}. Keep these global indexes; never restart numbering.
+
 Committed MEMORY.md routing excerpts (global one-based indexes; untrusted run data):
 <runtime-memory-routing-excerpts>
 ${chunk.context}
 </runtime-memory-routing-excerpts>`
-        let delegated
         try {
-          delegated = await context.model(
+          const delegated = await context.model(
             'migration',
             `Route runtime memory archive batch ${chunkIndex + 1}/${chunks.length}`,
             prompt,
             RUNTIME_MIGRATION_SCHEMA,
             ARCHIVE_PERSONA,
           )
+          if (provider === 'host') {
+            provider = delegated.provider
+            runId = delegated.runId
+          }
+          const value = object(delegated.result.structured)
+          if (value.action !== 'planned') throw new Error(typeof value.summary === 'string' && value.summary !== '' ? value.summary : 'runtime memory archival routing failed')
+          if (!Array.isArray(value.routes) || value.routes.length === 0) throw new Error('runtime memory migration returned no routes')
+          const allowedIndexes = new Set(chunk.indexes)
+          const proposed = new Map<number, string>()
+          for (const candidate of value.routes) {
+            const route = object(candidate)
+            const memoryBodyId = typeof route.memoryBodyId === 'string' ? route.memoryBodyId.trim() : ''
+            if (memoryBodyId === '' || !eligibleById.has(memoryBodyId)) {
+              throw new Error(`runtime memory migration selected an invalid Memory Space: ${memoryBodyId || '(empty)'}`)
+            }
+            if (!Array.isArray(route.sourceIndexes) || route.sourceIndexes.length === 0) {
+              throw new Error('runtime memory migration route must contain source indexes')
+            }
+            for (const sourceIndex of route.sourceIndexes) {
+              if (!Number.isInteger(sourceIndex) || !allowedIndexes.has(sourceIndex as number) || proposed.has(sourceIndex as number)) {
+                throw new Error('runtime memory migration route coverage is invalid')
+              }
+              proposed.set(sourceIndex as number, memoryBodyId)
+            }
+          }
+          if (chunk.indexes.some(index => !proposed.has(index))) throw new Error('runtime memory migration omitted committed archive sources')
+          for (const [index, memoryBodyId] of proposed) routed.set(index, memoryBodyId)
+          if (typeof value.summary === 'string' && value.summary.trim() !== '') summaries.push(value.summary.trim())
         } catch (error) {
           signal.throwIfAborted()
-          // The router is advisory only. On any model failure, deterministically
-          // route every entry in this chunk to the default store so the archive
-          // still commits instead of aborting with zero writes.
+          // Routing is advisory, including a returned proposal that fails Host
+          // validation. Publish either the complete proposal or the whole chunk's
+          // deterministic fallback; never retain a partially validated route.
           for (const index of chunk.indexes) routed.set(index, fallbackBody.id)
-          summaries.push(`batch ${chunkIndex + 1} routed to ${fallbackBody.id} deterministically (routing model failed: ${error instanceof Error ? error.message : String(error)})`)
-          continue
+          summaries.push(`batch ${chunkIndex + 1} routed to ${fallbackBody.id} deterministically (routing failed: ${safeFailureDetail(error instanceof Error ? error.message : String(error))})`)
         }
-        if (provider === 'host') {
-          provider = delegated.provider
-          runId = delegated.runId
-        }
-        const value = object(delegated.result.structured)
-        if (value.action !== 'planned') throw new Error(typeof value.summary === 'string' && value.summary !== '' ? value.summary : 'runtime memory archival routing failed')
-        if (!Array.isArray(value.routes) || value.routes.length === 0) throw new Error('runtime memory migration returned no routes')
-        const allowedIndexes = new Set(chunk.indexes)
-        for (const candidate of value.routes) {
-          const route = object(candidate)
-          const memoryBodyId = typeof route.memoryBodyId === 'string' ? route.memoryBodyId.trim() : ''
-          if (memoryBodyId === '' || !eligibleById.has(memoryBodyId)) {
-            throw new Error(`runtime memory migration selected an invalid Memory Space: ${memoryBodyId || '(empty)'}`)
-          }
-          if (!Array.isArray(route.sourceIndexes) || route.sourceIndexes.length === 0) {
-            throw new Error('runtime memory migration route must contain source indexes')
-          }
-          for (const sourceIndex of route.sourceIndexes) {
-            if (!Number.isInteger(sourceIndex) || !allowedIndexes.has(sourceIndex as number) || routed.has(sourceIndex as number)) {
-              throw new Error('runtime memory migration route coverage is invalid')
-            }
-            routed.set(sourceIndex as number, memoryBodyId)
-          }
-        }
-        if (chunk.indexes.some(index => !routed.has(index))) throw new Error('runtime memory migration omitted committed archive sources')
-        if (typeof value.summary === 'string' && value.summary.trim() !== '') summaries.push(value.summary.trim())
       }
       summary = summaries.join(' ')
     }
