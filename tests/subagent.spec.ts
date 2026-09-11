@@ -1692,6 +1692,21 @@ describe('Mnemon memory subagent coordinator', () => {
     expect(f.spaces.rememberMany).not.toHaveBeenCalled()
   })
 
+  it('rechecks the fallback destination when an invalid routing response follows deactivation', async () => {
+    const f = runtimeArchiveFixture()
+    addSecondWritableBody(f.spaces)
+    f.host.start.mockImplementationOnce(async () => {
+      f.spaces.bodyDirectory().items[0]!.active = false
+      return { id: 'invalid-after-deactivation', result: Promise.resolve({ output: [], stopReason: 'completed', structured: {
+        action: 'planned', summary: 'Invalid routing after destination deactivation.', routes: [],
+      } }), dispose: vi.fn(async () => {}) }
+    })
+    await expect(f.archive()).rejects.toThrow('no longer eligible; no archive writes were attempted')
+    expect(f.host.start).toHaveBeenCalledOnce()
+    expect(f.spaces.rememberMany).not.toHaveBeenCalled()
+    expect(f.runtime.compactAndMutate).not.toHaveBeenCalled()
+  })
+
   it('cleans every proven-new receipt when a later archive receipt is invalid', async () => {
     const f = runtimeArchiveFixture()
     vi.mocked(f.spaces.rememberMany).mockResolvedValueOnce([
