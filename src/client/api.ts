@@ -6,6 +6,7 @@ import {
   MNEMON_VIEW_CHANNEL,
   MNEMON_VIEW_WRITE_CHANNEL,
   type MemoryViewDashboard,
+  type MemoryViewInspection,
   type MemoryViewConfigurationRequest,
   type AssistantMessageText,
   type ClientConnectionHandle,
@@ -103,6 +104,9 @@ export class MnemonClient {
   }
 
   viewDashboard(): Promise<MemoryViewDashboard> { return this.call(MNEMON_VIEW_CHANNEL, 'dashboard', this.scoped()) }
+  previewView(configuration: MemoryViewConfigurationRequest): Promise<MemoryViewInspection> {
+    return this.call(MNEMON_VIEW_CHANNEL, 'preview', this.scoped({ configuration }))
+  }
   applyView(configuration: MemoryViewConfigurationRequest): Promise<{ saved: true }> {
     return this.call(MNEMON_VIEW_WRITE_CHANNEL, 'apply', this.scoped({ configuration, confirmed: true }))
   }
