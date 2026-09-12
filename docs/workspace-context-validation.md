@@ -284,11 +284,14 @@ Rebased onto `main` at `8f3ce5e` (v0.5.8) with `git rebase --rebase-merges origi
 
 The reviewed bilingual copy baseline contains 983 keys per language: the prior settings copy plus the three upstream background-review warnings. The first focused run identified the stale baseline; no product copy was removed to satisfy it.
 
+The initial CI source job passed, including Node 20 public imports. Independent installation exposed npm selecting a new DSH 0.1.5-rc.2 peer beside exact rc.1 development packages. Eight plugin manifests now explicitly declare their required transitive DSH development peers at rc.1. Public runtime peer ranges are unchanged; the lockfile adds importer entries without changing package resolutions or snapshots. The complete local verification and all independent artifact checks passed after this correction.
+
 | Gate | Result |
 |---|---|
-| `pnpm install --frozen-lockfile` | Passed without lockfile changes |
+| `pnpm install --frozen-lockfile` | Passed against the updated manifests and lockfile; resolved package versions unchanged |
 | `pnpm verify` | Passed: 1,018 root tests, 5 opt-in skips; all 35 plugin builds, type checks and tests; deterministic builds and package validation |
 | `pnpm test` | Passed: 1,446 tests, 7 opt-in skips across 177 files |
+| `pnpm verify:plugins --skip-build` | Passed: 35 standalone plugin repositories and 36 tarballs, external SDK/Client consumer, real DSH Starter upgrade and optional Strategy activation; reused the already verified Root build |
 | Real DSH Headless | Passed: 39 total tools, 8 representative Mnemon tools, canonical Builtin persistence, restart and disabled Starter checks |
 | Real Mnemon | Passed: isolated space creation, View write, keyword recall and forget |
 | Public package | Passed: 48 files, 1,347,922 unpacked bytes, 12 Node imports, 28 public type dependencies, executable help, publint and declaration checks |
@@ -300,6 +303,8 @@ Logs are retained outside the repository under `../services/logs/rebase-main-202
 
 中英文文案基线各为 983 项，包括已有设置文案与上游新增的三条后台审查提示。首轮定向测试发现旧基线未涵盖这些提示，核对后更新基线，没有为了通过检查删除产品文案。
 
-冻结依赖安装未改变 lockfile。`pnpm verify` 通过 1,018 项根测试（另 5 项 opt-in 跳过）、35 个插件的构建、类型检查和测试，以及确定性构建与包验证；`pnpm test` 在 177 个文件中通过 1,446 项测试，另 7 项 opt-in 跳过。真实 DSH Headless 验证 39 个工具（含 8 个代表性 Mnemon 工具）、内置模式持久化、重启和停用 Starter；真实 Mnemon 验证隔离空间创建、View 写入、关键词召回和删除。公开包为 48 个文件、1,347,922 字节，12 个 Node 入口、28 个公开类型依赖、命令帮助、publint 与声明检查均通过，changeset 覆盖检查基于 `8f3ce5e` 通过。
+首次 CI 源码检查及 Node 20 公开入口已通过，独立安装则发现 npm 为部分间接 peer 选择了新的 DSH 0.1.5-rc.2，与固定 rc.1 的开发依赖冲突。八个插件的 manifest 现以 rc.1 显式声明所需的间接 DSH 开发 peer，公开运行时 peer 范围保持不变；lockfile 只新增显式导入条目，包版本、解析与快照均不变。修正后完整本机验证和全部独立制品检查通过。
+
+冻结安装与更新后的 manifest、lockfile 一致。`pnpm verify` 通过 1,018 项根测试（另 5 项 opt-in 跳过）、35 个插件的构建、类型检查和测试，以及确定性构建与包验证；`pnpm test` 在 177 个文件中通过 1,446 项测试，另 7 项 opt-in 跳过。`pnpm verify:plugins --skip-build` 复用已验证的 Root 构建，通过 35 个独立插件仓库、36 个制品、外部 SDK/Client 消费者、真实 DSH Starter 升级与可选策略启用检查。真实 DSH Headless 验证 39 个工具（含 8 个代表性 Mnemon 工具）、内置模式持久化、重启和停用 Starter；真实 Mnemon 验证隔离空间创建、View 写入、关键词召回和删除。公开包为 48 个文件、1,347,922 字节，12 个 Node 入口、28 个公开类型依赖、命令帮助、publint 与声明检查均通过，changeset 覆盖检查基于 `8f3ce5e` 通过。
 
 日志保留在仓库外的 `../services/logs/rebase-main-20260912-*.log`。本轮验证 rebase 后的自动化行为，没有新增 WebUI 截图；上文记录的浏览器复查仍待完成，PR #229 保持草稿状态。历史截图继续对应各自原有版本和日期。

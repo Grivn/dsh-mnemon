@@ -4,11 +4,13 @@
 
 ## 环境与命令
 
-插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 是 npm latest 发布的 0.1.5-rc.1，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root、Source Client 测试和外部制品消费者均使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；源码覆盖工具保留用于明确请求的调查。
+插件的 Node engine 下限为 20；锁定的完整 DSH 开发 Profile 使用已发布的 npm 0.1.5-rc.1 版本，需要 Node `^22.19.0 || >=24.0.0`，建议开发使用 Node 24。Root 及显式配置的 Source/消费者 Client 测试使用该 rc.1 依赖族；`dsh-invariants` 闭合 peer 图，`dsh-client-store` 则提供子 Agent projection 适配器使用的公开 selector 类型。CI 另在 Node 20 冒烟导入公开 Node 入口；源码覆盖工具保留用于明确请求的调查。
 
 DSH 0.1.5 UI primitives 在制品中导入 Markdown/高亮依赖，但其已发布 manifest 将这些包列为开发依赖。Root、三个 Source 与外部消费者显式声明完整依赖族，使独立 Client 测试可执行；Host 制品仍使用 DSH 提供的 UI 模块。测试同步使用公开的异步 Agent 工厂及持久化 `assistant/message` 事件。`tests/legacy-session-repair.spec.ts` 对 0.1.2 实际生成的合成日志执行已发布的 v0 → v3 迁移，覆盖普通和压缩格式、副本修复与冷启动重读。
 
 pnpm 11 可能在 rc.1 仍处于发布时间隔离窗口时安装这组已审核制品，因此 `minimumReleaseAgeExclude` 逐项列出精确版本。组合测试要求该列表与 lockfile 中的 rc.1 包完全一致，并拒绝 scope 通配符，使后续发布的 `@deepseek-ai` 包仍受隔离策略约束。
+
+使用 DSH Agent/Session API 的插件项目还在 `devDependencies` 中以精确版本声明所需的间接 DSH peer，确保新的预发布版本出现后，独立 npm 安装仍使用已验证的开发依赖族。公开 `peerDependencies` 保留声明的兼容范围；精确版本只用于开发和测试。
 
 ```sh
 pnpm install --frozen-lockfile
