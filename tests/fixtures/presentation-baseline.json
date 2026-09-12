@@ -92,12 +92,12 @@
   },
   "idleReviewWarning": {
     "en": {
-      "keys": 980,
-      "sha256": "f08ccf3c1de45c07c4f2564d4b1904d272240d2288fa5a6f608417022a325224"
+      "keys": 983,
+      "sha256": "46d1bfedd5505a9873dc9fff366badaa958cdef65c3f31414d087121e6d9f280"
     },
     "zh": {
-      "keys": 980,
-      "sha256": "12817b8c6f44c3bfd5ed5f0a0b5cb09e36cc06f490e551bfe0049edf33d72e9e"
+      "keys": 983,
+      "sha256": "bdc394d6d71df788576ad35c7fd0b98f5e597d35872957001508365fdd0997bb"
     }
   }
 }

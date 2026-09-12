@@ -277,3 +277,29 @@ Linux CI then exposed three lookups depending on a system `rg` command. The work
 Linux CI 随后发现三处检索依赖系统 `rg` 命令。工具包现明确声明 `@vscode/ripgrep` 1.18.0，并按需解析平台程序，用于文件、技能和导入会话检索；显式本地命令覆盖仍保留。9 项定向测试通过，其中包括子进程 `PATH` 为空时的真实检索。进程时限、输出上限和目录授权保持原有检查。
 
 新的 `services-dsh-015` 独立环境已启动完整组合，之前的服务目录及合成历史保持原状。本轮内置浏览器和 Chrome 均以 `ERR_BLOCKED_BY_CLIENT` 阻止访问，因此没有新的 WebUI 验收或截图。上面的历史截图只对应其注明的版本；集中式存储布局及合并后的设置流程仍需在本机浏览器访问恢复后复查。固定响应模型只验证编排，不代表外部模型质量。命令日志保存在仓库外，运行日志和认证链接不进入验收材料。
+
+## Main rebase — 2026-09-12
+
+Rebased onto `main` at `8f3ce5e` (v0.5.8) with `git rebase --rebase-merges origin/main`, preserving the existing feature history and the manual DSH compatibility resolutions. The upstream review guards, stable result tool, runtime archive preflight, routing fallback and sidebar fixes are retained. Root and the artifact consumer now use 0.5.8; the independent plugin graph, published DSH 0.1.5-rc.1 dependencies, clean-build ordering and portable search dependency are preserved.
+
+The reviewed bilingual copy baseline contains 983 keys per language: the prior settings copy plus the three upstream background-review warnings. The first focused run identified the stale baseline; no product copy was removed to satisfy it.
+
+| Gate | Result |
+|---|---|
+| `pnpm install --frozen-lockfile` | Passed without lockfile changes |
+| `pnpm verify` | Passed: 1,018 root tests, 5 opt-in skips; all 35 plugin builds, type checks and tests; deterministic builds and package validation |
+| `pnpm test` | Passed: 1,446 tests, 7 opt-in skips across 177 files |
+| Real DSH Headless | Passed: 39 total tools, 8 representative Mnemon tools, canonical Builtin persistence, restart and disabled Starter checks |
+| Real Mnemon | Passed: isolated space creation, View write, keyword recall and forget |
+| Public package | Passed: 48 files, 1,347,922 unpacked bytes, 12 Node imports, 28 public type dependencies, executable help, publint and declaration checks |
+| Release intent | Passed against `8f3ce5e` |
+
+Logs are retained outside the repository under `../services/logs/rebase-main-20260912-*.log`. This checkpoint verifies the rebased code automatically; it does not add new WebUI screenshots. The browser recheck recorded above remains outstanding, and PR #229 remains a draft. Earlier screenshots retain their original revision and date.
+
+已通过 `git rebase --rebase-merges origin/main` 将分支 rebase 到 `main` 的 `8f3ce5e`（v0.5.8），保留已有功能提交和此前手动解决的 DSH 兼容性调整。上游审阅保护、稳定结果工具、运行时归档预检、路由回退与侧栏修复均已纳入。Root 和制品消费者版本为 0.5.8，独立插件依赖图、DSH 0.1.5-rc.1 公开依赖、全新构建顺序及可移植搜索依赖均保留。
+
+中英文文案基线各为 983 项，包括已有设置文案与上游新增的三条后台审查提示。首轮定向测试发现旧基线未涵盖这些提示，核对后更新基线，没有为了通过检查删除产品文案。
+
+冻结依赖安装未改变 lockfile。`pnpm verify` 通过 1,018 项根测试（另 5 项 opt-in 跳过）、35 个插件的构建、类型检查和测试，以及确定性构建与包验证；`pnpm test` 在 177 个文件中通过 1,446 项测试，另 7 项 opt-in 跳过。真实 DSH Headless 验证 39 个工具（含 8 个代表性 Mnemon 工具）、内置模式持久化、重启和停用 Starter；真实 Mnemon 验证隔离空间创建、View 写入、关键词召回和删除。公开包为 48 个文件、1,347,922 字节，12 个 Node 入口、28 个公开类型依赖、命令帮助、publint 与声明检查均通过，changeset 覆盖检查基于 `8f3ce5e` 通过。
+
+日志保留在仓库外的 `../services/logs/rebase-main-20260912-*.log`。本轮验证 rebase 后的自动化行为，没有新增 WebUI 截图；上文记录的浏览器复查仍待完成，PR #229 保持草稿状态。历史截图继续对应各自原有版本和日期。
